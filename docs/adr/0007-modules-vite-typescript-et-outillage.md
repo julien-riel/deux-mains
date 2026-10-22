@@ -2,7 +2,7 @@
 
 - **Statut** : Acceptée
 - **Date** : 2026-10-22
-- **Issues liées** : aucune pour l'instant (la migration sera découpée en trois issues)
+- **Issues liées** : #1 (outillage), #2 (découpage en modules), #3 (tests unitaires)
 - **Artefact de décision** : https://claude.ai/artifact/T6Sn7arc1vDNxQzwBr58NF
 - **Remplace** : [ADR-0002](0002-prototype-en-un-seul-fichier-html.md)
 
@@ -35,7 +35,7 @@ Option B, en TypeScript, avec Prettier et ESLint.
   - Les modules de logique pure (générateur, jugement, accords, auto-play) n'accèdent ni au DOM, ni au canvas, ni à `AudioContext`, pour pouvoir être testés sans faux navigateur.
   - La simulation existante, qui joue une chanson entière dans chaque univers, devient le test de non-régression des parcours complets.
 - **Qualité** : Prettier pour la mise en forme, ESLint (règles recommandées et `typescript-eslint`) pour les erreurs probables.
-- **Dépendances** : uniquement des dépendances de développement. Le jeu construit ne charge rien de l'extérieur, et tous les sons restent synthétisés (ce point d'ADR-0002 reste valable).
+- **Dépendances** : uniquement des dépendances de développement. Le jeu construit ne charge aucune bibliothèque ni aucun fichier extérieur, à part les polices Google Fonts (avec des polices de secours), et tous les sons restent synthétisés (ce point d'ADR-0002 reste valable).
 - **Commandes** : `npm run dev`, `npm test`, `npm run build`, `npm run format`, `npm run lint`, décrites dans la section « Outillage » de `CLAUDE.md`.
 
 La migration se fait en trois issues, dans l'ordre, sans changer le comportement du jeu :
