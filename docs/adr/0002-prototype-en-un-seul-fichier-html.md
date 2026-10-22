@@ -1,6 +1,6 @@
 # ADR-0002 : Livrer le prototype en un seul fichier HTML sans dépendance
 
-- **Statut** : Acceptée
+- **Statut** : Remplacée par [ADR-0007](0007-modules-vite-typescript-et-outillage.md)
 - **Date** : 2026-10-21
 - **Issues liées** : aucune
 

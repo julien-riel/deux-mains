@@ -11,7 +11,10 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 ## Organisation
 
-- `deux-mains.html` : le jeu complet (voir ADR-0002).
+- `deux-mains.html` : le jeu complet, en un seul fichier. Il est en cours de migration vers `src/` (ADR-0007) et disparaîtra une fois le découpage terminé.
+- `src/` : le code TypeScript, organisé par domaine. Les modules de logique pure (générateur, jugement, accords, auto-play) n'accèdent ni au DOM, ni au canvas, ni à l'audio.
+- `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
+- `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.
 - `docs/adr/` : le registre des décisions d'architecture. Lire l'index `docs/adr/README.md` avant de modifier un comportement structurant.
 
 ## Façon de travailler
@@ -23,4 +26,16 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 ## Outillage
 
-À définir : la façon de tester et de formater le code fait l'objet d'une décision en attente (ADR-0007). Une fois cette décision prise, cette section donne les commandes exactes pour les tests, Prettier et le linter.
+Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest, Prettier et ESLint. Uniquement des dépendances de développement.
+
+| Commande | Rôle |
+|---|---|
+| `npm run dev` | Serveur de développement avec rechargement à chaud |
+| `npm test` | Tests Vitest (unitaires et simulation) |
+| `npm run build` | Produit `dist/deux-mains.html`, le fichier à publier |
+| `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
+| `npm run lint` | ESLint |
+
+Ces commandes sont mises en place par la première issue de migration. Tant qu'elles n'existent pas, la vérification se limite à `node --check` sur le script extrait et à la simulation sans navigateur.
+
+Pour publier le jeu en artefact : `npm run build`, puis republier `dist/deux-mains.html` à l'adresse du prototype.
