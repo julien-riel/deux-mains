@@ -75,7 +75,7 @@ Si le jeu est publié comme artefact, republie-le pour que l'utilisateur puisse 
 
 ### 8. Livrer
 
-Commite en français, avec un message qui décrit le changement et référence l'issue (`Ferme #N` dans le corps). Pousse la branche et ouvre une pull request :
+Commite en français, avec un message qui décrit le changement et se termine par la ligne `Closes #N`. Pousse la branche et ouvre une pull request :
 
 ```bash
 git push -u origin issue-N-titre-court
@@ -84,13 +84,24 @@ gh pr create --title "Titre de l'issue" --body-file /chemin/vers/corps.md
 
 Le corps de la pull request contient :
 
+- la ligne `Closes #N`, seule sur sa ligne, avant le résumé ;
 - un résumé du changement ;
 - les critères d'acceptation cochés, avec la façon dont chacun a été vérifié ;
 - les tests ajoutés ;
 - les ADR créés, modifiés ou respectés ;
 - ce qui reste à vérifier à la main.
 
-Ne fusionne pas la pull request sans l'accord de l'utilisateur.
+**Pourquoi `Closes` en anglais** : GitHub ne ferme l'issue à la fusion que s'il reconnaît un de ses mots-clés anglais (`Closes`, `Fixes`, `Resolves`) suivi du numéro. `Ferme #N` ne marche pas. C'est la seule exception à la règle « tout en français ». Si la PR traite plusieurs issues, répète le mot-clé : `Closes #4, closes #5`.
+
+Avant de passer à la suite, vérifie que GitHub a bien relié l'issue à la PR :
+
+```bash
+gh pr view --json closingIssuesReferences --jq '.closingIssuesReferences[].number'
+```
+
+Le numéro de l'issue doit s'afficher. Sinon, corrige le corps avec `gh pr edit --body-file …`.
+
+Ne fusionne pas la pull request sans l'accord de l'utilisateur. Après une fusion, vérifie avec `gh issue view N --json state` que l'issue est fermée.
 
 ### 9. Faire le compte rendu
 
