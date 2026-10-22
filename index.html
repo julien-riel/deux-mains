@@ -1,0 +1,107 @@
+<meta charset="utf-8" />
+<title>Deux Mains</title>
+<meta name="claude:viewport-fit-sides" content="cover" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap"
+/>
+<link rel="stylesheet" href="/src/styles.css" />
+
+<div class="wrap">
+  <header>
+    <h1><span class="l">Deux</span> <span class="r">Mains</span></h1>
+    <p class="tag">
+      La main gauche joue la basse en sautant et en glissant, la main droite joue la mélodie en tirant. Deux univers :
+      rendre sa musique à une ville réduite au silence, ou remonter les souvenirs d'une vieille boîte à musique.
+    </p>
+  </header>
+
+  <div class="stage">
+    <canvas
+      id="game"
+      role="img"
+      aria-label="Scène de jeu : le personnage court vers la droite, les obstacles au sol jouent la basse, les ennemis dans les couloirs jouent la mélodie."
+    ></canvas>
+    <div class="overlay" id="overlay"></div>
+  </div>
+
+  <div class="bar">
+    <div class="field">
+      <span class="flabel" id="theme-label">Univers</span>
+      <div class="seg" role="radiogroup" aria-labelledby="theme-label">
+        <input type="radio" name="theme" id="t-ville" value="ville" /><label for="t-ville">La Ville Muette</label>
+        <input type="radio" name="theme" id="t-boite" value="boite" /><label for="t-boite">La Boîte à musique</label>
+      </div>
+    </div>
+    <div class="field">
+      <span class="flabel" id="diff-label">Difficulté</span>
+      <div class="seg" role="radiogroup" aria-labelledby="diff-label">
+        <input type="radio" name="diff" id="d-facile" value="facile" /><label for="d-facile">Facile</label>
+        <input type="radio" name="diff" id="d-normal" value="normal" /><label for="d-normal">Normal</label>
+        <input type="radio" name="diff" id="d-difficile" value="difficile" /><label for="d-difficile">Difficile</label>
+      </div>
+    </div>
+    <div class="field">
+      <span class="flabel" id="hands-label">Mains</span>
+      <div class="seg" role="radiogroup" aria-labelledby="hands-label">
+        <input type="radio" name="hands" id="h-both" value="both" /><label for="h-both">Les deux</label>
+        <input type="radio" name="hands" id="h-L" value="L" /><label for="h-L">Gauche seule</label>
+        <input type="radio" name="hands" id="h-R" value="R" /><label for="h-R">Droite seule</label>
+      </div>
+    </div>
+    <div class="field">
+      <label class="flabel" for="seed">Graine</label>
+      <input id="seed" type="number" min="1" max="99999" inputmode="numeric" />
+    </div>
+    <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
+    <p class="song" id="songline"></p>
+  </div>
+
+  <div class="cards">
+    <section class="card l">
+      <h3>Main gauche · la basse</h3>
+      <dl class="keys">
+        <dt><kbd data-code="KeyW">W</kbd></dt>
+        <dd>Sauter par-dessus un bloc : l'octave</dd>
+        <dt><kbd data-code="KeyS">S</kbd></dt>
+        <dd>Glisser sous une barre : la fondamentale</dd>
+        <dt><kbd data-code="KeyS">S</kbd> tenu</dt>
+        <dd>Traverser un tunnel : note tenue</dd>
+      </dl>
+    </section>
+    <section class="card r">
+      <h3>Main droite · la mélodie</h3>
+      <dl class="keys">
+        <dt>
+          <kbd data-code="KeyJ">J</kbd><kbd data-code="KeyK">K</kbd><kbd data-code="KeyL">L</kbd
+          ><kbd data-code="Semicolon">;</kbd>
+        </dt>
+        <dd>Fondamentale, tierce, quinte, octave de l'accord en cours</dd>
+        <dt>tenu</dt>
+        <dd>Ennemi allongé : note tenue</dd>
+      </dl>
+      <p>
+        Des ennemis reliés par une barre forment un accord : appuie sur leurs touches ensemble. Un pointillé vers un
+        obstacle veut dire : les deux mains en même temps.
+      </p>
+      <p>Pendant le solo libre, tire où tu veux : tout sonne juste.</p>
+    </section>
+    <section class="card">
+      <h3>Harmonie</h3>
+      <p>
+        C'est ta vie. Un obstacle heurté ou un ennemi manqué la fait baisser : la musique s'étouffe, perd ses couches,
+        puis se désaccorde. À zéro, elle s'arrête. Huit réussites d'affilée en rendent un peu.
+      </p>
+      <p>Le combo ajoute des couches : arpèges à 8, chœurs à 20, cordes à 35.</p>
+    </section>
+  </div>
+  <p class="note">
+    Clavier requis. <kbd>Échap</kbd> met en pause, <kbd data-code="KeyA">A</kbd> active ou coupe l'auto-play à tout
+    moment. Les touches suivent leur position physique : en AZERTY, le saut est sur <kbd>Z</kbd> et l'octave sur
+    <kbd>M</kbd>.
+  </p>
+</div>
+
+<script type="module" src="/src/main.ts"></script>

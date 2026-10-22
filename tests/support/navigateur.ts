@@ -1,44 +1,26 @@
-// Faux navigateur pour faire tourner deux-mains.html dans Node, sans modifier son script.
+// Faux navigateur pour faire tourner le jeu complet dans Node.
 //
-// Le script du jeu est extrait tel quel du fichier HTML et exécuté dans un contexte `node:vm` qui fournit
-// juste ce qu'il utilise : document, canvas 2D, Web Audio, minuteries, clavier et localStorage.
+// Avant d'importer src/main.ts, on remplace les globales du navigateur par des imitations qui fournissent
+// juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier et localStorage.
 // Une seule horloge simulée fait avancer à la fois AudioContext.currentTime, performance.now(),
 // setInterval (le séquenceur) et requestAnimationFrame (la boucle d'images).
 //
-// Le jeu expose son état par l'interface de test documentée à la fin de son script (window.__deuxMainsTest).
+// Chaque Navigateur repart de modules neufs (vi.resetModules), donc d'une partie neuve.
 
-import { readFileSync } from "node:fs";
-import { createContext, runInContext } from "node:vm";
+import { vi } from "vitest";
+import type { Etat } from "../../src/jeu/etat";
 
 export type Difficulte = "facile" | "normal" | "difficile";
 export type Univers = "ville" | "boite";
 
-export interface EtatJeu {
-  mode: string;
-  health: number;
-  miss: number;
-  perfect: number;
-  good: number;
-  song: { ev: unknown[]; endBeat: number; bpm: number };
-}
-
-export interface InterfaceTest {
-  state: EtatJeu;
+export interface InterfaceJeu {
+  state: Etat;
   load(seed: number, diff: Difficulte): void;
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R"): void;
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
-
-const CHEMIN_JEU = new URL("../../deux-mains.html", import.meta.url);
-
-export function extraireScript(html: string): string {
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
-  if (scripts.length !== 1)
-    throw new Error(`deux-mains.html devrait contenir un seul <script>, trouvé : ${scripts.length}`);
-  return scripts[0][1];
-}
 
 /* ---------- Horloge ---------- */
 class Horloge {
@@ -146,13 +128,30 @@ function element(extra: Record<string, unknown> = {}) {
 export class Navigateur {
   readonly horloge = new Horloge();
   readonly overlay = element();
-  readonly jeu: InterfaceTest;
+  jeu: InterfaceJeu;
   private ecouteurs = new Map<string, Ecouteur[]>();
   private images: ((t: number) => void)[] = [];
   private minuteries = new Map<number, { fn: () => void; ms: number; prochaine: number }>();
   private prochainId = 1;
 
-  constructor(html = readFileSync(CHEMIN_JEU, "utf8")) {
+  /** Installe le faux navigateur, puis charge le jeu comme le ferait la page. */
+  static async ouvrir() {
+    const nav = new Navigateur();
+    nav.installer();
+    vi.resetModules();
+    await import("../../src/main");
+    const { S } = await import("../../src/jeu/etat");
+    const reglages = await import("../../src/ui/reglages");
+    nav.jeu = { state: S, load: reglages.load, setTheme: reglages.setTheme, setPractice: reglages.setPractice };
+    return nav;
+  }
+
+  /** Remet les vraies globales de Node. */
+  fermer() {
+    vi.unstubAllGlobals();
+  }
+
+  private installer() {
     const ms = () => this.horloge.secondes * 1000;
     const elements: Record<string, ReturnType<typeof element>> = {
       "#game": element({
@@ -168,10 +167,8 @@ export class Navigateur {
     };
     const parId = new Map<string, ReturnType<typeof element>>();
     const stockage = new Map<string, string>();
-    const interfaceTest = {} as InterfaceTest;
 
     const fenetre: Record<string, unknown> = {
-      __deuxMainsTest: interfaceTest,
       document: {
         documentElement: {},
         activeElement: null,
@@ -205,10 +202,7 @@ export class Navigateur {
       },
     };
     fenetre.window = fenetre;
-
-    runInContext(extraireScript(html), createContext(fenetre), { filename: "deux-mains.html" });
-    this.jeu = interfaceTest;
-    if (!this.jeu.state) throw new Error("Le jeu n'a pas rempli window.__deuxMainsTest");
+    for (const [nom, valeur] of Object.entries(fenetre)) vi.stubGlobal(nom, valeur);
   }
 
   /** Simule une touche pressée, repérée par sa position physique (KeyboardEvent.code). */
@@ -237,7 +231,7 @@ export class Navigateur {
   }
 
   /** Avance image par image jusqu'à ce que la condition soit vraie, ou que la durée maximale soit écoulée. */
-  avancerJusqua(condition: (etat: EtatJeu) => boolean, maxSecondes: number) {
+  avancerJusqua(condition: (etat: Etat) => boolean, maxSecondes: number) {
     const fin = this.horloge.secondes + maxSecondes;
     while (!condition(this.jeu.state) && this.horloge.secondes < fin) this.image();
     return this.jeu.state;
