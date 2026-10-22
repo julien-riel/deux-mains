@@ -18,6 +18,7 @@ export interface InterfaceJeu {
   load(seed: number, diff: Difficulte): void;
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R"): void;
+  setVitesse(v: number): void;
   setCommandes(v: "auto" | "clavier" | "tactile"): void;
   setFormes(oui: boolean): void;
   /** Le temps de la chanson, en secondes */
@@ -44,7 +45,10 @@ class Horloge {
 function parametre(value = 0) {
   const p = {
     value,
-    setValueAtTime: () => p,
+    setValueAtTime: (v: number) => {
+      p.value = v;
+      return p;
+    },
     linearRampToValueAtTime: () => p,
     exponentialRampToValueAtTime: () => p,
     setTargetAtTime: () => p,
@@ -188,6 +192,7 @@ export class Navigateur {
       load: reglages.load,
       setTheme: reglages.setTheme,
       setPractice: reglages.setPractice,
+      setVitesse: reglages.setVitesse,
       setCommandes: reglages.setCommandes,
       setFormes: reglages.setFormes,
       songNow,

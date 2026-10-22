@@ -4,14 +4,14 @@ import { randomSeed } from "./chanson/aleatoire";
 import { DIFFS } from "./chanson/difficultes";
 import { update } from "./jeu/deroulement";
 import { effets } from "./jeu/effets";
-import { S } from "./jeu/etat";
+import { S, VITESSES } from "./jeu/etat";
 import { brancherEffets } from "./jeu/jugement";
 import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
 import { show } from "./ui/ecrans";
 import { suivreCalibrage } from "./ui/calibrage";
-import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme } from "./ui/reglages";
+import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
 
@@ -20,6 +20,7 @@ interface Reglages {
   seed?: number;
   diff?: string;
   practice?: string;
+  vitesse?: number;
   theme?: string;
 }
 interface Chaud {
@@ -64,7 +65,8 @@ let savedHands = null,
   savedTheme = null,
   savedCommandes = null,
   savedDecalage = null,
-  savedFormes = null;
+  savedFormes = null,
+  savedVitesse = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
   savedHands = localStorage.getItem("deux-mains-hands");
@@ -72,13 +74,15 @@ try {
   savedCommandes = localStorage.getItem("deux-mains-commandes");
   savedDecalage = localStorage.getItem("deux-mains-decalage");
   savedFormes = localStorage.getItem("deux-mains-formes");
+  savedVitesse = Number(localStorage.getItem("deux-mains-vitesse"));
 } catch {
   /* stockage indisponible */
 }
 const HANDS = ["both", "L", "R"],
   COMMANDES = ["auto", "clavier", "tactile"];
 const hot = window.claude && window.claude.hot;
-if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, theme: S.theme }));
+if (hot && hot.snapshot)
+  hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, vitesse: S.vitesse, theme: S.theme }));
 const boot = (data) => {
   data = data || {};
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
@@ -86,6 +90,7 @@ const boot = (data) => {
   setFormes(savedFormes !== "non");
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
+  setVitesse(VITESSES.includes(data.vitesse) ? data.vitesse : VITESSES.includes(savedVitesse) ? savedVitesse : 1);
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");
   requestAnimationFrame(frame);
 };

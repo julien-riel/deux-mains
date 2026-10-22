@@ -72,6 +72,9 @@ export interface Etat {
   autoLane: number;
   keyFlash: Partial<Record<Action, number>>;
   practice: string;
+  /** Vitesse de lecture choisie (#4), et celle de la partie en cours, figée au départ pour que l'horloge ne saute pas */
+  vitesse: number;
+  vitessePartie: number;
   theme: string;
   /** Une forme par couloir, en plus de la couleur (#31) */
   formes: boolean;
@@ -119,11 +122,15 @@ export const S: Etat = {
   autoLane: 1,
   keyFlash: {},
   practice: "both",
+  vitesse: 1,
+  vitessePartie: 1,
   theme: "ville",
   formes: true,
   keyAng: 0,
 };
-export const spb = () => 60 / S.song.bpm;
+export const VITESSES = [0.5, 0.75, 1];
+// Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
+export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
 // Sur l'écran de départ et pendant le calibrage, la scène tourne au repos
 export const auRepos = () => S.mode === "title" || S.mode === "calib";
 

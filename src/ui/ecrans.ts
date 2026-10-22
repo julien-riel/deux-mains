@@ -1,7 +1,7 @@
 /* ---------- Écrans ---------- */
 import { DIFFS } from "../chanson/difficultes";
 import { METRONOME } from "../jeu/calibrage";
-import { S, sectionAtBar, spb } from "../jeu/etat";
+import { S, sectionAtBar } from "../jeu/etat";
 import { clamp } from "../outils";
 import { TH, placeName } from "../univers/univers";
 import { COMMANDES, KEYLABEL } from "./touches";
@@ -12,10 +12,11 @@ export const k = (c) => `<kbd>${KEYLABEL[c] || c}</kbd>`;
 export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff];
-  const len = Math.round(s.totalBars * 4 * spb());
+  // La durée à la vitesse choisie, qui s'appliquera au départ (#4)
+  const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse));
   let h = "";
   if (kind === "title") {
-    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}</p>
+    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}</p>
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>

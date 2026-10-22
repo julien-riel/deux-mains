@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté), univers, mains jouées, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté), univers, mains jouées, vitesse, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -67,6 +67,21 @@ export function setPractice(v: string) {
   if (S.mode === "play" && v !== "both") S.autoUsed = true;
   try {
     localStorage.setItem("deux-mains-hands", v);
+  } catch {
+    /* stockage indisponible */
+  }
+  if (S.mode === "title" && S.song) show("title");
+}
+document
+  .querySelectorAll<HTMLInputElement>('input[name="vitesse"]')
+  .forEach((r) => r.addEventListener("change", () => setVitesse(+r.value / 100)));
+// Vitesse de lecture, pour s'entraîner au ralenti (#4) : elle s'applique au prochain départ ou à la prochaine reprise
+export function setVitesse(v: number) {
+  S.vitesse = v;
+  const r = document.getElementById("v-" + Math.round(v * 100)) as HTMLInputElement;
+  if (r) r.checked = true;
+  try {
+    localStorage.setItem("deux-mains-vitesse", String(v));
   } catch {
     /* stockage indisponible */
   }
