@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté), univers, mains jouées, commandes et décalage, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté), univers, mains jouées, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -96,6 +96,20 @@ export function setDecalage(ms: number) {
   $<HTMLInputElement>("#decalage").value = String(ms);
   try {
     localStorage.setItem("deux-mains-decalage", String(ms));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+document
+  .querySelectorAll<HTMLInputElement>('input[name="formes"]')
+  .forEach((r) => r.addEventListener("change", () => setFormes(r.value === "oui")));
+// Formes des couloirs : chaque couloir se reconnaît aussi à sa forme, pas seulement à sa couleur (#31)
+export function setFormes(oui: boolean) {
+  S.formes = oui;
+  const r = document.getElementById(oui ? "f-oui" : "f-non") as HTMLInputElement;
+  if (r) r.checked = true;
+  try {
+    localStorage.setItem("deux-mains-formes", oui ? "oui" : "non");
   } catch {
     /* stockage indisponible */
   }

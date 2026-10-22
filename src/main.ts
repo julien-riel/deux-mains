@@ -11,7 +11,7 @@ import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
 import { show } from "./ui/ecrans";
 import { suivreCalibrage } from "./ui/calibrage";
-import { load, setCommandes, setDecalage, setPractice, setTheme } from "./ui/reglages";
+import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme } from "./ui/reglages";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
 
@@ -63,13 +63,15 @@ let savedDiff = null;
 let savedHands = null,
   savedTheme = null,
   savedCommandes = null,
-  savedDecalage = null;
+  savedDecalage = null,
+  savedFormes = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
   savedHands = localStorage.getItem("deux-mains-hands");
   savedTheme = localStorage.getItem("deux-mains-theme");
   savedCommandes = localStorage.getItem("deux-mains-commandes");
   savedDecalage = localStorage.getItem("deux-mains-decalage");
+  savedFormes = localStorage.getItem("deux-mains-formes");
 } catch {
   /* stockage indisponible */
 }
@@ -81,6 +83,7 @@ const boot = (data) => {
   data = data || {};
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
   setDecalage(Number(savedDecalage) || 0);
+  setFormes(savedFormes !== "non");
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");

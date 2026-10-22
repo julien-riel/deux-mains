@@ -19,6 +19,8 @@ export const HUE_BASS = 28,
   HUE_MEL = 198;
 
 export const DEG = ["FONDAMENTALE", "TIERCE", "QUINTE", "OCTAVE"];
+// Chaque couloir a sa forme, la même dans les deux univers (ADR-0006) : on le reconnaît sans sa couleur (#31)
+export const FORMES = ["rond", "triangle", "carré", "losange"] as const;
 
 export const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const css = getComputedStyle(document.documentElement);
@@ -64,6 +66,25 @@ export function rr(x, y, w, h, r) {
   g.arcTo(x, y + h, x, y, r);
   g.arcTo(x, y, x + w, y, r);
   g.closePath();
+}
+// Trace la forme du couloir i, centrée en (x, y), de la taille d'un rond de rayon r ; sans le réglage, un rond
+export function formeCouloir(i, x, y, r) {
+  const forme = S.formes ? FORMES[i] : "rond";
+  g.beginPath();
+  if (forme === "rond") g.arc(x, y, r, 0, Math.PI * 2);
+  else if (forme === "carré") {
+    const c = r * 0.88;
+    g.rect(x - c, y - c, 2 * c, 2 * c);
+  } else {
+    // Triangle pointe en haut, losange : des polygones réguliers un peu plus grands pour peser autant que le rond
+    const n = forme === "triangle" ? 3 : 4,
+      R = r * (n === 3 ? 1.35 : 1.25);
+    for (let k = 0; k < n; k++) {
+      const a = -Math.PI / 2 + (k * Math.PI * 2) / n;
+      g.lineTo(x + R * Math.cos(a), y + R * Math.sin(a) + (n === 3 ? R * 0.15 : 0));
+    }
+    g.closePath();
+  }
 }
 export function txt(s, x, y, font, color, align: CanvasTextAlign = "left") {
   g.font = font;
