@@ -1,6 +1,6 @@
 /* ---------- Séquenceur (double-croches) ---------- */
 import { autoNotes, autoSolo } from "../jeu/autoplay";
-import { S, layers, sectionAtBar, spb } from "../jeu/etat";
+import { S, layers, mesureDeLaChanson, sectionAtBar, spb } from "../jeu/etat";
 import { arpV, click, crash, harmV, hat, kick, leadTimbre, leadV, padV, playHit, snare, stringsV } from "./instruments";
 import { AC, timeOfBeat } from "./moteur";
 
@@ -15,8 +15,9 @@ export function stopScheduler() {
 }
 export function schedule() {
   if (S.mode !== "play") return;
+  // En boucle, la partie n'a pas de fin : le séquenceur continue dans le passage suivant (ADR-0009)
   const ahead = AC.currentTime + 0.12,
-    last = S.song.totalBars * 16;
+    last = S.bouclePartie ? Infinity : S.song.totalBars * 16;
   while (S.nextStep < last) {
     const t = timeOfBeat(S.nextStep / 4);
     if (t > ahead) break;
@@ -26,7 +27,7 @@ export function schedule() {
 }
 export const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
 export function playStep(step, t) {
-  const bar = Math.floor(step / 16),
+  const bar = mesureDeLaChanson(Math.floor(step / 16)),
     s = step % 16,
     sec = sectionAtBar(bar),
     ch = S.song.chords[bar],

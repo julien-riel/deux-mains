@@ -18,6 +18,21 @@ export interface PointDeReprise {
   maxCombo: number;
 }
 
+/** Les coups d'un passage de la boucle */
+export interface Coups {
+  parfait: number;
+  bien: number;
+  rate: number;
+}
+
+/** La boucle de la partie en cours (#5, ADR-0009) : la section rejouée, le dernier passage dont les notes
+ * existent, et les coups de chaque passage */
+export interface Boucle {
+  sec: Section;
+  cree: number;
+  passages: Coups[];
+}
+
 /** Le calibrage en cours : les clics du métronome et les coups du joueur, à l'heure où on les entend */
 export interface Calibrage {
   clics: number[];
@@ -47,6 +62,8 @@ export interface Etat {
   t0: number;
   nextStep: number;
   timer: ReturnType<typeof setInterval> | 0;
+  /** Les notes de la partie : celles de la chanson, ou les passages de la boucle (ADR-0009) */
+  ev: Note[];
   deathAt: number;
   deathBeat: number;
   titleBeat: number;
@@ -75,6 +92,9 @@ export interface Etat {
   /** Vitesse de lecture choisie (#4), et celle de la partie en cours, figée au départ pour que l'horloge ne saute pas */
   vitesse: number;
   vitessePartie: number;
+  /** Section choisie pour la boucle (#5), par son rang dans la chanson, -1 pour aucune ; et la boucle de la partie en cours */
+  boucle: number;
+  bouclePartie: Boucle | null;
   theme: string;
   /** Une forme par couloir, en plus de la couleur (#31) */
   formes: boolean;
@@ -99,6 +119,7 @@ export const S: Etat = {
   t0: 0,
   nextStep: 0,
   timer: 0,
+  ev: [],
   deathAt: 0,
   deathBeat: 0,
   titleBeat: 4,
@@ -124,6 +145,8 @@ export const S: Etat = {
   practice: "both",
   vitesse: 1,
   vitessePartie: 1,
+  boucle: -1,
+  bouclePartie: null,
   theme: "ville",
   formes: true,
   keyAng: 0,
@@ -135,9 +158,33 @@ export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
 export const auRepos = () => S.mode === "title" || S.mode === "calib";
 
 export const mult = () => 1 + Math.min(3, Math.floor(S.combo / 10)) * 0.5;
-export const sectionAtBar = (bar: number) =>
-  S.song.sections.find((s) => bar >= s.start && bar < s.start + s.bars) || S.song.sections[S.song.sections.length - 1];
-export const chordAtBeat = (b: number) => S.song.chords[clamp(Math.floor(b / 4), 0, S.song.totalBars - 1)];
+// Le temps de la partie ne recule jamais : en boucle, ses mesures continuent après la fin de la section, et
+// cette conversion seule les ramène dans la chanson (ADR-0009). Hors boucle, c'est la même mesure.
+export function mesureDeLaChanson(bar: number) {
+  const sec = S.bouclePartie && S.bouclePartie.sec;
+  return sec && bar >= sec.start + sec.bars ? sec.start + ((bar - sec.start) % sec.bars) : bar;
+}
+/** Le passage de la boucle en cours à ce temps de la partie, à partir de 0 (le décompte fait partie du premier) */
+export const passageAt = (beat: number) =>
+  Math.max(0, Math.floor((beat / 4 - S.bouclePartie.sec.start) / S.bouclePartie.sec.bars));
+export const sectionAtBar = (bar: number) => {
+  bar = mesureDeLaChanson(bar);
+  return (
+    S.song.sections.find((s) => bar >= s.start && bar < s.start + s.bars) || S.song.sections[S.song.sections.length - 1]
+  );
+};
+export const chordAtBar = (bar: number) => S.song.chords[mesureDeLaChanson(bar)];
+export const chordAtBeat = (b: number) =>
+  S.song.chords[clamp(mesureDeLaChanson(Math.floor(b / 4)), 0, S.song.totalBars - 1)];
+// La précision affichée en fin de partie et pour chaque passage : un « Bien » compte pour 60 %
+export const precision = (parfait: number, bien: number, rate: number) =>
+  (parfait + 0.6 * bien) / Math.max(1, parfait + bien + rate);
+/** Compte un coup dans le passage de sa note, quand la partie est en boucle */
+export function compterPassage(ev: Note, coup: keyof Coups) {
+  const b = S.bouclePartie;
+  if (!b || ev.passage === undefined) return;
+  (b.passages[ev.passage] ??= { parfait: 0, bien: 0, rate: 0 })[coup]++;
+}
 export const layers = () => {
   const ok = S.health >= 50;
   return { arp: ok && S.combo >= 8, choir: ok && S.combo >= 20, strings: ok && S.combo >= 35 };

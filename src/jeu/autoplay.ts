@@ -9,7 +9,7 @@ import { hitEv } from "./jugement";
 export function autoNotes(step: number) {
   const b = step / 4,
     notes: Note[] = [];
-  for (const ev of S.song.ev) {
+  for (const ev of S.ev) {
     if (ev.beat >= b + 0.25) break;
     if (ev.beat < b || ev.state !== "pending" || ev.auto || !autoFor(ev.hand)) continue;
     ev.auto = true;

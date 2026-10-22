@@ -2,7 +2,21 @@
 import { AC, songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { NOTE, noteName } from "../chanson/theorie";
-import { COULOIRS, S, autoFor, auRepos, layers, mult, sectionAtBar, spb, type Action } from "../jeu/etat";
+import {
+  COULOIRS,
+  S,
+  autoFor,
+  auRepos,
+  chordAtBar,
+  layers,
+  mesureDeLaChanson,
+  mult,
+  passageAt,
+  precision,
+  sectionAtBar,
+  spb,
+  type Action,
+} from "../jeu/etat";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -52,9 +66,11 @@ export function render(nb, dt) {
   const sat = playing ? 0.3 + 0.7 * clamp((S.health - 10) / 65, 0, 1) : 1;
   const hsl = (h, s, l, a = 1) => `hsla(${h},${Math.round(s * sat)}%,${l}%,${a})`;
   const bp = Math.exp(-(((nb % 1) + 1) % 1) * 5);
-  const curBar = clamp(Math.floor(nb / 4), 0, song.totalBars - 1),
+  // Mesure de la chanson : en boucle, elle revient au début de la section (ADR-0009)
+  const curBar = clamp(mesureDeLaChanson(Math.floor(nb / 4)), 0, song.totalBars - 1),
     curSec = sectionAtBar(curBar),
-    ch = song.chords[curBar];
+    ch = song.chords[curBar],
+    fin = S.bouclePartie ? Infinity : song.totalBars;
   const down = (a: Action) => S.keys[a] || pnow - (S.keyFlash[a] || -1e9) < 120;
 
   let shx = 0,
@@ -73,9 +89,9 @@ export function render(nb, dt) {
 
   // Zones d'accord (ciel, alignées sur la ligne de tir)
   const bFirst = Math.max(0, Math.floor(nb / 4) - 1),
-    bLast = Math.min(song.totalBars - 1, Math.floor((nb + (W - HITX) / PPB) / 4) + 1);
+    bLast = Math.min(fin - 1, Math.floor((nb + (W - HITX) / PPB) / 4) + 1);
   for (let bar = bFirst; bar <= bLast; bar++) {
-    const c = song.chords[bar],
+    const c = chordAtBar(bar),
       x0 = HITX + (bar * 4 - nb) * PPB;
     g.fillStyle = hsl(c.hue, 70, 60, 0.07);
     g.fillRect(x0, 96, 4 * PPB, GY - 136);
@@ -111,8 +127,8 @@ export function render(nb, dt) {
   // Sol, teinté par l'accord (aligné sur le personnage)
   if (S.theme === "boite") boiteGround(nb, hsl);
   else villeGround(nb, hsl);
-  for (let bar = bFirst; bar <= bLast + 1 && bar < song.totalBars; bar++) {
-    const c = song.chords[bar],
+  for (let bar = bFirst; bar <= bLast + 1 && bar < fin; bar++) {
+    const c = chordAtBar(bar),
       x0 = PX + PW / 2 + (bar * 4 - nb) * PPB;
     g.fillStyle = hsl(c.hue, 60, 55, 0.14);
     g.fillRect(x0, GY, 4 * PPB, 40);
@@ -127,7 +143,7 @@ export function render(nb, dt) {
   g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
 
   // Obstacles (main gauche) et ennemis (main droite)
-  for (const ev of song.ev) {
+  for (const ev of S.ev) {
     if (ev.beat > nb + 8) break;
     if (ev.state === "skip" || ev.beat + ev.dur < nb - 3) continue;
     if (ev.grp && ev.grp[0] === ev) drawChordLinks(ev.grp, nb);
@@ -150,7 +166,7 @@ export function render(nb, dt) {
     g.lineTo(HITX, LANE_Y[b.lane]);
     g.stroke();
   }
-  for (const ev of song.ev) {
+  for (const ev of S.ev) {
     if (ev.beat > nb) break;
     if (ev.state !== "holding" || ev.hand !== "R") continue;
     g.strokeStyle = hsl(LANE_HUE[ev.lane], 85, 75, 0.7 + 0.3 * Math.random());
@@ -250,6 +266,7 @@ export function render(nb, dt) {
   const badge = [
     S.auto ? "AUTO-PLAY" : S.practice === "L" ? "MAIN GAUCHE SEULE" : S.practice === "R" ? "MAIN DROITE SEULE" : "",
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
+    S.bouclePartie ? "BOUCLE" : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -262,11 +279,12 @@ export function render(nb, dt) {
     txt(badge, W - 24 - bw / 2, 96, `600 11px ${FONT.mono}`, COL.ink, "center");
   }
 
-  // Forme de la chanson
+  // Forme de la chanson, avec la section en boucle mise en évidence : celle de la partie, ou celle choisie au repos
   const fx0 = 24,
     fw = W - 48,
     perBar = fw / song.totalBars,
-    prog = clamp(nb / 4, 0, song.totalBars);
+    prog = clamp(mesureDeLaChanson(nb / 4), 0, song.totalBars),
+    enBoucle = playing ? S.bouclePartie && S.bouclePartie.sec : song.sections[S.boucle];
   const secHue = { intro: null, couplet: HUE_BASS, refrain: HUE_MEL, pont: 320, outro: null };
   for (const s of song.sections) {
     const x = fx0 + s.start * perBar,
@@ -283,17 +301,38 @@ export function render(nb, dt) {
       g.fillRect(x, 562, Math.min(done, w), 22);
       g.restore();
     }
-    txt(s.name, x + 8, 577, `500 11px ${FONT.body}`, s === curSec && playing ? COL.fg : COL.muted);
+    if (s === enBoucle) {
+      rr(x - 1, 561, w + 2, 24, 6);
+      g.strokeStyle = COL.mel;
+      g.lineWidth = 2;
+      g.stroke();
+    }
+    txt(s.name, x + 8, 577, `500 11px ${FONT.body}`, (s === curSec && playing) || s === enBoucle ? COL.fg : COL.muted);
   }
   g.fillStyle = COL.fg;
   g.fillRect(fx0 + prog * perBar - 1, 557, 2, 32);
   txt(
-    `MESURE ${Math.min(song.totalBars, Math.max(1, Math.floor(nb / 4) + 1))} / ${song.totalBars}`,
+    `MESURE ${Math.min(song.totalBars, Math.max(1, mesureDeLaChanson(Math.floor(nb / 4)) + 1))} / ${song.totalBars}`,
     24,
     608,
     `600 11px ${FONT.mono}`,
     COL.muted,
   );
+  // Compteur de passages, et précision du dernier passage terminé
+  if (S.bouclePartie && playing) {
+    const k = passageAt(nb),
+      d = S.bouclePartie.passages[k - 1];
+    txt(
+      `${S.bouclePartie.sec.name.toUpperCase()} EN BOUCLE · PASSAGE ${k + 1}${
+        k > 0 ? ` · DERNIER PASSAGE ${d ? `${Math.round(precision(d.parfait, d.bien, d.rate) * 100)} %` : "—"}` : ""
+      }`,
+      W / 2,
+      608,
+      `600 11px ${FONT.mono}`,
+      COL.fg,
+      "center",
+    );
+  }
   if (!COMMANDES.tactile)
     txt(`${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`, W - 24, 608, `600 11px ${FONT.mono}`, COL.muted, "right");
 
@@ -311,7 +350,8 @@ export function render(nb, dt) {
         `rgba(239,234,248,${(0.2 + 0.7 * f).toFixed(2)})`,
         "center",
       );
-      if (S.startBeat > 0) txt("Reprise", W / 2 + 60, 210, `500 18px ${FONT.body}`, COL.muted, "center");
+      if (S.startBeat > 0)
+        txt(S.bouclePartie ? "Boucle" : "Reprise", W / 2 + 60, 210, `500 18px ${FONT.body}`, COL.muted, "center");
     } else if (S.startBeat === 0 && nb < 4) {
       txt("Prêt ?", W / 2 + 60, 300, `700 44px ${FONT.display}`, hexA(COL.fg, 0.85), "center");
     }

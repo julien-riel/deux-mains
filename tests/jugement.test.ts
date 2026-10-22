@@ -48,7 +48,8 @@ function partie(ev: Note[], diff = "normal") {
       { name: "Refrain", kind: "refrain", bars: 2, start: 6 },
     ],
   } as unknown as Chanson;
-  return S.song.ev;
+  S.ev = S.song.ev;
+  return S.ev;
 }
 
 describe("fenêtres de jugement", () => {

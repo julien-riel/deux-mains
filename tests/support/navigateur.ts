@@ -3,7 +3,8 @@
 // Avant d'importer src/main.ts, on remplace les globales du navigateur par des imitations qui fournissent
 // juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier, toucher et localStorage.
 // Une seule horloge simulée fait avancer à la fois AudioContext.currentTime, performance.now(),
-// setInterval (le séquenceur) et requestAnimationFrame (la boucle d'images).
+// setInterval (le séquenceur) et requestAnimationFrame (la boucle d'images). Le faux navigateur garde
+// les sons programmés et les textes dessinés sur la scène à la dernière image.
 //
 // Chaque Navigateur repart de modules neufs (vi.resetModules), donc d'une partie neuve.
 
@@ -19,6 +20,7 @@ export interface InterfaceJeu {
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R"): void;
   setVitesse(v: number): void;
+  setBoucle(i: number): void;
   setCommandes(v: "auto" | "clavier" | "tactile"): void;
   setFormes(oui: boolean): void;
   /** Le temps de la chanson, en secondes */
@@ -39,6 +41,8 @@ class Horloge {
   secondes = 0;
   audio = 0;
   audioActif = true;
+  /** Les sons programmés (oscillateurs et bruits), avec leur heure de départ et de fin sur l'horloge audio */
+  sons: { debut: number; fin: number }[] = [];
 }
 
 /* ---------- Web Audio ---------- */
@@ -79,6 +83,16 @@ function noeud() {
   };
 }
 
+// Une source de son qui note son heure de départ et de fin
+function source(horloge: Horloge) {
+  const son = { debut: NaN, fin: NaN };
+  return {
+    ...noeud(),
+    start: (t: number) => void horloge.sons.push(Object.assign(son, { debut: t })),
+    stop: (t: number) => void (son.fin = t),
+  };
+}
+
 function fauxAudioContext(horloge: Horloge) {
   return class {
     // Fréquence basse : la réverbération et le bruit sont des tampons calculés au démarrage
@@ -105,20 +119,21 @@ function fauxAudioContext(horloge: Horloge) {
       return { getChannelData: (i: number) => donnees[i] };
     }
     createGain = noeud;
-    createOscillator = noeud;
+    createOscillator = () => source(horloge);
     createBiquadFilter = noeud;
     createConvolver = noeud;
     createDelay = noeud;
     createDynamicsCompressor = noeud;
-    createBufferSource = noeud;
+    createBufferSource = () => source(horloge);
   };
 }
 
 /* ---------- Canvas et page ---------- */
-// Toutes les méthodes de dessin sont acceptées et ne font rien
-function contexte2d() {
+// Toutes les méthodes de dessin sont acceptées et ne font rien, sauf fillText qui garde le texte
+function contexte2d(textes: string[]) {
   const degrade = { addColorStop: () => {} };
   const cible: Record<string | symbol, unknown> = {
+    fillText: (s: string) => void textes.push(s),
     measureText: () => ({ width: 0 }),
     createLinearGradient: () => degrade,
     createRadialGradient: () => degrade,
@@ -167,6 +182,8 @@ export class Navigateur {
   readonly document = element({ hidden: false });
   readonly classes = new Set<string>();
   jeu: InterfaceJeu;
+  /** Les textes dessinés sur la scène à la dernière image */
+  textes: string[] = [];
   /** Le localStorage du navigateur */
   readonly stockage = new Map<string, string>();
   private elements: Record<string, ReturnType<typeof element>> = {};
@@ -193,6 +210,7 @@ export class Navigateur {
       setTheme: reglages.setTheme,
       setPractice: reglages.setPractice,
       setVitesse: reglages.setVitesse,
+      setBoucle: reglages.setBoucle,
       setCommandes: reglages.setCommandes,
       setFormes: reglages.setFormes,
       songNow,
@@ -211,7 +229,7 @@ export class Navigateur {
       "#game": element({
         width: 1200,
         height: 620,
-        getContext: () => contexte2d(),
+        getContext: () => contexte2d(this.textes),
         getBoundingClientRect: () => RECTANGLE,
       }),
       "#overlay": this.overlay,
@@ -336,6 +354,7 @@ export class Navigateur {
     }
     const images = this.images;
     this.images = [];
+    if (images.length) this.textes.length = 0;
     for (const fn of images) fn(ms);
   }
 
