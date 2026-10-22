@@ -2,7 +2,7 @@
 
 Prototype de jeu de rythme à deux mains, dans un défilement horizontal. La main gauche joue la basse en faisant sauter et glisser le personnage par-dessus et sous les obstacles. La main droite joue la mélodie en tirant sur des ennemis. Le niveau et les ennemis forment ensemble la chanson, qui est générée à partir d'une graine.
 
-Tout tient dans un seul fichier, `deux-mains.html` (HTML, Canvas et Web Audio, sans dépendance au moment de jouer). Ouvre-le dans un navigateur pour jouer, ou construis-le avec `npm run build` (voir « Développer »).
+Le jeu est écrit en TypeScript (Canvas et Web Audio, sans dépendance au moment de jouer) et se construit en un seul fichier, `dist/deux-mains.html`, à ouvrir dans un navigateur (voir « Développer »).
 
 ## Commandes
 
@@ -39,7 +39,7 @@ Il faut [Node.js](https://nodejs.org/) dans sa dernière version LTS (24, voir `
 
 ```bash
 npm install          # installer l'outillage
-npm run dev          # servir le jeu avec rechargement à chaud (ouvre /deux-mains.html)
+npm run dev          # servir le jeu avec rechargement à chaud
 npm test             # lancer les tests, dont la simulation
 npm run build        # construire dist/deux-mains.html, le fichier à publier
 npm run format       # formater tout le dépôt avec Prettier (format:check pour vérifier sans écrire)
@@ -47,7 +47,9 @@ npm run lint         # vérifier src/ et tests/ avec ESLint
 ```
 
 - **Build** : Vite produit `dist/deux-mains.html`, un seul fichier autonome qui s'ouvre d'un double-clic. Il ne charge rien d'extérieur à part les polices Google Fonts.
-- **Simulation** (`tests/simulation.test.ts`) : joue une chanson entière dans chaque univers et chaque difficulté, sans navigateur. Elle vérifie que l'auto-play termine la chanson sans note ratée, et qu'une partie où l'on ne touche à rien se termine par la mort. Le script du jeu tourne tel quel dans un faux navigateur (`tests/support/navigateur.ts`) et expose son état par une interface de test décrite à la fin du script (`window.__deuxMainsTest`).
+- **Simulation** (`tests/simulation.test.ts`) : joue une chanson entière dans chaque univers et chaque difficulté, sans navigateur. Elle vérifie que l'auto-play termine la chanson sans note ratée, et qu'une partie où l'on ne touche à rien se termine par la mort. Le jeu complet (`src/main.ts`) tourne dans un faux navigateur (`tests/support/navigateur.ts`).
+- **Instantané du générateur** (`tests/generateur-instantane.test.ts`) : pour 20 graines et les trois difficultés, les chansons doivent rester identiques à `tests/instantanes/chansons.json`.
+- **Séparation** (`tests/separation.test.ts`) : ESLint interdit à `src/chanson/` et au jugement d'importer le rendu, l'audio ou l'interface, ou d'utiliser le navigateur.
 - Les décisions d'outillage sont dans [ADR-0007](docs/adr/0007-modules-vite-typescript-et-outillage.md).
 
 ## Pistes pour la suite

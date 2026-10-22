@@ -11,8 +11,18 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 ## Organisation
 
-- `deux-mains.html` : le jeu complet, en un seul fichier. Il est en cours de migration vers `src/` (ADR-0007) et disparaîtra une fois le découpage terminé.
-- `src/` : le code TypeScript, organisé par domaine. Les modules de logique pure (générateur, jugement, accords, auto-play) n'accèdent ni au DOM, ni au canvas, ni à l'audio.
+- `index.html` : la structure de la page, qui charge `src/styles.css` et `src/main.ts`.
+- `src/` : le code TypeScript, organisé par domaine (ADR-0007) :
+  - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire et générateur ;
+  - `jeu/` : état de la partie, jugement des coups, auto-play, déroulement (départ, pause, mort, reprise), et les effets du jugement sur le son et l'image ;
+  - `audio/` : moteur Web Audio, instruments, séquenceur ;
+  - `rendu/` : outils de dessin, scène et HUD, décors de la Ville et de la Boîte ;
+  - `univers/` : définitions des univers (textes, couleurs) ;
+  - `ui/` : écrans, touches, clavier, réglages ;
+  - `main.ts` : amorçage et boucle d'images.
+
+  `chanson/` et `jeu/jugement.ts` sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
+
 - `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
 - `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.
 - `docs/adr/` : le registre des décisions d'architecture. Lire l'index `docs/adr/README.md` avant de modifier un comportement structurant.
@@ -36,6 +46,6 @@ Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
 | `npm run lint`   | ESLint                                                                                     |
 
-Pendant la migration (ADR-0007), le jeu reste dans `deux-mains.html` : la simulation exécute son script tel quel dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état par l'interface `window.__deuxMainsTest`, décrite à la fin du script.
+La simulation charge `src/main.ts` dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état en important les modules. L'instantané du générateur (`tests/instantanes/chansons.json`) prouve que les chansons ne changent pas ; ne le régénérer (`npx vitest run -u`) que pour un changement voulu du générateur.
 
 Pour publier le jeu en artefact : `npm run build`, puis republier `dist/deux-mains.html` à l'adresse du prototype.
