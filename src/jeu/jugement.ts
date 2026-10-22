@@ -108,25 +108,36 @@ export function leftPress(lane: number, ns: number) {
   if (near.ev.lane !== lane) return missEv(near.ev);
   hitEv(near.ev, near.d);
 }
-export function rightPress(lane: number, ns: number) {
+/** Tire dans un couloir, et renvoie les notes réussies. `accordEntier` : toucher un couloir de l'accord joue
+ * toutes ses notes de la main droite, car un pouce ne touche qu'une zone à la fois (ADR-0008). */
+export function rightPress(lane: number, ns: number, accordEntier = false): Note[] {
   const nb = ns / spb();
   if (sectionAtBar(Math.floor(nb / 4)).kind === "pont") {
     effets.solo(lane, nb);
     S.score += 25;
     effets.tir(lane, true);
-    return;
+    return [];
   }
   const near = findNear("R", ns, (ev) => ev.lane === lane);
   if (near) {
+    const autres =
+      accordEntier && near.ev.grp
+        ? near.ev.grp.filter((ev) => ev.hand === "R" && ev.state === "pending" && ev !== near.ev)
+        : [];
     hitEv(near.ev, near.d);
     effets.tir(lane, true);
-    return;
+    for (const ev of autres) {
+      hitEv(ev, near.d);
+      effets.tir(ev.lane, true);
+    }
+    return [near.ev, ...autres];
   }
   if (findNear("R", ns)) {
     S.combo = 0;
     effets.mauvaisCouloir(lane);
     effets.tir(lane, false);
-    return;
+    return [];
   }
   effets.tir(lane, null);
+  return [];
 }

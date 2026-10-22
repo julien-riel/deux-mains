@@ -13,6 +13,7 @@ Chaque décision structurante du projet est consignée ici, une par fichier. Le 
 | [0005](0005-chansons-generees-par-graine.md)           | Générer les chansons à partir d'une graine déterministe                  | Acceptée                                                           | 2026-10-21 |
 | [0006](0006-univers-interchangeables.md)               | Séparer les univers des mécaniques de jeu                                | Acceptée                                                           | 2026-10-22 |
 | [0007](0007-modules-vite-typescript-et-outillage.md)   | Passer à des modules TypeScript construits avec Vite, testés avec Vitest | Acceptée                                                           | 2026-10-22 |
+| [0008](0008-commandes-tactiles.md)                     | Jouer au doigt avec deux grandes zones et des accords à un pouce         | Acceptée                                                           | 2026-10-22 |
 
 ## Écrire un ADR
 

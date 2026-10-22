@@ -1,7 +1,7 @@
 // Faux navigateur pour faire tourner le jeu complet dans Node.
 //
 // Avant d'importer src/main.ts, on remplace les globales du navigateur par des imitations qui fournissent
-// juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier et localStorage.
+// juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier, toucher et localStorage.
 // Une seule horloge simulée fait avancer à la fois AudioContext.currentTime, performance.now(),
 // setInterval (le séquenceur) et requestAnimationFrame (la boucle d'images).
 //
@@ -18,6 +18,14 @@ export interface InterfaceJeu {
   load(seed: number, diff: Difficulte): void;
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R"): void;
+  setCommandes(v: "auto" | "clavier" | "tactile"): void;
+  /** Le temps de la chanson, en secondes */
+  songNow(): number;
+}
+
+export interface Options {
+  /** Un écran tactile sans survol, comme un téléphone */
+  tactile?: boolean;
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
@@ -111,16 +119,34 @@ function contexte2d() {
   return new Proxy(cible, { get: (t, p) => (p in t ? t[p] : () => undefined) });
 }
 
+// La scène fait 1200 × 620 pixels, en haut à gauche de la page
+const RECTANGLE = { left: 0, top: 0, width: 1200, height: 620 };
+
 function element(extra: Record<string, unknown> = {}) {
+  const ecouteurs = new Map<string, Ecouteur[]>();
   return {
     hidden: false,
     innerHTML: "",
     textContent: "",
     value: "",
     checked: false,
-    addEventListener: () => {},
+    addEventListener: (type: string, fn: Ecouteur) => void ecouteurs.set(type, [...(ecouteurs.get(type) ?? []), fn]),
+    emettre: (type: string, e: Record<string, unknown>) => (ecouteurs.get(type) ?? []).forEach((fn) => fn(e)),
     blur: () => {},
     ...extra,
+  };
+}
+
+// Une requête média dont on peut changer la réponse, comme quand on tourne le téléphone
+function requeteMedia(matches: boolean) {
+  const ecouteurs: Ecouteur[] = [];
+  return {
+    matches,
+    addEventListener: (_type: string, fn: Ecouteur) => ecouteurs.push(fn),
+    changer(v: boolean) {
+      this.matches = v;
+      ecouteurs.forEach((fn) => fn({ matches: v }));
+    },
   };
 }
 
@@ -128,21 +154,36 @@ function element(extra: Record<string, unknown> = {}) {
 export class Navigateur {
   readonly horloge = new Horloge();
   readonly overlay = element();
+  readonly scene = element({ getBoundingClientRect: () => RECTANGLE });
+  readonly bouton = element({ closest: (s: string) => (s === "button" ? {} : null) });
+  readonly boutonPause = element();
+  readonly document = element({ hidden: false });
+  readonly classes = new Set<string>();
   jeu: InterfaceJeu;
+  private medias = new Map<string, ReturnType<typeof requeteMedia>>();
   private ecouteurs = new Map<string, Ecouteur[]>();
   private images: ((t: number) => void)[] = [];
   private minuteries = new Map<number, { fn: () => void; ms: number; prochaine: number }>();
   private prochainId = 1;
 
   /** Installe le faux navigateur, puis charge le jeu comme le ferait la page. */
-  static async ouvrir() {
+  static async ouvrir(options: Options = {}) {
     const nav = new Navigateur();
     nav.installer();
+    nav.media("(hover: none) and (pointer: coarse)").matches = !!options.tactile;
     vi.resetModules();
     await import("../../src/main");
     const { S } = await import("../../src/jeu/etat");
     const reglages = await import("../../src/ui/reglages");
-    nav.jeu = { state: S, load: reglages.load, setTheme: reglages.setTheme, setPractice: reglages.setPractice };
+    const { songNow } = await import("../../src/audio/moteur");
+    nav.jeu = {
+      state: S,
+      load: reglages.load,
+      setTheme: reglages.setTheme,
+      setPractice: reglages.setPractice,
+      setCommandes: reglages.setCommandes,
+      songNow,
+    };
     return nav;
   }
 
@@ -158,9 +199,11 @@ export class Navigateur {
         width: 1200,
         height: 620,
         getContext: () => contexte2d(),
-        getBoundingClientRect: () => ({ width: 1200, height: 620 }),
+        getBoundingClientRect: () => RECTANGLE,
       }),
       "#overlay": this.overlay,
+      ".stage": this.scene,
+      "#pause": this.boutonPause,
       "#seed": element(),
       "#songline": element(),
       "#new": element(),
@@ -168,15 +211,24 @@ export class Navigateur {
     const parId = new Map<string, ReturnType<typeof element>>();
     const stockage = new Map<string, string>();
 
+    const page = this.document;
     const fenetre: Record<string, unknown> = {
       document: {
-        documentElement: {},
+        documentElement: {
+          classList: {
+            add: (c: string) => this.classes.add(c),
+            remove: (c: string) => this.classes.delete(c),
+            toggle: (c: string, oui: boolean) => (oui ? this.classes.add(c) : this.classes.delete(c)),
+          },
+        },
         activeElement: null,
-        hidden: false,
+        get hidden() {
+          return page.hidden;
+        },
         querySelector: (s: string) => elements[s] ?? element(),
         querySelectorAll: () => [],
         getElementById: (id: string) => parId.get(id) ?? parId.set(id, element()).get(id),
-        addEventListener: () => {},
+        addEventListener: page.addEventListener,
       },
       navigator: {},
       performance: { now: ms },
@@ -184,7 +236,7 @@ export class Navigateur {
         getItem: (k: string) => stockage.get(k) ?? null,
         setItem: (k: string, v: string) => void stockage.set(k, String(v)),
       },
-      matchMedia: () => ({ matches: false }),
+      matchMedia: (requete: string) => this.media(requete),
       getComputedStyle: () => ({ getPropertyValue: () => "#808080" }),
       ResizeObserver: class {
         observe() {}
@@ -214,6 +266,37 @@ export class Navigateur {
     this.emettre("keyup", { code, repeat: false, target: null, preventDefault: () => {} });
   }
 
+  /** Pose un doigt sur la scène, à la position (x, y) en pixels. `retard` : le jeu traite l'événement après coup. */
+  toucher(doigt: number, x: number, y: number, retard = 0) {
+    this.scene.emettre("pointerdown", this.pointeur(doigt, x, y, retard));
+  }
+
+  lever(doigt: number, retard = 0) {
+    this.scene.emettre("pointerup", this.pointeur(doigt, 0, 0, retard));
+  }
+
+  /** Touche le bouton pause, au-dessus de la scène */
+  toucherPause() {
+    this.scene.emettre("pointerdown", { ...this.pointeur(99, 900, 20), target: this.bouton });
+    this.boutonPause.emettre("click", {});
+  }
+
+  /** Touche un bouton de l'écran affiché (départ, pause, mort, fin), repéré par son action */
+  toucherBouton(act: string) {
+    this.overlay.emettre("click", { target: { closest: () => ({ dataset: { act } }) } });
+  }
+
+  /** Passe dans une autre application, ou en revient */
+  cacher(cache: boolean) {
+    this.document.hidden = cache;
+    this.document.emettre("visibilitychange", {});
+  }
+
+  /** Tourne le téléphone */
+  orienter(sens: "portrait" | "paysage") {
+    this.media("(orientation: portrait)").changer(sens === "portrait");
+  }
+
   /** Avance l'horloge d'une image, en lançant le séquenceur et la boucle d'images quand ils sont dus. */
   image(pas = 1 / 60) {
     this.horloge.secondes += pas;
@@ -235,6 +318,23 @@ export class Navigateur {
     const fin = this.horloge.secondes + maxSecondes;
     while (!condition(this.jeu.state) && this.horloge.secondes < fin) this.image();
     return this.jeu.state;
+  }
+
+  private media(requete: string) {
+    if (!this.medias.has(requete)) this.medias.set(requete, requeteMedia(false));
+    return this.medias.get(requete);
+  }
+
+  private pointeur(doigt: number, x: number, y: number, retard = 0) {
+    const cible = { closest: () => null };
+    return {
+      pointerId: doigt,
+      clientX: x,
+      clientY: y,
+      timeStamp: this.horloge.secondes * 1000 - retard * 1000,
+      target: cible,
+      preventDefault: () => {},
+    };
   }
 
   private emettre(type: string, e: Record<string, unknown>) {

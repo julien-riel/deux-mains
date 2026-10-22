@@ -4,6 +4,10 @@ import { clamp } from "../outils";
 
 export type Mode = "title" | "play" | "pause" | "dying" | "dead" | "done";
 
+/** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
+export type Action = "sauter" | "glisser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
+export const COULOIRS: Action[] = ["couloir0", "couloir1", "couloir2", "couloir3"];
+
 /** Point de reprise : le début de la section en cours et le score à ce moment-là */
 export interface PointDeReprise {
   sec: Section;
@@ -39,7 +43,7 @@ export interface Etat {
   cp: PointDeReprise;
   banner: { text: string; sub: string; at: number };
   // Entrées et animation
-  keys: Record<string, boolean>;
+  keys: Partial<Record<Action, boolean>>;
   jumpAt: number;
   jumpAir: number;
   slideUntil: number;
@@ -55,7 +59,7 @@ export interface Etat {
   autoUsed: boolean;
   autoQ: { at: number; ev?: Note; solo?: number }[];
   autoLane: number;
-  keyFlash: Record<string, number>;
+  keyFlash: Partial<Record<Action, number>>;
   practice: string;
   theme: string;
   keyAng: number;

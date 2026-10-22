@@ -2,9 +2,9 @@
 import { AC, songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { NOTE, noteName } from "../chanson/theorie";
-import { S, autoFor, layers, mult, sectionAtBar, spb } from "../jeu/etat";
+import { COULOIRS, S, autoFor, layers, mult, sectionAtBar, spb, type Action } from "../jeu/etat";
 import { clamp } from "../outils";
-import { KEYLABEL, LANE_CODES } from "../ui/touches";
+import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
 import { boiteBack, boiteBlock, boiteBeam, boiteEnemy, boiteGround, boiteTunnel, drawComb } from "./boite";
 import {
@@ -54,7 +54,7 @@ export function render(nb, dt) {
   const curBar = clamp(Math.floor(nb / 4), 0, song.totalBars - 1),
     curSec = sectionAtBar(curBar),
     ch = song.chords[curBar];
-  const down = (c) => S.keys[c] || pnow - (S.keyFlash[c] || -1e9) < 120;
+  const down = (a: Action) => S.keys[a] || pnow - (S.keyFlash[a] || -1e9) < 120;
 
   let shx = 0,
     shy = 0;
@@ -96,7 +96,7 @@ export function render(nb, dt) {
   g.fillStyle = hexA(COL.mel, 0.3);
   g.fillRect(HITX - 1, 135, 2, 280);
   for (let i = 0; i < 4; i++) {
-    const held = S.keys[LANE_CODES[i]],
+    const held = S.keys[COULOIRS[i]],
       fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1);
     g.beginPath();
     g.arc(HITX, LANE_Y[i], 17, 0, Math.PI * 2);
@@ -182,14 +182,14 @@ export function render(nb, dt) {
   txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
   txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
   for (let i = 0; i < 4; i++) {
-    keycap(24, LANE_Y[i] - 15, KEYLABEL[LANE_CODES[i]], hsl(LANE_HUE[i], 80, 70), down(LANE_CODES[i]));
+    keycap(24, LANE_Y[i] - 15, KEYLABEL[LANE_CODES[i]], hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
     txt(DEG[i], 64, LANE_Y[i] - 3, `600 10px ${FONT.mono}`, COL.muted);
     txt(NOTE[ch.lanes[i] % 12], 64, LANE_Y[i] + 13, `600 15px ${FONT.mono}`, COL.fg);
   }
-  keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("KeyW"));
+  keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("sauter"));
   txt("SAUTER · OCTAVE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
   txt(noteName(ch.bass + 12), 64, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
-  keycap(24, GY - 40, KEYLABEL.KeyS, COL.bass, down("KeyS") || (autoFor("L") && ns < S.slideUntil));
+  keycap(24, GY - 40, KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
   txt("GLISSER · FOND.", 64, GY - 28, `600 10px ${FONT.mono}`, COL.muted);
   txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
 
@@ -290,7 +290,8 @@ export function render(nb, dt) {
     `600 11px ${FONT.mono}`,
     COL.muted,
   );
-  txt(`${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`, W - 24, 608, `600 11px ${FONT.mono}`, COL.muted, "right");
+  if (!COMMANDES.tactile)
+    txt(`${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`, W - 24, 608, `600 11px ${FONT.mono}`, COL.muted, "right");
 
   // Décompte (intro, ou mesure de reprise)
   if (S.mode === "play") {
@@ -480,7 +481,7 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
     if (p >= 0 && p < 1) {
       jumping = true;
       yOff = -122 * Math.sin(Math.PI * Math.pow(p, 0.6));
-    } else if (S.keys.KeyS || ns < S.slideUntil) sliding = true;
+    } else if (S.keys.glisser || ns < S.slideUntil) sliding = true;
   }
   const run = S.mode === "play" && !jumping && !sliding,
     ph = nb * Math.PI;

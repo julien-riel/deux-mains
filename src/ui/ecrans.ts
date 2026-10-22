@@ -3,7 +3,7 @@ import { DIFFS } from "../chanson/difficultes";
 import { S, sectionAtBar, spb } from "../jeu/etat";
 import { clamp } from "../outils";
 import { TH, placeName } from "../univers/univers";
-import { KEYLABEL } from "./touches";
+import { COMMANDES, KEYLABEL } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
 
@@ -18,8 +18,21 @@ export function show(kind) {
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
-      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button></div>
-      <p class="hint">Gauche ${k("KeyW")} ${k("KeyS")} · Droite ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`;
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>${
+        COMMANDES.tactile
+          ? `<button type="button" data-act="reglages">Réglages</button>${
+              document.fullscreenEnabled && !document.fullscreenElement
+                ? `<button type="button" data-act="plein-ecran">Plein écran</button>`
+                : ""
+            }`
+          : ""
+      }</div>
+      ${
+        COMMANDES.tactile
+          ? `<p class="hint">Pouce gauche : en haut pour sauter, en bas pour glisser, le doigt posé pour tenir. Pouce droit : la bande du couloir de l'ennemi.</p>
+      <p class="hint">Sur iPhone, coupe le mode silencieux pour entendre la musique.</p>`
+          : `<p class="hint">Gauche ${k("KeyW")} ${k("KeyS")} · Droite ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`
+      }`;
   } else if (kind === "pause") {
     h = `<p class="eyebrow">Pause</p><h2>La chanson attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>

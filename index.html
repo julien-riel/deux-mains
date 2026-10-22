@@ -1,4 +1,5 @@
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Deux Mains</title>
 <meta name="claude:viewport-fit-sides" content="cover" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,11 +20,14 @@
   </header>
 
   <div class="stage">
-    <canvas
-      id="game"
-      role="img"
-      aria-label="Scène de jeu : le personnage court vers la droite, les obstacles au sol jouent la basse, les ennemis dans les couloirs jouent la mélodie."
-    ></canvas>
+    <div class="cadre">
+      <canvas
+        id="game"
+        role="img"
+        aria-label="Scène de jeu : le personnage court vers la droite, les obstacles au sol jouent la basse, les ennemis dans les couloirs jouent la mélodie."
+      ></canvas>
+      <button class="pause" id="pause" type="button" aria-label="Pause"><span></span><span></span></button>
+    </div>
     <div class="overlay" id="overlay"></div>
   </div>
 
@@ -55,8 +59,17 @@
       <label class="flabel" for="seed">Graine</label>
       <input id="seed" type="number" min="1" max="99999" inputmode="numeric" />
     </div>
+    <div class="field">
+      <span class="flabel" id="cmd-label">Commandes</span>
+      <div class="seg" role="radiogroup" aria-labelledby="cmd-label">
+        <input type="radio" name="commandes" id="c-auto" value="auto" /><label for="c-auto">Automatique</label>
+        <input type="radio" name="commandes" id="c-clavier" value="clavier" /><label for="c-clavier">Clavier</label>
+        <input type="radio" name="commandes" id="c-tactile" value="tactile" /><label for="c-tactile">Tactile</label>
+      </div>
+    </div>
     <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
     <p class="song" id="songline"></p>
+    <button class="primary seulement-tactile" id="fermer-reglages" type="button">Fermer les réglages</button>
   </div>
 
   <div class="cards">
@@ -98,10 +111,16 @@
     </section>
   </div>
   <p class="note">
-    Clavier requis. <kbd>Échap</kbd> met en pause, <kbd data-code="KeyA">A</kbd> active ou coupe l'auto-play à tout
-    moment. Les touches suivent leur position physique : en AZERTY, le saut est sur <kbd>Z</kbd> et l'octave sur
-    <kbd>M</kbd>.
+    Sur téléphone ou tablette, le jeu passe en commandes tactiles. Au clavier, <kbd>Échap</kbd> met en pause,
+    <kbd data-code="KeyA">A</kbd> active ou coupe l'auto-play à tout moment. Les touches suivent leur position physique
+    : en AZERTY, le saut est sur <kbd>Z</kbd> et l'octave sur <kbd>M</kbd>.
   </p>
+</div>
+
+<div class="tourner" id="tourner">
+  <p class="eyebrow">Deux Mains</p>
+  <h2>Tourne ton téléphone</h2>
+  <p>Le jeu se joue à l'horizontale, un pouce de chaque côté de l'écran.</p>
 </div>
 
 <script type="module" src="/src/main.ts"></script>
