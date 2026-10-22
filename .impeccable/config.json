@@ -6,18 +6,14 @@
       {
         "rule": "low-contrast",
         "value": "*",
-        "files": [
-          "deux-mains.html"
-        ],
+        "files": ["deux-mains.html"],
         "createdAt": "2026-10-22T02:05:30.948Z",
         "reason": "Claude: false positive, static scan assumes white body and black kbd text; page sets body to var(--ink) #16131f and kbd to var(--fg) #efeaf8 (contrast > 12:1)"
       },
       {
         "rule": "border-accent-on-rounded",
         "value": "*",
-        "files": [
-          "deux-mains.html"
-        ],
+        "files": ["deux-mains.html"],
         "createdAt": "2026-10-22T02:05:52.950Z",
         "reason": "Claude: intentional keycap depth on <kbd> elements (physical key look), not an accent rail on a card"
       }

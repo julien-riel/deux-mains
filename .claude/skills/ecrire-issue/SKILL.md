@@ -52,9 +52,11 @@ Le comportement attendu, concrètement. Ce qui se passe aujourd'hui, ce qui doit
 ## Portée
 
 ### Inclus
+
 - Ce que l'issue livre.
 
 ### Exclus
+
 - Ce qu'elle ne livre pas, même si c'est proche (et l'issue qui s'en charge, si elle existe).
 
 ## Critères d'acceptation

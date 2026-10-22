@@ -11,9 +11,11 @@ Dans un jeu de rythme, un décalage de quelques dizaines de millisecondes entre 
 ## Options considérées
 
 ### Option A : horloge de l'image (`requestAnimationFrame`)
+
 Simple, mais la musique et l'image se désynchronisent dès qu'une image saute.
 
 ### Option B : horloge Web Audio (`AudioContext.currentTime`)
+
 L'horloge matérielle du son sert de référence unique ; l'image et le jugement s'y alignent.
 
 ## Décision

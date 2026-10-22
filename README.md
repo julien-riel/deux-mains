@@ -2,18 +2,18 @@
 
 Prototype de jeu de rythme à deux mains, dans un défilement horizontal. La main gauche joue la basse en faisant sauter et glisser le personnage par-dessus et sous les obstacles. La main droite joue la mélodie en tirant sur des ennemis. Le niveau et les ennemis forment ensemble la chanson, qui est générée à partir d'une graine.
 
-Tout tient dans un seul fichier, `deux-mains.html` (HTML, Canvas et Web Audio, sans dépendance). Ouvre-le dans un navigateur pour jouer.
+Tout tient dans un seul fichier, `deux-mains.html` (HTML, Canvas et Web Audio, sans dépendance au moment de jouer). Ouvre-le dans un navigateur pour jouer, ou construis-le avec `npm run build` (voir « Développer »).
 
 ## Commandes
 
-| Main | Touche | Action | Note jouée |
-|---|---|---|---|
-| Gauche | `W` | Sauter par-dessus un bloc | Octave de la basse |
-| Gauche | `S` | Glisser sous une barre | Fondamentale |
-| Gauche | `S` tenu | Traverser un tunnel | Note tenue |
-| Droite | `J` `K` `L` `;` | Tirer dans un couloir | Fondamentale, tierce, quinte, octave de l'accord en cours |
-| — | `A` | Activer ou couper l'auto-play | |
-| — | `Échap` | Pause | |
+| Main   | Touche          | Action                        | Note jouée                                                |
+| ------ | --------------- | ----------------------------- | --------------------------------------------------------- |
+| Gauche | `W`             | Sauter par-dessus un bloc     | Octave de la basse                                        |
+| Gauche | `S`             | Glisser sous une barre        | Fondamentale                                              |
+| Gauche | `S` tenu        | Traverser un tunnel           | Note tenue                                                |
+| Droite | `J` `K` `L` `;` | Tirer dans un couloir         | Fondamentale, tierce, quinte, octave de l'accord en cours |
+| —      | `A`             | Activer ou couper l'auto-play |                                                           |
+| —      | `Échap`         | Pause                         |                                                           |
 
 Les touches suivent leur position physique : en AZERTY, le saut est sur `Z` et l'octave sur `M`.
 
@@ -32,6 +32,23 @@ Les touches suivent leur position physique : en AZERTY, le saut est sur `Z` et l
 - La basse suit des motifs rythmiques qui dépendent de la difficulté.
 - La mélodie est un motif de 2 mesures, répété avec des variations, en question-réponse : la phrase finit sur la quinte, puis sur la fondamentale.
 - Trois difficultés : Facile, Normal, Difficile.
+
+## Développer
+
+Il faut [Node.js](https://nodejs.org/) dans sa dernière version LTS (24, voir `.nvmrc`). Toutes les dépendances sont des outils de développement : le jeu construit n'en charge aucune.
+
+```bash
+npm install          # installer l'outillage
+npm run dev          # servir le jeu avec rechargement à chaud (ouvre /deux-mains.html)
+npm test             # lancer les tests, dont la simulation
+npm run build        # construire dist/deux-mains.html, le fichier à publier
+npm run format       # formater tout le dépôt avec Prettier (format:check pour vérifier sans écrire)
+npm run lint         # vérifier src/ et tests/ avec ESLint
+```
+
+- **Build** : Vite produit `dist/deux-mains.html`, un seul fichier autonome qui s'ouvre d'un double-clic. Il ne charge rien d'extérieur à part les polices Google Fonts.
+- **Simulation** (`tests/simulation.test.ts`) : joue une chanson entière dans chaque univers et chaque difficulté, sans navigateur. Elle vérifie que l'auto-play termine la chanson sans note ratée, et qu'une partie où l'on ne touche à rien se termine par la mort. Le script du jeu tourne tel quel dans un faux navigateur (`tests/support/navigateur.ts`) et expose son état par une interface de test décrite à la fin du script (`window.__deuxMainsTest`).
+- Les décisions d'outillage sont dans [ADR-0007](docs/adr/0007-modules-vite-typescript-et-outillage.md).
 
 ## Pistes pour la suite
 

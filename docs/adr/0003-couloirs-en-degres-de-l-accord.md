@@ -11,19 +11,21 @@ Le joueur doit produire de la musique agréable même quand il se trompe, et la 
 ## Options considérées
 
 ### Option A : chaque touche joue une note fixe
+
 `J` joue toujours un La, `K` toujours un Do, etc. Simple, mais une note fixe sonne faux dès que l'accord change.
 
 ### Option B : chaque touche joue un degré de l'accord en cours
+
 La zone donne l'accord, et l'action choisit un degré dans cet accord.
 
 ## Décision
 
 Option B, pour les deux mains :
 
-| Main | Action | Degré |
-|---|---|---|
-| Gauche | Glisser `S` | Fondamentale (grave) |
-| Gauche | Sauter `W` | Octave |
+| Main   | Action          | Degré                                |
+| ------ | --------------- | ------------------------------------ |
+| Gauche | Glisser `S`     | Fondamentale (grave)                 |
+| Gauche | Sauter `W`      | Octave                               |
 | Droite | `J` `K` `L` `;` | Fondamentale, tierce, quinte, octave |
 
 Les accords (plusieurs ennemis au même temps) n'utilisent que ces degrés. Toute nouvelle note jouable (notes de passage, solo) doit rester dans la gamme de la chanson.

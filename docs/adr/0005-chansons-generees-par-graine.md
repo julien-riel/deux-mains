@@ -11,12 +11,15 @@ On veut beaucoup de chansons sans les composer une par une, mais il faut aussi p
 ## Options considérées
 
 ### Option A : chansons composées à la main
+
 Qualité maîtrisée, mais peu de contenu et beaucoup de travail par niveau.
 
 ### Option B : génération aléatoire libre
+
 Contenu infini, mais impossible de rejouer ou de partager une chanson.
 
 ### Option C : génération déterministe à partir d'une graine
+
 Un même nombre produit toujours la même chanson.
 
 ## Décision

@@ -11,9 +11,11 @@ Deux univers ont été retenus : La Ville Muette et La Boîte à musique. Ils do
 ## Options considérées
 
 ### Option A : un jeu séparé par univers
+
 Liberté totale, mais chaque correction de gameplay doit être faite deux fois.
 
 ### Option B : un thème qui ne touche qu'à l'habillage
+
 Un objet de thème fournit les textes, et des fonctions de dessin et de son propres à chaque univers ; la logique de jeu ne connaît pas l'univers.
 
 ## Décision

@@ -15,12 +15,15 @@ Il faut garder ce qui rendait ADR-0002 utile : un jeu publiable comme artefact �
 ## Options considérées
 
 ### Option A : garder un seul fichier, tests par extraction
+
 Le script expose une interface de test ; les tests extraient le script du HTML et l'exécutent dans Node avec un faux navigateur. Aucun build, mais chaque test doit simuler le navigateur et le fichier continue de grossir sans structure.
 
 ### Option B : modules dans `src/`, Vite, un seul fichier HTML en sortie
+
 Le code est découpé en modules. Vite sert le jeu en développement et le build produit un seul fichier HTML autonome. Vitest importe directement les modules.
 
 ### Option C : modules sans build
+
 La page charge les modules avec `<script type="module">`. Aucun build, mais le jeu ne s'ouvre plus d'un double-clic (les modules sont bloqués en `file://`), et on perd le rechargement à chaud et TypeScript.
 
 Sur le langage : JavaScript (aucune conversion) ou TypeScript (les erreurs de structure sont trouvées avant de jouer). Sur les outils : Prettier seul, ou Prettier avec ESLint.
