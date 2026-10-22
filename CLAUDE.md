@@ -41,10 +41,12 @@ Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest
 | Commande         | Rôle                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | `npm run dev`    | Serveur de développement avec rechargement à chaud                                         |
-| `npm test`       | Tests Vitest (unitaires et simulation)                                                     |
+| `npm test`       | Tests Vitest (unitaires et simulation), avec un seuil de couverture de 90 % des lignes     |
 | `npm run build`  | Produit `dist/deux-mains.html`, le fichier à publier                                       |
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
 | `npm run lint`   | ESLint                                                                                     |
+
+Les tests unitaires (`generateur`, `jugement`, `autoplay`) importent directement la logique pure, sans faux navigateur : les effets du jugement y sont des espions. La couverture des lignes de `chanson/` et de `jeu/jugement.ts` doit rester d'au moins 90 %, sinon `npm test` échoue.
 
 La simulation charge `src/main.ts` dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état en important les modules. L'instantané du générateur (`tests/instantanes/chansons.json`) prouve que les chansons ne changent pas ; ne le régénérer (`npx vitest run -u`) que pour un changement voulu du générateur.
 

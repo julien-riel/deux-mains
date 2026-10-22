@@ -52,5 +52,23 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(nav.overlay.hidden).toBe(false);
       expect(nav.overlay.innerHTML).toContain("Reprendre");
     });
+
+    it("une note qui passe sans être jouée fait les dégâts prévus pour la difficulté", async () => {
+      await chargerPartie(univers, difficulte);
+      nav.presser("Space");
+      const S = nav.jeu.state,
+        { DIFFS } = await import("../src/chanson/difficultes"),
+        D = DIFFS[difficulte];
+      // Les notes du premier temps : une seule, ou un accord à deux mains
+      const premieres = S.song.ev.filter((ev) => ev.beat === S.song.ev[0].beat);
+
+      nav.avancerJusqua((e) => e.miss > 0, dureeChanson());
+
+      expect(premieres.map((ev) => ev.state)).toEqual(premieres.map(() => "miss"));
+      expect(S.miss).toBe(premieres.length);
+      expect(S.health).toBe(100 - premieres.reduce((t, ev) => t + (ev.hand === "L" ? D.dmgL : D.dmgR), 0));
+      // Elles passent après la fin de la fenêtre « Bien », pas avant
+      expect(nav.jeu.songNow() - (premieres[0].beat * 60) / S.song.bpm).toBeGreaterThan(D.win[1]);
+    });
   });
 });

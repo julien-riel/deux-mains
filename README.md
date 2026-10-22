@@ -40,7 +40,7 @@ Il faut [Node.js](https://nodejs.org/) dans sa dernière version LTS (24, voir `
 ```bash
 npm install          # installer l'outillage
 npm run dev          # servir le jeu avec rechargement à chaud
-npm test             # lancer les tests, dont la simulation
+npm test             # lancer les tests, dont la simulation, et mesurer la couverture
 npm run build        # construire dist/deux-mains.html, le fichier à publier
 npm run format       # formater tout le dépôt avec Prettier (format:check pour vérifier sans écrire)
 npm run lint         # vérifier src/ et tests/ avec ESLint
