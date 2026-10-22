@@ -19,6 +19,7 @@ export function genMotif(rng, P, occ, refrain) {
         continue;
       }
       if (s - last < P.gap) continue;
+      if (P.surLesTemps && s % 2) continue;
       let p = s % 2 === 0 ? P.even : P.odd;
       if (s % 4 === 0) p += 0.1;
       if (refrain) p += 0.08;

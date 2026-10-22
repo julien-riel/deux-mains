@@ -8,7 +8,7 @@ import { S, sectionAtBar } from "../src/jeu/etat";
 import { autoHit, autoNotes, autoSolo } from "../src/jeu/autoplay";
 import { brancherEffets, type Effets } from "../src/jeu/jugement";
 
-// Graine fixe (ADR-0005), avec des accords et des notes tenues dans les trois difficultés
+// Graine fixe (ADR-0005), avec des accords et des notes tenues de Facile à Difficile (Débutant n'en a pas)
 const GRAINE = 4;
 const ETAT_NEUF = { ...S };
 
@@ -35,17 +35,21 @@ function parcourir() {
 }
 
 describe("auto-play", () => {
-  it.each(["facile", "normal", "difficile"])("en %s, l'auto-play réussit toutes les notes en « Parfait »", (diff) => {
-    const song = partie(diff, { auto: true });
-    const prises = parcourir();
-    expect(prises).toHaveLength(song.ev.length);
-    expect(S.autoQ).toHaveLength(song.ev.length);
-    for (const q of S.autoQ) autoHit(q.ev);
-    expect(song.ev.every((ev) => ev.state === "hit" || ev.state === "holding")).toBe(true);
-    expect([S.perfect, S.good, S.miss, S.health]).toEqual([song.ev.length, 0, 0, 100]);
-    expect(effets.reussite.mock.calls.every(([, parfait]) => parfait)).toBe(true);
-    expect(effets.accord).toHaveBeenCalled();
-  });
+  it.each(["debutant", "facile", "normal", "difficile"])(
+    "en %s, l'auto-play réussit toutes les notes en « Parfait »",
+    (diff) => {
+      const song = partie(diff, { auto: true });
+      const prises = parcourir();
+      expect(prises).toHaveLength(song.ev.length);
+      expect(S.autoQ).toHaveLength(song.ev.length);
+      for (const q of S.autoQ) autoHit(q.ev);
+      expect(song.ev.every((ev) => ev.state === "hit" || ev.state === "holding")).toBe(true);
+      expect([S.perfect, S.good, S.miss, S.health]).toEqual([song.ev.length, 0, 0, 100]);
+      expect(effets.reussite.mock.calls.every(([, parfait]) => parfait)).toBe(true);
+      if (diff === "debutant") expect(effets.accord).not.toHaveBeenCalled();
+      else expect(effets.accord).toHaveBeenCalled();
+    },
+  );
 
   it("chaque note n'est prise qu'une fois, à l'heure de son temps", () => {
     const song = partie("normal", { auto: true });

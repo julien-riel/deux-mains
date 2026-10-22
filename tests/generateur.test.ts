@@ -9,7 +9,7 @@ import { PROGS, makeChord, mtof, noteName } from "../src/chanson/theorie";
 import type { Chanson, Note } from "../src/chanson/types";
 import { DIFFICULTES, GRAINES, decrireChanson } from "./support/instantane";
 
-// Toutes les chansons des graines de l'instantané, dans les trois difficultés
+// Toutes les chansons des graines de l'instantané, dans les quatre difficultés
 const CHANSONS = DIFFICULTES.flatMap((diff) => GRAINES.map((graine) => ({ diff, chanson: buildSong(graine, diff) })));
 const dans = (diff: string) => CHANSONS.filter((c) => c.diff === diff).map((c) => c.chanson);
 const droite = (c: Chanson) => c.ev.filter((ev) => ev.hand === "R");
@@ -131,6 +131,35 @@ describe("générateur", () => {
   });
 });
 
+describe("Débutant", () => {
+  it("la main droite joue sur les temps uniquement, refrain compris", () => {
+    for (const c of dans("debutant")) for (const ev of droite(c)) expect(ev.beat % 1).toBe(0);
+  });
+
+  it("la main droite n'a ni note tenue ni accord : une seule note à la fois", () => {
+    for (const c of dans("debutant")) {
+      expect(droite(c).filter((ev) => ev.dur > 0)).toEqual([]);
+      for (const grp of accords(c)) expect(grp.filter((ev) => ev.hand === "R").length).toBeLessThan(2);
+    }
+  });
+
+  it("les deux mains ne jouent jamais au même moment", () => {
+    for (const c of dans("debutant")) {
+      const temps = new Set(gauche(c).map((ev) => ev.beat));
+      expect(droite(c).filter((ev) => temps.has(ev.beat))).toEqual([]);
+      expect(accords(c)).toEqual([]);
+    }
+  });
+
+  it("la main gauche a au plus un obstacle par mesure, et aucun tunnel", () => {
+    for (const c of dans("debutant")) {
+      const ls = gauche(c);
+      expect(ls.filter((ev) => ev.dur > 0)).toEqual([]);
+      for (let bar = 0; bar < c.totalBars; bar++) expect(ls.filter((ev) => ev.bar === bar).length).toBeLessThan(2);
+    }
+  });
+});
+
 describe("Facile", () => {
   it("au couplet, la main droite joue sur les temps uniquement", () => {
     for (const c of dans("facile"))
@@ -170,7 +199,7 @@ describe("accords", () => {
 
   it("l'accord complet à trois notes n'existe qu'en Difficile, où chaque chanson en a", () => {
     const triades = (c: Chanson) => accords(c).filter((grp) => grp.filter((ev) => ev.hand === "R").length >= 3);
-    for (const diff of ["facile", "normal"]) for (const c of dans(diff)) expect(triades(c)).toEqual([]);
+    for (const diff of ["debutant", "facile", "normal"]) for (const c of dans(diff)) expect(triades(c)).toEqual([]);
     for (const c of dans("difficile")) {
       expect(triades(c).length).toBeGreaterThan(0);
       for (const grp of triades(c))
@@ -180,11 +209,15 @@ describe("accords", () => {
 });
 
 describe("difficultés", () => {
-  it("les fenêtres se resserrent et les dégâts augmentent de Facile à Difficile", () => {
-    const [f, n, d] = DIFFICULTES.map((k) => DIFFS[k]);
-    for (const i of [0, 1]) expect(f.win[i] > n.win[i] && n.win[i] > d.win[i]).toBe(true);
-    for (const D of [f, n, d]) expect(D.win[0]).toBeLessThan(D.win[1]);
-    expect(f.dmgL < n.dmgL && n.dmgL <= d.dmgL).toBe(true);
-    expect(f.dmgR < n.dmgR && n.dmgR <= d.dmgR).toBe(true);
+  it("les fenêtres se resserrent et les dégâts augmentent de Débutant à Difficile", () => {
+    const [b, f, n, d] = DIFFICULTES.map((k) => DIFFS[k]);
+    for (const i of [0, 1]) expect(b.win[i] > f.win[i] && f.win[i] > n.win[i] && n.win[i] > d.win[i]).toBe(true);
+    for (const D of [b, f, n, d]) expect(D.win[0]).toBeLessThan(D.win[1]);
+    expect(b.dmgL < f.dmgL && f.dmgL < n.dmgL && n.dmgL <= d.dmgL).toBe(true);
+    expect(b.dmgR < f.dmgR && f.dmgR < n.dmgR && n.dmgR <= d.dmgR).toBe(true);
+  });
+
+  it("les réglages proposent Débutant, Facile, Normal et Difficile, dans cet ordre", () => {
+    expect(Object.values(DIFFS).map((D) => D.label)).toEqual(["Débutant", "Facile", "Normal", "Difficile"]);
   });
 });

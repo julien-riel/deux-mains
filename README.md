@@ -31,7 +31,7 @@ Les touches suivent leur position physique : en AZERTY, le saut est sur `Z` et l
 - Forme de la chanson : Intro, Couplet, Refrain, Solo libre, Refrain, Outro.
 - La basse suit des motifs rythmiques qui dépendent de la difficulté.
 - La mélodie est un motif de 2 mesures, répété avec des variations, en question-réponse : la phrase finit sur la quinte, puis sur la fondamentale.
-- Trois difficultés : Facile, Normal, Difficile.
+- Quatre difficultés : Débutant, Facile, Normal, Difficile. Débutant garde la main droite sur les temps, sans note tenue ni accord, et les deux mains ne jouent jamais ensemble.
 
 ## Développer
 

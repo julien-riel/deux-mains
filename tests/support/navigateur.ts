@@ -10,7 +10,7 @@
 import { vi } from "vitest";
 import type { Etat } from "../../src/jeu/etat";
 
-export type Difficulte = "facile" | "normal" | "difficile";
+export type Difficulte = "debutant" | "facile" | "normal" | "difficile";
 export type Univers = "ville" | "boite";
 
 export interface InterfaceJeu {

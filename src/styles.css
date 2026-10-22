@@ -332,6 +332,13 @@ button kbd {
   .song {
     margin-left: 0;
   }
+  /* Sur un écran étroit, les choix passent sous leur libellé plutôt que de déborder */
+  .field {
+    flex-wrap: wrap;
+  }
+  .seg label {
+    padding-inline: 10px;
+  }
 }
 
 /* ---------- Mode tactile (ADR-0008) ----------

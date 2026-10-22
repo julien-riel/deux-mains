@@ -1,4 +1,144 @@
 {
+  "1 debutant": {
+    "prog": "Royal Road",
+    "tonalite": "La majeur",
+    "bpm": 100,
+    "notes": 69,
+    "empreinte": "f725d6fc73c1e7d68943d9f57851ea94e966e20af16b9c6e221888fba1c9f3f3"
+  },
+  "2 debutant": {
+    "prog": "Royal Road",
+    "tonalite": "Mi♭ majeur",
+    "bpm": 112,
+    "notes": 85,
+    "empreinte": "602c163fdca25c9fd8fecf90a8a0586702282aaa5f9df0e169e31944020992e3"
+  },
+  "3 debutant": {
+    "prog": "vi–IV–I–V",
+    "tonalite": "Si mineur",
+    "bpm": 104,
+    "notes": 73,
+    "empreinte": "d2a2d4bce0c26cbbf473de6dcb5b89c16af3f3f0ed5395717b7bcf5a156f9c23"
+  },
+  "7 debutant": {
+    "prog": "vi–IV–I–V",
+    "tonalite": "La♭ mineur",
+    "bpm": 88,
+    "notes": 77,
+    "empreinte": "2d53eb5332abbc14ee8c55142f29114eb11990e3fea8b68aab6b4b43b8688600"
+  },
+  "42 debutant": {
+    "prog": "Royal Road",
+    "tonalite": "Mi majeur",
+    "bpm": 104,
+    "notes": 89,
+    "empreinte": "065fac90cff1d2498345b6ca397f21c4e1a767bb518137f16b8671459d63dd48"
+  },
+  "99 debutant": {
+    "prog": "Vamp dorien",
+    "tonalite": "La mineur",
+    "bpm": 104,
+    "notes": 69,
+    "empreinte": "3ac51edaafcc7f31963cbea920ef76605a34927e176915bf8e16b70f736b7590"
+  },
+  "123 debutant": {
+    "prog": "Canon de Pachelbel",
+    "tonalite": "Fa♯ majeur",
+    "bpm": 108,
+    "notes": 77,
+    "empreinte": "27828bf8b369bedbe94e71fc57d97cf33b6e282de3c987ad4d8dd6c2ca3dd70c"
+  },
+  "777 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "La♭ majeur",
+    "bpm": 104,
+    "notes": 73,
+    "empreinte": "024822b5a9e20969311584c909ef02d43f1fd0481729b8e2625d5e67cb7dd864"
+  },
+  "1000 debutant": {
+    "prog": "Vamp dorien",
+    "tonalite": "La mineur",
+    "bpm": 88,
+    "notes": 81,
+    "empreinte": "dd3eb0975e3474549a698df278d0ac8abb5b723cd40a0b4391cc63d242ea3ab6"
+  },
+  "2024 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "La majeur",
+    "bpm": 104,
+    "notes": 73,
+    "empreinte": "c0574fd77ecf7ed7e0ad0f1a6080d3e1e2cd6ea4cfdf57e72cadf432f94f6cf3"
+  },
+  "4242 debutant": {
+    "prog": "Cadence andalouse",
+    "tonalite": "Sol mineur",
+    "bpm": 96,
+    "notes": 81,
+    "empreinte": "e7988fb4703f4f49314be2e5ea23c3b7b826f26d27a109f8afc55938e56aff65"
+  },
+  "5000 debutant": {
+    "prog": "vi–IV–I–V",
+    "tonalite": "La♭ mineur",
+    "bpm": 104,
+    "notes": 69,
+    "empreinte": "65d549a02e47efb83845774f4122debf2ad123c9f7d39fc2d600f141c7873f01"
+  },
+  "9999 debutant": {
+    "prog": "vi–IV–I–V",
+    "tonalite": "Si♭ mineur",
+    "bpm": 96,
+    "notes": 77,
+    "empreinte": "2bac36e35277106f1e745d3816dd0a777f3c9736a669e9f17e5ceb967e01e176"
+  },
+  "12345 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "Do♯ majeur",
+    "bpm": 92,
+    "notes": 69,
+    "empreinte": "eeccef6cda8c5aec69963ffbf3bc24bad6667bb17bd87c6f9a019eea7c66c871"
+  },
+  "31415 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "Si majeur",
+    "bpm": 88,
+    "notes": 85,
+    "empreinte": "38c3b64ec05de33dc0354053cbb3d094db25385bbfd3bf0b1200fbf8b533549f"
+  },
+  "50000 debutant": {
+    "prog": "Vamp dorien",
+    "tonalite": "Si mineur",
+    "bpm": 96,
+    "notes": 85,
+    "empreinte": "2db6749e68096d5f484595ccc0075c9a28b4eb5f1f90e9d19c562ee9bd393350"
+  },
+  "65536 debutant": {
+    "prog": "vi–IV–I–V",
+    "tonalite": "Mi♭ mineur",
+    "bpm": 112,
+    "notes": 65,
+    "empreinte": "29463597cb1dbbad202bb7b6ba9c6a21e213b0b3f349a8ba85bec4f66eb36bf2"
+  },
+  "77777 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "La♭ majeur",
+    "bpm": 108,
+    "notes": 65,
+    "empreinte": "8fd5b84a06efae0a9475a02f16a5efbe5855e4be85e1f1edfda7dc35adf6c74b"
+  },
+  "88888 debutant": {
+    "prog": "I–V–vi–IV",
+    "tonalite": "Do♯ majeur",
+    "bpm": 112,
+    "notes": 69,
+    "empreinte": "c454ca44043d1cdfd1f20ecba03be42cbc07cc80bfb9077f6d1d625adabf8569"
+  },
+  "99999 debutant": {
+    "prog": "Canon de Pachelbel",
+    "tonalite": "Mi majeur",
+    "bpm": 96,
+    "notes": 81,
+    "empreinte": "69f65fe634a80666ee5b7fb4251a202a10a2fb3c6f0d7a00272c203533f958a1"
+  },
   "1 facile": {
     "prog": "Royal Road",
     "tonalite": "La majeur",

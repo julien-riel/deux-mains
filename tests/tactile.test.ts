@@ -6,10 +6,11 @@ import type { Note } from "../src/chanson/types";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage. Celle-ci a des accords de la main droite
-// dans les trois difficultés (ils dépendent de la graine : certaines chansons n'en ont aucun en Facile et en Normal).
+// de Facile à Difficile (ils dépendent de la graine : certaines chansons n'en ont aucun en Facile et en Normal ;
+// Débutant n'en a jamais).
 const GRAINE = 4;
 const UNIVERS: Univers[] = ["ville", "boite"];
-const DIFFICULTES: Difficulte[] = ["facile", "normal", "difficile"];
+const DIFFICULTES: Difficulte[] = ["debutant", "facile", "normal", "difficile"];
 // Hauteur des couloirs sur la scène (1200 × 620), du plus grave au plus aigu
 const LANE_Y = [395, 315, 235, 155];
 

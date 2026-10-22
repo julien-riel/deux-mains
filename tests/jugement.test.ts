@@ -8,7 +8,7 @@ import type { Chanson, Main, Note } from "../src/chanson/types";
 import { S } from "../src/jeu/etat";
 import { brancherEffets, leftPress, missEv, release, rightPress, type Effets } from "../src/jeu/jugement";
 
-const DIFFICULTES = ["facile", "normal", "difficile"] as const;
+const DIFFICULTES = ["debutant", "facile", "normal", "difficile"] as const;
 const ETAT_NEUF = { ...S };
 
 let effets: { [K in keyof Effets]: ReturnType<typeof vi.fn> };
