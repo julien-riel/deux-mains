@@ -10,7 +10,8 @@ import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
 import { show } from "./ui/ecrans";
-import { load, setCommandes, setPractice, setTheme } from "./ui/reglages";
+import { suivreCalibrage } from "./ui/calibrage";
+import { load, setCommandes, setDecalage, setPractice, setTheme } from "./ui/reglages";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
 
@@ -50,6 +51,7 @@ function frame(now) {
   lastT = now;
   if (!S.song) return;
   if (S.mode === "play") update(visualBeat());
+  suivreCalibrage();
   if (S.mode === "dying" && AC.currentTime - S.deathAt > 1.7) {
     S.mode = "dead";
     show("dead");
@@ -60,12 +62,14 @@ function frame(now) {
 let savedDiff = null;
 let savedHands = null,
   savedTheme = null,
-  savedCommandes = null;
+  savedCommandes = null,
+  savedDecalage = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
   savedHands = localStorage.getItem("deux-mains-hands");
   savedTheme = localStorage.getItem("deux-mains-theme");
   savedCommandes = localStorage.getItem("deux-mains-commandes");
+  savedDecalage = localStorage.getItem("deux-mains-decalage");
 } catch {
   /* stockage indisponible */
 }
@@ -76,6 +80,7 @@ if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, pract
 const boot = (data) => {
   data = data || {};
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
+  setDecalage(Number(savedDecalage) || 0);
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");

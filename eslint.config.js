@@ -13,7 +13,7 @@ export default defineConfig([
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
   {
-    files: ["src/chanson/**/*.ts", "src/jeu/jugement.ts"],
+    files: ["src/chanson/**/*.ts", "src/jeu/jugement.ts", "src/jeu/calibrage.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

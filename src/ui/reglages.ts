@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté), univers, mains jouées et commandes, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté), univers, mains jouées, commandes et décalage, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -89,5 +89,17 @@ export function setCommandes(v: string) {
   etiquettes();
   if (S.mode === "title" && S.song) show("title");
 }
+// Décalage du joueur, en millisecondes : mesuré par le calibrage, ou ajusté à la main (#30)
+export function setDecalage(ms: number) {
+  ms = clamp(Math.round(ms) || 0, -300, 300);
+  S.decalage = ms / 1000;
+  $<HTMLInputElement>("#decalage").value = String(ms);
+  try {
+    localStorage.setItem("deux-mains-decalage", String(ms));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+$("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));
 $("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, S.diff));
 $("#new").addEventListener("click", () => load(randomSeed(), S.diff));
