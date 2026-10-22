@@ -68,6 +68,12 @@ describe("auto-play", () => {
       ennemi = song.ev.find((ev) => ev.hand === "R");
     autoHit(saut);
     expect([S.jumpAt, S.jumpAir]).toEqual([saut.beat * spb, saut.air * spb]);
+    // Le double saut (#7) part du saut qui le précède
+    const haut = song.ev.find((ev) => ev.hand === "L" && ev.lane === 2);
+    autoHit(song.ev.filter((ev) => ev.hand === "L" && ev.beat < haut.beat).at(-1));
+    autoHit(haut);
+    expect([S.jumpAt, S.doubleAt, S.doubleAir]).toEqual([(haut.beat - 0.5) * spb, haut.beat * spb, haut.air * spb]);
+    expect(S.keyFlash.sauter).toBeDefined();
     autoHit(tunnel);
     expect(S.slideUntil).toBeCloseTo((tunnel.beat + tunnel.dur) * spb, 9);
     autoHit(ennemi);

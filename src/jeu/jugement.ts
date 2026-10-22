@@ -97,14 +97,22 @@ export function release(hand: Main, lane: number, ns: number) {
     else completeHold(ev, false);
   }
 }
+/** En l'air, sur un saut simple : un second appui sur sauter y devient un double saut (#7) */
+export const enLair = (ns: number) => S.doubleAt < S.jumpAt && ns >= S.jumpAt && ns < S.jumpAt + S.jumpAir;
 export function leftPress(lane: number, ns: number) {
   const near = findNear("L", ns);
-  if (lane === 1) {
+  // Près d'un saut ordinaire, un appui en l'air reste un saut simple : on a juste sauté un peu tôt
+  if (lane === 1 && enLair(ns) && !(near && near.ev.lane === 1)) lane = 2;
+  const air = (near && near.ev.lane === lane ? near.ev.air : 0.8) * spb();
+  if (lane === 2) {
+    S.doubleAt = ns;
+    S.doubleAir = air;
+  } else if (lane === 1) {
     S.jumpAt = ns;
-    S.jumpAir = (near && near.ev.lane === 1 ? near.ev.air : 0.8) * spb();
+    S.jumpAir = air;
   } else {
     S.slideUntil = ns + 0.55 * spb();
-    S.jumpAt = -99;
+    S.jumpAt = S.doubleAt = -99;
   }
   if (!near) return;
   if (near.ev.lane !== lane) return missEv(near.ev);

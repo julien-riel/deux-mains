@@ -74,6 +74,9 @@ export interface Etat {
   keys: Partial<Record<Action, boolean>>;
   jumpAt: number;
   jumpAir: number;
+  /** Le second saut, donné en l'air (#7) : il compte tant qu'il suit le saut en cours */
+  doubleAt: number;
+  doubleAir: number;
   slideUntil: number;
   hurtAt: number;
   shake: number;
@@ -129,6 +132,8 @@ export const S: Etat = {
   keys: {},
   jumpAt: -99,
   jumpAir: 0.5,
+  doubleAt: -99,
+  doubleAir: 0.5,
   slideUntil: -99,
   hurtAt: -1e9,
   shake: 0,

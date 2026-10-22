@@ -10,7 +10,8 @@ import { Navigateur } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
 const GRAINE = 4242;
-const TOUCHE: Record<string, string[]> = { L: ["KeyS", "KeyW"], R: ["KeyJ", "KeyK", "KeyL", "Semicolon"] };
+// Le double saut (#7) est un second appui sur sauter, en l'air
+const TOUCHE: Record<string, string[]> = { L: ["KeyS", "KeyW", "KeyW"], R: ["KeyJ", "KeyK", "KeyL", "Semicolon"] };
 
 describe("temps à vitesse réduite", () => {
   const ETAT_NEUF = { ...S };

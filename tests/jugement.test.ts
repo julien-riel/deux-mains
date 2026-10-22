@@ -141,6 +141,58 @@ describe("mauvais coups", () => {
     expect([S.jumpAt, S.slideUntil]).toEqual([-99, 5.55]);
   });
 
+  it("un second appui sur sauter, en l'air, franchit le haut obstacle et joue sa note (#7)", () => {
+    const saut = note("L", 4, 1),
+      haut = note("L", 4.5, 2);
+    saut.air = 1;
+    partie([saut, haut]);
+    leftPress(1, 4.02);
+    leftPress(1, 4.5);
+    expect([saut.state, haut.state]).toEqual(["hit", "hit"]);
+    expect([S.doubleAt, S.doubleAir]).toEqual([4.5, 0.8]);
+    expect(effets.jouer).toHaveBeenLastCalledWith(haut, null);
+    expect([S.combo, S.miss, S.health]).toEqual([2, 0, 100]);
+  });
+
+  it("un saut simple heurte le haut obstacle : le second appui doit venir en l'air", () => {
+    const { dmgL } = DIFFS.normal;
+    const saut = note("L", 4, 1),
+      haut = note("L", 4.5, 2);
+    saut.air = 0.3;
+    partie([saut, haut]);
+    leftPress(1, 4);
+    // Déjà retombé : c'est un nouveau saut simple, pas un double saut
+    leftPress(1, 4.5);
+    expect([saut.state, haut.state]).toEqual(["hit", "miss"]);
+    expect([S.jumpAt, S.doubleAt]).toEqual([4.5, -99]);
+    expect(S.health).toBe(100 - dmgL);
+  });
+
+  it("glisser sous un haut obstacle provoque aussi la collision", () => {
+    const [haut] = partie([note("L", 4, 2)]);
+    leftPress(0, 4);
+    expect(haut.state).toBe("miss");
+  });
+
+  it("sans obstacle, le second appui en l'air fait un double saut, pas le troisième ; glisser l'interrompt", () => {
+    partie([]);
+    leftPress(1, 3);
+    leftPress(1, 3.3);
+    expect([S.jumpAt, S.doubleAt, S.doubleAir]).toEqual([3, 3.3, 0.8]);
+    leftPress(1, 3.6);
+    expect([S.jumpAt, S.doubleAt]).toEqual([3.6, 3.3]);
+    leftPress(0, 5);
+    expect([S.jumpAt, S.doubleAt]).toEqual([-99, -99]);
+  });
+
+  it("en l'air, un appui près d'un saut ordinaire reste un saut simple", () => {
+    const [a, b] = partie([note("L", 4, 1), note("L", 4.6, 1)]);
+    leftPress(1, 4);
+    leftPress(1, 4.6);
+    expect([a.state, b.state]).toEqual(["hit", "hit"]);
+    expect([S.jumpAt, S.doubleAt]).toEqual([4.6, -99]);
+  });
+
   it("pendant le solo libre, chaque tir joue une note de l'accord, sans jugement", () => {
     partie([]);
     rightPress(2, 17);

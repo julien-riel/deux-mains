@@ -114,6 +114,15 @@ export function villeBlock(x, fill) {
   g.fillRect(x - 15, GY - 12, 4, 12);
   g.fillRect(x + 11, GY - 12, 4, 12);
 }
+// Pile de trois barrières, à franchir d'un double saut (#7)
+export function villeHaut(x, fill) {
+  for (let i = 0; i < 3; i++) {
+    g.save();
+    g.translate(0, -34 * i);
+    villeBlock(x, fill);
+    g.restore();
+  }
+}
 // Rideau de fer suspendu
 export function villeBeam(x, fill) {
   g.strokeStyle = hexA(COL.fg, 0.18);

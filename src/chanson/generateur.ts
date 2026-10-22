@@ -143,7 +143,8 @@ export function buildSong(seed: number, diffKey: string): Chanson {
           while (k + n < 8 && p[k + n] === "-") n++;
           dur = n / 2;
         }
-        const lane = c === "W" ? 1 : 0;
+        // Glisser joue la fondamentale, sauter l'octave, le double saut la quinte au-dessus de l'octave (ADR-0003)
+        const lane = c === "W" ? 1 : c === "D" ? 2 : 0;
         ev.push({
           hand: "L",
           beat: barIdx * 4 + k / 2,
@@ -151,7 +152,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
           lane,
           bar: barIdx,
           kind: s.kind,
-          midi: ch.bass + (lane ? 12 : 0),
+          midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2]][lane],
         });
       }
     }
@@ -184,7 +185,8 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   const Ls = ev.filter((e) => e.hand === "L");
   Ls.forEach((e, i) => {
     const nx = Ls[i + 1];
-    e.air = Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
+    // Le saut qui précède un double saut dure un temps : le second appui doit venir en l'air, même en retard
+    e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
   });
   ev.forEach((e) => (e.state = "pending"));
   // Notes simultanées = un accord : reliées à l'écran, bonus quand l'accord est complet
