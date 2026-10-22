@@ -95,6 +95,10 @@ h1 .r {
   background: var(--scrim);
   overflow: auto;
 }
+/* Hors de l'artefact, rien d'autre ne cache un écran marqué hidden : display: flex l'emporterait */
+.overlay[hidden] {
+  display: none;
+}
 .overlay h2 {
   font-family: var(--display);
   font-weight: 700;
@@ -398,10 +402,15 @@ html.tactile .pause {
   height: 44px;
   padding: 0;
   justify-content: center;
-  font-size: 14px;
-  letter-spacing: -2px;
+  gap: 5px;
   background: var(--scrim);
   opacity: 0.85;
+}
+.pause span {
+  width: 5px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--fg);
 }
 .stage:has(.overlay:not([hidden])) .pause {
   display: none;
@@ -426,6 +435,10 @@ html.tactile.menu .field {
 }
 html.tactile.menu .song {
   margin: 0;
+}
+/* En haut du menu, pour qu'on le voie sans faire défiler */
+html.tactile.menu #fermer-reglages {
+  order: -1;
 }
 /* 16 px : en dessous, Safari zoome sur le champ quand on le touche */
 html.tactile #seed {
