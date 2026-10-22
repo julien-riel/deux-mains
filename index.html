@@ -67,6 +67,12 @@
         <input type="radio" name="commandes" id="c-tactile" value="tactile" /><label for="c-tactile">Tactile</label>
       </div>
     </div>
+    <div class="field">
+      <label class="flabel" for="decalage">Décalage</label>
+      <input id="decalage" type="number" min="-300" max="300" step="5" />
+      <span class="unite">ms</span>
+      <button id="calibrer" type="button">Calibrer</button>
+    </div>
     <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
     <p class="song" id="songline"></p>
     <button class="primary seulement-tactile" id="fermer-reglages" type="button">Fermer les réglages</button>

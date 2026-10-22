@@ -2,7 +2,7 @@
 import { AC, songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { NOTE, noteName } from "../chanson/theorie";
-import { COULOIRS, S, autoFor, layers, mult, sectionAtBar, spb, type Action } from "../jeu/etat";
+import { COULOIRS, S, autoFor, auRepos, layers, mult, sectionAtBar, spb, type Action } from "../jeu/etat";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -32,7 +32,7 @@ import {
 import { villeBack, villeBeam, villeBlock, villeEnemy, villeGround, villeTunnel } from "./ville";
 
 export function visualBeat() {
-  if (!AC || S.mode === "title") return S.titleBeat;
+  if (!AC || auRepos()) return S.titleBeat;
   if (S.mode === "dying" || S.mode === "dead") {
     const e = Math.min(1.4, AC.currentTime - S.deathAt);
     return S.deathBeat + (e - (e * e) / 2.8) / spb();
@@ -47,7 +47,7 @@ export function render(nb, dt) {
   const sp = spb(),
     ns = nb * sp,
     pnow = performance.now(),
-    playing = S.mode !== "title";
+    playing = !auRepos();
   const sat = playing ? 0.3 + 0.7 * clamp((S.health - 10) / 65, 0, 1) : 1;
   const hsl = (h, s, l, a = 1) => `hsla(${h},${Math.round(s * sat)}%,${l}%,${a})`;
   const bp = Math.exp(-(((nb % 1) + 1) % 1) * 5);
@@ -476,7 +476,7 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
   let yOff = 0,
     sliding = false,
     jumping = false;
-  if (S.mode !== "title") {
+  if (!auRepos()) {
     const p = (ns - S.jumpAt) / S.jumpAir;
     if (p >= 0 && p < 1) {
       jumping = true;
@@ -506,7 +506,7 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
         ? 1.5 + (5 * S.health) / 100
         : S.mode === "dying"
           ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
-          : S.mode === "title"
+          : auRepos()
             ? 1
             : 0;
     S.keyAng = (S.keyAng || 0) + dt * spin;

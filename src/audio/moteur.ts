@@ -2,7 +2,9 @@
 import { S, spb } from "../jeu/etat";
 
 export const lat = () => (AC && (AC.outputLatency || AC.baseLatency)) || 0;
-export const songNow = () => AC.currentTime - lat() - S.t0 + S.startBeat * spb();
+// Le temps de la chanson tel que le joueur l'entend, corrigé du décalage mesuré par le calibrage (#30).
+// Le jugement et l'image le suivent ; la programmation des sons (timeOfBeat) ne le suit pas.
+export const songNow = () => AC.currentTime - lat() - S.decalage - S.t0 + S.startBeat * spb();
 export const timeOfBeat = (b) => S.t0 + (b - S.startBeat) * spb();
 
 export let AC = null,

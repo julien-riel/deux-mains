@@ -5,6 +5,7 @@ import { presser, relacher } from "../jeu/actions";
 import { pause } from "../jeu/deroulement";
 import { COULOIRS, S, type Action } from "../jeu/etat";
 import { H, LANE_Y, cv } from "../rendu/outils";
+import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { COMMANDES } from "./touches";
 
@@ -22,15 +23,20 @@ function zone(x: number, y: number): Action {
     i = LIMITES.findIndex((l) => sy > l);
   return COULOIRS[i < 0 ? 3 : i];
 }
-// L'heure du toucher, ramenée sur l'horloge de la chanson (ADR-0004) : le délai de traitement ne compte pas.
+// Le temps écoulé depuis le toucher, en secondes : le délai de traitement ne compte pas.
 // Un horodatage d'une autre base (anciens navigateurs) est ignoré.
-function heure(e: PointerEvent) {
-  const retard = performance.now() - e.timeStamp;
-  return songNow() - (retard >= 0 && retard < 1000 ? retard / 1000 : 0);
+function retard(e: PointerEvent) {
+  const ms = performance.now() - e.timeStamp;
+  return ms >= 0 && ms < 1000 ? ms / 1000 : 0;
 }
+// L'heure du toucher, ramenée sur l'horloge de la chanson (ADR-0004)
+const heure = (e: PointerEvent) => songNow() - retard(e);
 
 scene.addEventListener("pointerdown", (e) => {
-  if (!COMMANDES.tactile || S.mode !== "play" || (e.target as HTMLElement).closest("button")) return;
+  if ((e.target as HTMLElement).closest("button")) return;
+  // Pendant le calibrage, toucher n'importe où compte comme un coup, même au clavier
+  if (S.mode === "calib") return taper(retard(e));
+  if (!COMMANDES.tactile || S.mode !== "play") return;
   e.preventDefault();
   const a = zone(e.clientX, e.clientY);
   // Un deuxième doigt sur la même zone ne fait rien : seul le premier la relâchera

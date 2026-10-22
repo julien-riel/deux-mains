@@ -2,7 +2,7 @@
 import type { Chanson, Main, Note, Section } from "../chanson/types";
 import { clamp } from "../outils";
 
-export type Mode = "title" | "play" | "pause" | "dying" | "dead" | "done";
+export type Mode = "title" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
 export type Action = "sauter" | "glisser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
@@ -18,6 +18,15 @@ export interface PointDeReprise {
   maxCombo: number;
 }
 
+/** Le calibrage en cours : les clics du métronome et les coups du joueur, à l'heure où on les entend */
+export interface Calibrage {
+  clics: number[];
+  coups: number[];
+  fin: number;
+  /** Le décalage mesuré en secondes, null s'il n'a pas pu l'être ; absent tant que le métronome joue */
+  resultat?: number | null;
+}
+
 /** L'état de la partie, partagé par tous les modules */
 export interface Etat {
   song: Chanson;
@@ -31,8 +40,10 @@ export interface Etat {
   perfect: number;
   good: number;
   miss: number;
-  // Horloge de la partie (ADR-0004)
+  // Horloge de la partie (ADR-0004), et le décalage du joueur mesuré par le calibrage, en secondes
   startBeat: number;
+  decalage: number;
+  calib: Calibrage;
   t0: number;
   nextStep: number;
   timer: ReturnType<typeof setInterval> | 0;
@@ -78,6 +89,8 @@ export const S: Etat = {
   good: 0,
   miss: 0,
   startBeat: 0,
+  decalage: 0,
+  calib: null,
   t0: 0,
   nextStep: 0,
   timer: 0,
@@ -108,6 +121,8 @@ export const S: Etat = {
   keyAng: 0,
 };
 export const spb = () => 60 / S.song.bpm;
+// Sur l'écran de départ et pendant le calibrage, la scène tourne au repos
+export const auRepos = () => S.mode === "title" || S.mode === "calib";
 
 export const mult = () => 1 + Math.min(3, Math.floor(S.combo / 10)) * 0.5;
 export const sectionAtBar = (bar: number) =>

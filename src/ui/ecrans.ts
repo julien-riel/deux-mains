@@ -1,5 +1,6 @@
 /* ---------- Écrans ---------- */
 import { DIFFS } from "../chanson/difficultes";
+import { METRONOME } from "../jeu/calibrage";
 import { S, sectionAtBar, spb } from "../jeu/etat";
 import { clamp } from "../outils";
 import { TH, placeName } from "../univers/univers";
@@ -33,6 +34,33 @@ export function show(kind) {
       <p class="hint">Sur iPhone, coupe le mode silencieux pour entendre la musique.</p>`
           : `<p class="hint">Gauche ${k("KeyW")} ${k("KeyS")} · Droite ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`
       }`;
+  } else if (kind === "calib") {
+    const r = S.calib.resultat,
+      geste = COMMANDES.tactile ? "Touche l'écran" : `Appuie sur <kbd>Espace</kbd>`,
+      ms = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v))} ms`,
+      actuel = `Réglage actuel : ${ms(S.decalage * 1000)}`;
+    if (r === undefined)
+      h = `<p class="eyebrow">Calibrage de la latence</p><h2>Tape en rythme avec le clic</h2>
+      <p class="meta">${geste} à chaque clic. Les ${METRONOME.decompte} premiers servent à te caler.</p>
+      <p class="hint">Coups : ${S.calib.coups.length}</p>
+      <div class="actions"><button type="button" data-act="calib-annuler">Annuler <kbd>Échap</kbd></button></div>`;
+    else if (r === null)
+      h = `<p class="eyebrow">Calibrage de la latence</p><h2>Pas assez de coups réguliers</h2>
+      <p class="meta">Tape sur chaque clic, le plus régulièrement possible.</p>
+      <p class="hint">${actuel}</p>
+      <div class="actions"><button class="primary" type="button" data-act="calib">Recommencer <kbd>Entrée</kbd></button>
+      <button type="button" data-act="calib-annuler">Annuler <kbd>Échap</kbd></button></div>`;
+    else
+      h = `<p class="eyebrow">Calibrage de la latence · décalage mesuré</p><h2>${ms(r * 1000)}</h2>
+      <p class="meta">${
+        Math.round(r * 1000) === 0
+          ? "Tu tapes pile sur le clic."
+          : `Tu tapes en moyenne ${Math.abs(Math.round(r * 1000))} ms ${r > 0 ? "après" : "avant"} le clic : le jeu va le compenser.`
+      }</p>
+      <p class="hint">${actuel}</p>
+      <div class="actions"><button class="primary" type="button" data-act="calib-ok">Appliquer <kbd>Entrée</kbd></button>
+      <button type="button" data-act="calib">Recommencer</button>
+      <button type="button" data-act="calib-annuler">Annuler <kbd>Échap</kbd></button></div>`;
   } else if (kind === "pause") {
     h = `<p class="eyebrow">Pause</p><h2>La chanson attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>

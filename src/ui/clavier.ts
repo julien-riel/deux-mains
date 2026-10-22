@@ -3,6 +3,7 @@ import { randomSeed } from "../chanson/aleatoire";
 import { presser, relacher } from "../jeu/actions";
 import { newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
+import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { load } from "./reglages";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
@@ -41,7 +42,18 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (e.repeat) return;
-  if (S.mode === "title") {
+  if (S.mode === "calib") {
+    const fini = S.calib.resultat !== undefined;
+    if (c === "Escape") fermerCalibrage();
+    else if (!fini && (c === "Space" || ACTION_DE[c])) {
+      e.preventDefault();
+      taper();
+    } else if (fini && c === "Enter") {
+      e.preventDefault();
+      if (S.calib.resultat === null) lancerCalibrage();
+      else appliquerCalibrage();
+    }
+  } else if (S.mode === "title") {
     if (c === "Space" || c === "Enter") {
       e.preventDefault();
       newRun();

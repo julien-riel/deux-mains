@@ -1,5 +1,5 @@
 /* ---------- Outils de dessin ---------- */
-import { S } from "../jeu/etat";
+import { S, auRepos } from "../jeu/etat";
 import { clamp } from "../outils";
 
 export const cv = document.querySelector<HTMLCanvasElement>("#game"),
@@ -81,4 +81,4 @@ export function hh(a, b = 0) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 // Énergie de la scène : monte avec le combo, retombe quand l'harmonie baisse
-export const energy = () => (S.mode === "title" ? 0.35 : clamp(S.combo / 35, 0, 1) * (S.health >= 50 ? 1 : 0.35));
+export const energy = () => (auRepos() ? 0.35 : clamp(S.combo / 35, 0, 1) * (S.health >= 50 ? 1 : 0.35));

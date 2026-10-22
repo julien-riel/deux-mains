@@ -21,7 +21,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
   - `ui/` : écrans, touches, clavier, réglages ;
   - `main.ts` : amorçage et boucle d'images.
 
-  `chanson/` et `jeu/jugement.ts` sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
+  `chanson/`, `jeu/jugement.ts` et `jeu/calibrage.ts` sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
 
 - `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
 - `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.

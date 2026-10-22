@@ -26,6 +26,8 @@ export interface InterfaceJeu {
 export interface Options {
   /** Un écran tactile sans survol, comme un téléphone */
   tactile?: boolean;
+  /** Ce que le navigateur a gardé d'une visite précédente */
+  stockage?: Record<string, string>;
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
@@ -160,6 +162,9 @@ export class Navigateur {
   readonly document = element({ hidden: false });
   readonly classes = new Set<string>();
   jeu: InterfaceJeu;
+  /** Le localStorage du navigateur */
+  readonly stockage = new Map<string, string>();
+  private elements: Record<string, ReturnType<typeof element>> = {};
   private medias = new Map<string, ReturnType<typeof requeteMedia>>();
   private ecouteurs = new Map<string, Ecouteur[]>();
   private images: ((t: number) => void)[] = [];
@@ -169,6 +174,7 @@ export class Navigateur {
   /** Installe le faux navigateur, puis charge le jeu comme le ferait la page. */
   static async ouvrir(options: Options = {}) {
     const nav = new Navigateur();
+    for (const [k, v] of Object.entries(options.stockage ?? {})) nav.stockage.set(k, v);
     nav.installer();
     nav.media("(hover: none) and (pointer: coarse)").matches = !!options.tactile;
     vi.resetModules();
@@ -194,7 +200,7 @@ export class Navigateur {
 
   private installer() {
     const ms = () => this.horloge.secondes * 1000;
-    const elements: Record<string, ReturnType<typeof element>> = {
+    const elements = (this.elements = {
       "#game": element({
         width: 1200,
         height: 620,
@@ -207,9 +213,9 @@ export class Navigateur {
       "#seed": element(),
       "#songline": element(),
       "#new": element(),
-    };
+    });
     const parId = new Map<string, ReturnType<typeof element>>();
-    const stockage = new Map<string, string>();
+    const stockage = this.stockage;
 
     const page = this.document;
     const fenetre: Record<string, unknown> = {
@@ -225,7 +231,8 @@ export class Navigateur {
         get hidden() {
           return page.hidden;
         },
-        querySelector: (s: string) => elements[s] ?? element(),
+        // Le même élément à chaque recherche, pour garder ses écouteurs
+        querySelector: (s: string) => (elements[s] ??= element()),
         querySelectorAll: () => [],
         getElementById: (id: string) => parId.get(id) ?? parId.set(id, element()).get(id),
         addEventListener: page.addEventListener,
@@ -279,6 +286,18 @@ export class Navigateur {
   toucherPause() {
     this.scene.emettre("pointerdown", { ...this.pointeur(99, 900, 20), target: this.bouton });
     this.boutonPause.emettre("click", {});
+  }
+
+  /** Clique sur un élément de la page, hors de la scène (bouton des réglages) */
+  cliquer(selecteur: string) {
+    this.elements[selecteur].emettre("click", {});
+  }
+
+  /** Change la valeur d'un champ des réglages */
+  saisir(selecteur: string, valeur: string) {
+    const champ = this.elements[selecteur];
+    champ.value = valeur;
+    champ.emettre("change", { target: champ });
   }
 
   /** Touche un bouton de l'écran affiché (départ, pause, mort, fin), repéré par son action */
