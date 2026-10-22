@@ -78,7 +78,7 @@ button kbd{background:transparent;border-color:currentColor;color:inherit;opacit
 <div class="wrap">
   <header>
     <h1><span class="l">Deux</span> <span class="r">Mains</span></h1>
-    <p class="tag">Prototype de gameplay. La main gauche joue la basse en sautant et en glissant, la main droite joue la mélodie en tirant. Chaque chanson est générée à partir d'une graine.</p>
+    <p class="tag">La main gauche joue la basse en sautant et en glissant, la main droite joue la mélodie en tirant. Deux univers : rendre sa musique à une ville réduite au silence, ou remonter les souvenirs d'une vieille boîte à musique.</p>
   </header>
 
   <div class="stage">
@@ -87,6 +87,13 @@ button kbd{background:transparent;border-color:currentColor;color:inherit;opacit
   </div>
 
   <div class="bar">
+    <div class="field">
+      <span class="flabel" id="theme-label">Univers</span>
+      <div class="seg" role="radiogroup" aria-labelledby="theme-label">
+        <input type="radio" name="theme" id="t-ville" value="ville"><label for="t-ville">La Ville Muette</label>
+        <input type="radio" name="theme" id="t-boite" value="boite"><label for="t-boite">La Boîte à musique</label>
+      </div>
+    </div>
     <div class="field">
       <span class="flabel" id="diff-label">Difficulté</span>
       <div class="seg" role="radiogroup" aria-labelledby="diff-label">
@@ -184,6 +191,26 @@ const DIFFS = {
     label: "Difficile", win: [.045, .105], dmgL: 20, dmgR: 9,
     bass: { couplet: ["S..W..S.", "T--.S.W."], refrain: ["S.WSS.W.", "S.W..WS."], pont: ["T---S.W."], outro: ["S.......", "........"] },
     mel: { even: .58, odd: .3, gap: 1, avoid: "none", holdP: .15, max: 11, dyadP: .22, dyadStrong: false, cross: [0, 8], crossP: .5, triad: true },
+  },
+};
+
+// Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
+const THEMES = {
+  ville: {
+    label: "La Ville Muette", unit: "Quartier", meter: "VOLUME DU QUARTIER",
+    layers: ["Radios", "Fenêtres", "Toits"],
+    places: { "I–V–vi–IV": "Le Centre-ville", "vi–IV–I–V": "Les Ruelles", "Royal Road": "Le Quartier néon", "Vamp dorien": "Le Marché de nuit", "Cadence andalouse": "Le Port", "Canon de Pachelbel": "La Cathédrale" },
+    solo: "En ondes : la radio pirate est à toi",
+    deadTag: "Coupure de courant", deadTitle: "Le quartier s'est éteint",
+    rail: "#0e0b1f", under: "#0b0916",
+  },
+  boite: {
+    label: "La Boîte à musique", unit: "Souvenir", meter: "RESSORT",
+    layers: ["Engrenages", "Carillon", "Violon"],
+    places: { "I–V–vi–IV": "Un anniversaire", "vi–IV–I–V": "Un départ", "Royal Road": "Une première danse", "Vamp dorien": "Un après-midi de pluie", "Cadence andalouse": "Une dispute", "Canon de Pachelbel": "Un mariage" },
+    solo: "La figurine se souvient : joue ce que tu veux",
+    deadTag: "Ressort détendu", deadTitle: "La boîte s'est arrêtée",
+    rail: "#1a120b", under: "#120c08",
   },
 };
 
@@ -347,7 +374,7 @@ const S = {
   curSec: null, cp: null, banner: null,
   keys: {}, jumpAt: -99, jumpAir: .5, slideUntil: -99, hurtAt: -1e9, shake: 0, gun: [260, 470],
   laneFlash: [-1e9, -1e9, -1e9, -1e9], beams: [], parts: [], pops: [],
-  auto: false, autoUsed: false, autoQ: [], autoLane: 1, keyFlash: {}, practice: "both",
+  auto: false, autoUsed: false, autoQ: [], autoLane: 1, keyFlash: {}, practice: "both", theme: "ville", keyAng: 0,
 };
 const spb = () => 60 / S.song.bpm;
 const lat = () => (AC && (AC.outputLatency || AC.baseLatency)) || 0;
@@ -359,6 +386,9 @@ const chordAtBeat = b => S.song.chords[clamp(Math.floor(b / 4), 0, S.song.totalB
 const layers = () => { const ok = S.health >= 50; return { arp: ok && S.combo >= 8, choir: ok && S.combo >= 20, strings: ok && S.combo >= 35 }; };
 // La main qui joue toute seule : les deux en auto-play, ou l'autre main en entraînement
 const autoFor = hand => S.auto || (S.practice !== "both" && S.practice !== hand);
+const TH = () => THEMES[S.theme];
+const placeName = () => TH().places[S.song.prog.name];
+const leadTimbre = kind => S.theme === "boite" ? "box" : kind === "refrain" ? "pluck" : "bell";
 
 /* ---------- Audio ---------- */
 let AC = null, B = null, NOISE = null;
@@ -415,23 +445,29 @@ function decayGain(t, v, dec) {
   return gn;
 }
 
+const boite = () => S.theme === "boite";
 function kick(t, v = .85) {
+  if (boite()) v *= .55;
   const o = osc("sine", 150, t, t + .45);
   o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .13);
   const gn = decayGain(t, v, .42); o.connect(gn); gn.connect(B.dry);
 }
 function snare(t, v = .3) {
+  if (boite()) return woodblock(t, v);
+  clap(t, v * .8);
   const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1900; bp.Q.value = .7;
   const gn = decayGain(t, v, .17);
   noise(t, .2).connect(bp); bp.connect(gn); send(gn, .25, 0);
   const body = decayGain(t, .16, .09); osc("triangle", 185, t, t + .12).connect(body); body.connect(B.dry);
 }
 function hat(t, v, open) {
+  if (boite()) return clockTick(t, v, open);
   const hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 7200;
   const gn = decayGain(t, v, open ? .2 : .045);
   noise(t, open ? .25 : .06).connect(hp); hp.connect(gn); gn.connect(B.dry);
 }
 function crash(t, v = .2) {
+  if (boite()) return chime(t, v);
   const hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 3500;
   const gn = decayGain(t, v, 1.8);
   noise(t, 1.9).connect(hp); hp.connect(gn); send(gn, .4, 0);
@@ -440,6 +476,30 @@ function click(t, accent) {
   const gn = decayGain(t, accent ? .2 : .13, .05);
   osc("sine", accent ? 1700 : 1150, t, t + .07).connect(gn); gn.connect(B.dry);
 }
+// Ville : clap sous la caisse claire. Boîte : bloc de bois, tic-tac du mécanisme, petit carillon
+function clap(t, v) {
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1300; bp.Q.value = 1.2;
+  const gn = AC.createGain(); gn.gain.setValueAtTime(0, t);
+  for (const o of [0, .011, .022]) { gn.gain.setValueAtTime(v * .9, t + o); gn.gain.setTargetAtTime(0, t + o + .001, .006); }
+  gn.gain.setValueAtTime(v * .8, t + .033); gn.gain.setTargetAtTime(0, t + .034, .05);
+  noise(t, .25).connect(bp); bp.connect(gn); send(gn, .2, 0);
+}
+function woodblock(t, v) {
+  const gn = decayGain(t, v * 1.1, .07);
+  osc("sine", 820, t, t + .1).connect(gn);
+  const g2 = decayGain(t, v * .5, .04); osc("triangle", 1670, t, t + .06).connect(g2); g2.connect(gn);
+  send(gn, .3, 0);
+}
+function clockTick(t, v, open) {
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = open ? 3200 : 4500; bp.Q.value = 4;
+  const gn = decayGain(t, v * 1.6, open ? .05 : .02);
+  noise(t, .06).connect(bp); bp.connect(gn); gn.connect(B.dry);
+}
+function chime(t, v) {
+  const gn = decayGain(t, v * .5, 2.2);
+  for (const m of [91, 98, 103]) osc("sine", mtof(m), t, t + 2.3).connect(gn);
+  send(gn, .6, .2);
+}
 function padV(t, ch, dur) {
   const notes = [ch.root - 12, ...ch.ints.slice(1).map(i => ch.root - 12 + i), ch.root];
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; lp.Q.value = .4;
@@ -447,16 +507,18 @@ function padV(t, ch, dur) {
   gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(.032, t + .35);
   gn.gain.setValueAtTime(.032, t + dur - .1); gn.gain.linearRampToValueAtTime(0, t + dur + .5);
   lp.connect(gn); send(gn, .5, 0);
-  for (const m of notes) for (const det of [-7, 7]) osc("sawtooth", mtof(m), t, t + dur + .6, det).connect(lp);
+  // Boîte : harmonium doux (triangle) ; Ville : nappe de synthé (dents de scie)
+  for (const m of notes) for (const det of [-7, 7]) osc(boite() ? "triangle" : "sawtooth", mtof(m), t, t + dur + .6, det).connect(lp);
 }
 function bassV(t, m, dur) {
   const f = mtof(m), end = t + dur;
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 6;
-  lp.frequency.setValueAtTime(200, t); lp.frequency.linearRampToValueAtTime(1700, t + .012); lp.frequency.setTargetAtTime(450, t + .015, .09);
+  // Boîte : contrebasse pincée, plus ronde ; Ville : basse synthé funk
+  lp.frequency.setValueAtTime(200, t); lp.frequency.linearRampToValueAtTime(boite() ? 900 : 1700, t + .012); lp.frequency.setTargetAtTime(boite() ? 320 : 450, t + .015, .09);
   const gn = AC.createGain();
   gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(.5, t + .006);
   gn.gain.setTargetAtTime(.36, t + .02, .12); gn.gain.setTargetAtTime(0, end, .03);
-  osc("sawtooth", f, t, end + .4).connect(lp); lp.connect(gn);
+  osc(boite() ? "triangle" : "sawtooth", f, t, end + .4).connect(lp); lp.connect(gn);
   const sub = AC.createGain(); sub.gain.value = .6; osc("sine", f, t, end + .4).connect(sub); sub.connect(gn);
   send(gn, 0, 0);
   return { stop(at) { gn.gain.cancelScheduledValues(at); gn.gain.setTargetAtTime(0, at, .03); } };
@@ -466,8 +528,16 @@ function leadV(t, m, dur, timbre, vel = 1) {
   const gn = AC.createGain();
   gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(.24 * vel, t + .005);
   if (hold) { gn.gain.setTargetAtTime(.14 * vel, t + .01, .12); gn.gain.setTargetAtTime(0, end, .08); }
-  else gn.gain.setTargetAtTime(0, t + .01, timbre === "bell" ? .22 : .14);
-  if (timbre === "bell") {
+  else gn.gain.setTargetAtTime(0, t + .01, timbre === "box" ? .4 : timbre === "bell" ? .22 : .14);
+  if (timbre === "box") {
+    // Lame de boîte à musique : partiels inharmoniques très brefs, fondamentale qui tinte
+    const f2 = f * 2;
+    osc("sine", f2, t, stop + .6).connect(gn);
+    for (const [r, v, d] of [[2.76, .3, .06], [5.4, .12, .025]]) {
+      const p = AC.createGain(); p.gain.setValueAtTime(v, t); p.gain.setTargetAtTime(0, t, d);
+      osc("sine", f2 * r, t, stop).connect(p); p.connect(gn);
+    }
+  } else if (timbre === "bell") {
     osc("sine", f, t, stop).connect(gn);
     const p = AC.createGain(); p.gain.setValueAtTime(.35, t); p.gain.setTargetAtTime(0, t, .05);
     osc("sine", f * 4, t, stop).connect(p); p.connect(gn);
@@ -488,7 +558,7 @@ function harmV(t, m) {
 }
 function arpV(t, m) {
   const gn = decayGain(t, .05, .2);
-  osc("triangle", mtof(m), t, t + .25).connect(gn); send(gn, .2, .3);
+  osc(boite() ? "sine" : "triangle", mtof(m), t, t + .25).connect(gn); send(gn, .2, .3);
 }
 function stringsV(t, ch, dur) {
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
@@ -596,7 +666,7 @@ function autoStep(step, t, sec, ch) {
     const r = Math.random();
     S.autoLane = clamp(S.autoLane + (r < .4 ? -1 : r < .8 ? 1 : 0), 0, 3);
     const lane = S.autoLane;
-    leadV(t, ch.lanes[lane], 0, "pluck");
+    leadV(t, ch.lanes[lane], 0, leadTimbre("refrain"));
     if (layers().choir) harmV(t, lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
     S.autoQ.push({ at: b * spb(), solo: lane });
   }
@@ -703,7 +773,7 @@ function hitEv(ev, d) {
 function playHit(ev, t) {
   if (ev.hand === "L") ev.voice = bassV(t, ev.midi, ev.dur > 0 ? ev.dur * spb() : .42 * spb());
   else {
-    ev.voice = leadV(t, ev.midi, ev.dur * spb(), ev.kind === "refrain" ? "pluck" : "bell", ev.vel || 1);
+    ev.voice = leadV(t, ev.midi, ev.dur * spb(), leadTimbre(ev.kind), ev.vel || 1);
     if (layers().choir && ev.harm) harmV(t, ev.harm);
   }
 }
@@ -767,7 +837,7 @@ function rightPress(lane) {
   const nb = songNow() / spb();
   if (sectionAtBar(Math.floor(nb / 4)).kind === "pont") {
     const ch = chordAtBeat(nb);
-    leadV(AC.currentTime, ch.lanes[lane], 0, "pluck");
+    leadV(AC.currentTime, ch.lanes[lane], 0, leadTimbre("refrain"));
     if (layers().choir) harmV(AC.currentTime, lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
     S.score += 25;
     burst(HITX + 40, LANE_Y[lane], LANE_HUE[lane], 10);
@@ -793,7 +863,7 @@ function update(nb) {
     if (sec !== S.curSec) {
       S.curSec = sec;
       S.cp = { sec, score: S.score, perfect: S.perfect, good: S.good, miss: S.miss, maxCombo: S.maxCombo };
-      if (sec.kind !== "intro") S.banner = { text: sec.name, sub: sec.kind === "pont" ? "Tire où tu veux : tout sonne juste" : "", at: performance.now() };
+      if (sec.kind !== "intro") S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };
     }
   }
   if (S.autoQ.length) {
@@ -855,24 +925,8 @@ function render(nb, dt) {
   if (S.shake > .2) { shx = (Math.random() * 2 - 1) * S.shake; shy = (Math.random() * 2 - 1) * S.shake; S.shake *= Math.pow(.0005, dt); } else S.shake = 0;
   g.save(); g.translate(shx, shy);
 
-  // Ciel, étoiles qui battent la mesure, collines en parallaxe
-  const sky = g.createLinearGradient(0, 0, 0, GY);
-  sky.addColorStop(0, COL.sky1); sky.addColorStop(1, COL.sky2);
-  g.fillStyle = sky; g.fillRect(-12, -12, W + 24, GY + 12);
-  for (let i = 0; i < 70; i++) {
-    const x = ((i * 197.3 - nb * PPB * .04) % W + W) % W, y = 12 + (i * 83.7) % 330;
-    g.fillStyle = hsl(262, 30, 94, .14 + .5 * bp * ((i % 4) / 4));
-    g.fillRect(x, y, i % 3 === 0 ? 2 : 1.3, i % 3 === 0 ? 2 : 1.3);
-  }
-  for (const [speed, base, amp, l] of [[.12, 410, 42, 17], [.3, 455, 26, 13]]) {
-    g.beginPath(); g.moveTo(0, GY);
-    for (let x = 0; x <= W; x += 20) {
-      const u = (x + nb * PPB * speed) / W;
-      g.lineTo(x, base - amp * (Math.sin(u * 6.3) + .5 * Math.sin(u * 13.7 + 1.3) + .3 * Math.sin(u * 29 + 2)));
-    }
-    g.lineTo(W, GY); g.closePath();
-    g.fillStyle = hsl(262, 32, l); g.fill();
-  }
+  // Décor de l'univers choisi
+  if (S.theme === "boite") boiteBack(nb, hsl, bp); else villeBack(nb, hsl, bp);
 
   // Zones d'accord (ciel, alignées sur la ligne de tir)
   const bFirst = Math.max(0, Math.floor(nb / 4) - 1), bLast = Math.min(song.totalBars - 1, Math.floor((nb + (W - HITX) / PPB) / 4) + 1);
@@ -899,9 +953,10 @@ function render(nb, dt) {
     g.fillStyle = hsl(LANE_HUE[i], 80, 65, held ? .3 : fl * .5); g.fill();
     g.strokeStyle = hsl(LANE_HUE[i], 80, 70, .7); g.lineWidth = 2; g.stroke();
   }
+  if (S.theme === "boite") drawComb(pnow, hsl);
 
   // Sol, teinté par l'accord (aligné sur le personnage)
-  g.fillStyle = COL.ground; g.fillRect(-12, GY, W + 24, 45);
+  if (S.theme === "boite") boiteGround(nb, hsl); else villeGround(nb, hsl);
   for (let bar = bFirst; bar <= bLast + 1 && bar < song.totalBars; bar++) {
     const c = song.chords[bar], x0 = PX + PW / 2 + (bar * 4 - nb) * PPB;
     g.fillStyle = hsl(c.hue, 60, 55, .14); g.fillRect(x0, GY, 4 * PPB, 40);
@@ -911,7 +966,7 @@ function render(nb, dt) {
     g.fillRect(PX + PW / 2 + (b - nb) * PPB, GY + 4, 2, b % 4 === 0 ? 14 : 7);
   }
   g.fillStyle = hexA(COL.bass, .65); g.fillRect(-12, GY, W + 24, 2);
-  g.fillStyle = COL.ink; g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
+  g.fillStyle = TH().under; g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
 
   // Obstacles (main gauche) et ennemis (main droite)
   for (const ev of song.ev) {
@@ -922,7 +977,7 @@ function render(nb, dt) {
     else drawEnemy(ev, nb, pnow, hsl);
   }
 
-  drawPlayer(nb, ns, pnow, hsl);
+  drawPlayer(nb, ns, pnow, hsl, dt);
 
   // Rayons
   S.beams = S.beams.filter(b => pnow - b.at < 140);
@@ -949,7 +1004,8 @@ function render(nb, dt) {
 
   // Rail de gauche : ce que joue chaque touche maintenant
   const rail = g.createLinearGradient(0, 0, 200, 0);
-  rail.addColorStop(0, hexA(COL.sky1, .94)); rail.addColorStop(.75, hexA(COL.sky1, .6)); rail.addColorStop(1, hexA(COL.sky1, 0));
+  const rc = TH().rail;
+  rail.addColorStop(0, hexA(rc, .94)); rail.addColorStop(.75, hexA(rc, .6)); rail.addColorStop(1, hexA(rc, 0));
   g.fillStyle = rail; g.fillRect(-12, 92, 212, GY - 92);
   txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
   txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
@@ -968,16 +1024,17 @@ function render(nb, dt) {
   g.restore();
 
   // HUD
-  txt(`CHANSON N° ${S.seed} · ${DIFFS[S.diff].label.toUpperCase()}`, 24, 36, `600 11px ${FONT.mono}`, COL.muted);
-  txt(`${song.keyName} · ${song.bpm} BPM`, 24, 60, `500 16px ${FONT.body}`, COL.fg);
+  txt(`${TH().unit.toUpperCase()} N° ${S.seed} · ${DIFFS[S.diff].label.toUpperCase()}`, 24, 36, `600 11px ${FONT.mono}`, COL.muted);
+  txt(placeName(), 24, 62, `700 17px ${FONT.display}`, COL.fg);
+  txt(`${song.keyName} · ${song.bpm} BPM`, 24, 84, `500 13px ${FONT.body}`, COL.muted);
   const hx = 430, hw = 340, hv = clamp(S.health, 0, 100);
-  txt("HARMONIE", hx, 34, `600 11px ${FONT.mono}`, COL.muted);
+  txt(TH().meter, hx, 34, `600 11px ${FONT.mono}`, COL.muted);
   txt(String(Math.round(hv)), hx + hw, 34, `600 12px ${FONT.mono}`, COL.fg, "right");
   rr(hx, 42, hw, 10, 5); g.fillStyle = COL.panel; g.fill();
   if (hv > 0) { rr(hx, 42, Math.max(10, hw * hv / 100), 10, 5); g.fillStyle = `hsl(${Math.round(hv * 1.45)},72%,62%)`; g.fill(); }
   for (const q of [25, 50, 75]) { g.fillStyle = hexA(COL.ink, .8); g.fillRect(hx + hw * q / 100, 42, 2, 10); }
   const L = layers();
-  [["Arpèges", L.arp], ["Chœurs", L.choir], ["Cordes", L.strings]].forEach(([n, on], i) => {
+  [L.arp, L.choir, L.strings].map((on, i) => [TH().layers[i], on]).forEach(([n, on], i) => {
     const x = hx + i * 104;
     g.beginPath(); g.arc(x + 4, 71, 4, 0, Math.PI * 2); g.fillStyle = on ? COL.good : hexA(COL.muted, .35); g.fill();
     txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, .6));
@@ -1086,27 +1143,25 @@ function drawObstacle(ev, nb, hsl) {
   }
   const missed = ev.state === "miss" || ev.state === "broken", passed = ev.state === "hit" || ev.state === "done";
   const fill = missed ? hexA(COL.bad, .85) : hsl(HUE_BASS, 90, 62, passed ? .4 : 1);
-  const ink = hexA(COL.ink, .85);
+  const ink = hexA(COL.ink, .85), boite = S.theme === "boite";
   if (ev.lane === 1) {
-    rr(x - 17, GY - 34, 34, 34, 5); g.fillStyle = fill; g.fill();
+    if (boite) boiteBlock(x, fill); else villeBlock(x, fill);
     g.beginPath(); g.moveTo(x - 7, GY - 44); g.lineTo(x, GY - 52); g.lineTo(x + 7, GY - 44);
     g.strokeStyle = fill; g.lineWidth = 2.5; g.stroke();
-    txt(KEYLABEL.KeyW, x, GY - 12, `600 13px ${FONT.mono}`, ink, "center");
+    txt(KEYLABEL.KeyW, x, GY - 58, `600 13px ${FONT.mono}`, fill, "center");
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti
     const a = x - 16, b = x0 + ev.dur * PPB - 20;
-    g.fillStyle = hsl(HUE_BASS, 40, 60, .12); g.fillRect(a, 96, b - a, 324);
-    rr(a, 420, b - a, 42, 6); g.fillStyle = fill; g.fill();
-    g.fillStyle = hexA(COL.ink, .25);
-    for (let rx = a + 16; rx < b - 6; rx += 22) g.fillRect(rx, 424, 3, 34);
+    g.fillStyle = hsl(HUE_BASS, 40, 60, .1); g.fillRect(a, 96, b - a, 324);
+    if (boite) boiteTunnel(a, b, fill); else villeTunnel(a, b, fill);
     if (ev.state === "holding") {
       const px = clamp(PX + PW / 2, a, b);
-      rr(a, 420, px - a, 42, 6); g.fillStyle = hsl(HUE_BASS, 95, 80, .55); g.fill();
+      rr(a, 420, px - a, 42, 6); g.fillStyle = hsl(HUE_BASS, 95, 80, .45); g.fill();
     }
-    txt(`${KEYLABEL.KeyS} tenu`, a + 10, 446, `600 13px ${FONT.mono}`, ink);
+    rr(a + 4, 432, 66, 18, 4); g.fillStyle = hexA(COL.ink, .7); g.fill();
+    txt(`${KEYLABEL.KeyS} tenu`, a + 10, 446, `600 13px ${FONT.mono}`, fill);
   } else {
-    g.fillStyle = hexA(COL.bass, .18); g.fillRect(x - 1, 96, 2, 342);
-    rr(x - 16, 438, 32, 22, 5); g.fillStyle = fill; g.fill();
+    if (boite) boiteBeam(x, fill); else villeBeam(x, fill);
     txt(KEYLABEL.KeyS, x, 454, `600 13px ${FONT.mono}`, ink, "center");
   }
 }
@@ -1131,21 +1186,11 @@ function drawEnemy(ev, nb, pnow, hsl) {
     if (ev.state === "holding") x = HITX;
   }
   g.beginPath(); g.arc(x, y, 24, 0, Math.PI * 2); g.fillStyle = hsl(hue, 80, 68, .12 * a); g.fill();
-  g.fillStyle = col;
-  if (ev.kind === "refrain") {
-    g.beginPath(); g.arc(x, y - 3, 12, Math.PI, 0); g.lineTo(x + 12, y + 3); g.lineTo(x - 12, y + 3); g.closePath(); g.fill();
-    g.strokeStyle = col; g.lineWidth = 2;
-    for (let k = -1; k <= 1; k++) {
-      g.beginPath(); g.moveTo(x + k * 7, y + 3);
-      g.quadraticCurveTo(x + k * 7 + Math.sin(nb * 4 + k) * 4, y + 10, x + k * 7, y + 16); g.stroke();
-    }
-  } else {
-    g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x + 11, y); g.lineTo(x, y + 14); g.lineTo(x - 11, y); g.closePath(); g.fill();
-    g.fillStyle = hexA(COL.fg, .8 * a); g.fillRect(x - 2, y - 2, 4, 4);
-  }
+  if (S.theme === "boite") boiteEnemy(x, y, ev, col, a, nb, hsl);
+  else villeEnemy(x, y, ev, col, a, nb, hsl);
 }
 
-function drawPlayer(nb, ns, pnow, hsl) {
+function drawPlayer(nb, ns, pnow, hsl, dt) {
   const cx = PX + PW / 2;
   let yOff = 0, sliding = false, jumping = false;
   if (S.mode !== "title") {
@@ -1156,19 +1201,273 @@ function drawPlayer(nb, ns, pnow, hsl) {
   const run = S.mode === "play" && !jumping && !sliding, ph = nb * Math.PI;
   const w = sliding ? 60 : PW, h = sliding ? 30 : PH - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
   const x = cx - w / 2, y = GY + yOff - h, hurt = pnow - S.hurtAt < 260;
+  const s = run ? Math.sin(ph) : (jumping ? .6 : 0), hipY = y + h - 14;
+  const gy = sliding ? y + 14 : y + 32;
   g.fillStyle = "rgba(0,0,0,.35)";
   g.beginPath(); g.ellipse(cx, GY + 3, Math.max(6, w * .6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2); g.fill();
-  if (!sliding) {
-    const s = run ? Math.sin(ph) : (jumping ? .6 : 0), hipY = y + h - 14;
-    g.strokeStyle = hsl(HUE_BASS, 90, 62); g.lineWidth = 5; g.lineCap = "round";
-    g.beginPath(); g.moveTo(cx - 6, hipY); g.lineTo(cx - 6 + s * 9, y + h); g.moveTo(cx + 6, hipY); g.lineTo(cx + 6 - s * 9, y + h); g.stroke();
+  g.lineCap = "round";
+
+  if (S.theme === "boite") {
+    // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui
+    const spin = S.mode === "play" ? 1.5 + 5 * S.health / 100
+      : S.mode === "dying" ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
+      : S.mode === "title" ? 1 : 0;
+    S.keyAng = (S.keyAng || 0) + dt * spin;
+    const brass = hsl(42, 65, 55), porcelain = hurt ? COL.bad : hsl(198, 30, 62);
+    if (!sliding) {
+      g.strokeStyle = brass; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(cx - 5, hipY); g.lineTo(cx - 5 + s * 8, y + h); g.moveTo(cx + 5, hipY); g.lineTo(cx + 5 - s * 8, y + h); g.stroke();
+    }
+    let hx, hy, kx, ky;
+    if (sliding) {
+      rr(x, y + 6, w - 18, h - 6, 10); g.fillStyle = porcelain; g.fill();
+      hx = x + w - 11; hy = y + 14; kx = x; ky = y + 16;
+    } else {
+      rr(x + 4, y + 20, w - 8, h - 32, 9); g.fillStyle = porcelain; g.fill();
+      g.fillStyle = brass; g.fillRect(x + 4, y + 34, w - 8, 3);
+      hx = cx; hy = y + 11; kx = x + 4; ky = y + 32;
+    }
+    g.beginPath(); g.arc(hx, hy, 11, 0, Math.PI * 2); g.fillStyle = hurt ? COL.bad : COL.fg; g.fill();
+    g.fillStyle = COL.ink; g.beginPath(); g.arc(hx + 5, hy - 1, 1.8, 0, Math.PI * 2); g.fill();
+    g.fillStyle = hsl(350, 70, 75, .6); g.beginPath(); g.arc(hx + 3, hy + 5, 2.5, 0, Math.PI * 2); g.fill();
+    // Clé de remontage dans le dos
+    const kw = 1 + 7 * Math.abs(Math.cos(S.keyAng));
+    g.fillStyle = brass; g.fillRect(kx - 9, ky - 1.5, 9, 3);
+    g.strokeStyle = brass; g.lineWidth = 2.5;
+    for (const d of [-5, 5]) { g.beginPath(); g.ellipse(kx - 13, ky + d, kw, 4.5, 0, 0, Math.PI * 2); g.stroke(); }
+    // Diapason doré en guise d'arme
+    g.strokeStyle = hsl(45, 85, 62); g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(x + w - 6, gy); g.lineTo(x + w + 4, gy);
+    g.moveTo(x + w + 4, gy - 4); g.lineTo(x + w + 4, gy + 4);
+    g.moveTo(x + w + 4, gy - 4); g.lineTo(x + w + 15, gy - 4);
+    g.moveTo(x + w + 4, gy + 4); g.lineTo(x + w + 15, gy + 4);
+    g.stroke();
+  } else {
+    // Coursier en patins, casquette et casque audio, mégaphone de la radio pirate
+    const skate = (fx, fy) => {
+      rr(fx - 7, fy - 5, 14, 4, 2); g.fillStyle = hsl(255, 20, 28); g.fill();
+      g.fillStyle = hsl(330, 85, 62);
+      g.beginPath(); g.arc(fx - 4, fy, 2, 0, Math.PI * 2); g.arc(fx + 4, fy, 2, 0, Math.PI * 2); g.fill();
+    };
+    if (!sliding) {
+      g.strokeStyle = hsl(HUE_BASS, 90, 62); g.lineWidth = 5;
+      g.beginPath(); g.moveTo(cx - 6, hipY); g.lineTo(cx - 6 + s * 9, y + h - 4); g.moveTo(cx + 6, hipY); g.lineTo(cx + 6 - s * 9, y + h - 4); g.stroke();
+      skate(cx - 6 + s * 9, y + h - 1); skate(cx + 6 - s * 9, y + h - 1);
+    } else {
+      skate(x + 14, GY - 1); skate(x + w - 18, GY - 1);
+    }
+    const bh = sliding ? h - 6 : h - 12;
+    rr(x, y, w, bh, 12); g.fillStyle = hurt ? COL.bad : COL.fg; g.fill();
+    rr(x + w - 18, y + 8, 14, 9, 4); g.fillStyle = hsl(HUE_MEL, 85, 68); g.fill();
+    rr(x + 2, y - 4, w - 8, 9, 4); g.fillStyle = hsl(330, 85, 62); g.fill();
+    rr(x + w - 10, y + 1, 16, 4, 2); g.fill();
+    g.strokeStyle = hsl(HUE_BASS, 90, 62); g.lineWidth = 3;
+    g.beginPath(); g.arc(x + w / 2 - 2, y + 12, w / 2 - 2, Math.PI * 1.08, Math.PI * 1.92); g.stroke();
+    g.fillStyle = hsl(HUE_BASS, 90, 62); rr(x - 2, y + 9, 6, 10, 3); g.fill();
+    g.beginPath();
+    g.moveTo(x + w - 4, gy - 3); g.lineTo(x + w + 13, gy - 8); g.lineTo(x + w + 13, gy + 8); g.lineTo(x + w - 4, gy + 3); g.closePath();
+    g.fillStyle = hsl(HUE_MEL, 85, 68); g.fill();
   }
-  rr(x, y, w, sliding ? h : h - 12, 12); g.fillStyle = hurt ? COL.bad : COL.fg; g.fill();
-  rr(x + w - 18, y + 8, 14, 9, 4); g.fillStyle = hsl(HUE_MEL, 85, 68); g.fill();
-  rr(x - 10 - Math.sin(ph * 2) * 3, y + (sliding ? 10 : 22), 16, 6, 3); g.fillStyle = hsl(HUE_BASS, 90, 62); g.fill();
-  const gy = sliding ? y + 14 : y + 32;
-  rr(x + w - 4, gy - 3, 16, 7, 3); g.fillStyle = hsl(HUE_MEL, 85, 68); g.fill();
   S.gun = [x + w + 12, gy];
+}
+
+/* ---------- Décors des deux univers ---------- */
+// Hachage déterministe : le décor est toujours le même pour un même endroit de la chanson
+function hh(a, b = 0) {
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
+  h ^= h >>> 13; h = Math.imul(h, 0x27d4eb2f);
+  return ((h ^ h >>> 16) >>> 0) / 4294967296;
+}
+// Énergie de la scène : monte avec le combo, retombe quand l'harmonie baisse
+const energy = () => S.mode === "title" ? .35 : clamp(S.combo / 35, 0, 1) * (S.health >= 50 ? 1 : .35);
+
+/* La Ville Muette */
+function villeBack(nb, hsl, bp) {
+  const sky = g.createLinearGradient(0, 0, 0, GY);
+  sky.addColorStop(0, hsl(250, 45, 8)); sky.addColorStop(.7, hsl(290, 38, 17)); sky.addColorStop(1, hsl(320, 45, 24));
+  g.fillStyle = sky; g.fillRect(-12, -12, W + 24, GY + 12);
+  // Lune imprimée en risographie : deux passages d'encre légèrement décalés
+  g.globalAlpha = .5; g.beginPath(); g.arc(930, 170, 64, 0, Math.PI * 2); g.fillStyle = hsl(330, 90, 66); g.fill();
+  g.globalAlpha = .3; g.beginPath(); g.arc(938, 163, 64, 0, Math.PI * 2); g.fillStyle = hsl(50, 95, 65); g.fill();
+  g.globalAlpha = 1;
+  // Les fenêtres s'allument avec le combo : les habitants se réveillent
+  const lit = .05 + .55 * energy(), flicker = S.mode === "play" && S.health < 40, strings = layers().strings;
+  for (const [speed, slot, minH, maxH, l, layer] of [[.1, 70, 130, 270, 13, 0], [.28, 110, 90, 220, 9, 1]]) {
+    const off = nb * PPB * speed, k0 = Math.floor(off / slot) - 1;
+    for (let k = k0; k < k0 + W / slot + 3; k++) {
+      const x = k * slot - off, bw = slot - 8 - hh(k, layer) * 20, bh = minH + hh(k, layer + 7) * (maxH - minH), top = GY - bh;
+      g.fillStyle = hsl(255, 28, l); g.fillRect(x, top, bw, bh);
+      if (hh(k, layer + 3) < .3) g.fillRect(x + bw * .6, top - 18, 10, 18);
+      for (let wy = top + 12, r = 0; wy < GY - 30; wy += 18, r++) for (let wx = x + 8, c = 0; wx < x + bw - 10; wx += 14, c++) {
+        const v = hh(k * 977 + r * 31 + c, layer + 50);
+        if (v < lit && !(flicker && Math.random() < .4)) { g.fillStyle = hsl(45, 90, 68, layer ? .85 : .5); g.fillRect(wx, wy, 6, 8); }
+      }
+      // Quand les cordes jouent, des musiciens apparaissent sur les toits
+      if (layer === 1 && strings && hh(k, 11) < .45) {
+        const fx = x + 14 + hh(k, 12) * (bw - 28), sway = Math.sin(nb * Math.PI + k) * 2;
+        g.fillStyle = hsl(255, 28, 5); g.strokeStyle = hsl(255, 28, 5); g.lineWidth = 2;
+        g.fillRect(fx, top - 16, 6, 16);
+        g.beginPath(); g.arc(fx + 3, top - 20, 4, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.moveTo(fx + 6, top - 10); g.lineTo(fx + 17, top - 17 + sway); g.stroke();
+      }
+    }
+  }
+  // Lampadaires, un toutes les deux mesures
+  for (let b = Math.floor((nb - 4) / 8) * 8; b < nb + 12; b += 8) {
+    const x = PX + PW / 2 + (b - nb) * PPB + 60;
+    const on = !(flicker && hh(b, Math.floor(nb * 4)) < .4);
+    g.fillStyle = hsl(255, 15, 22); g.fillRect(x, GY - 150, 4, 150); g.fillRect(x - 20, GY - 150, 24, 4);
+    if (on) {
+      g.beginPath(); g.moveTo(x - 18, GY - 146); g.lineTo(x - 64, GY); g.lineTo(x + 28, GY); g.closePath();
+      g.fillStyle = hsl(45, 90, 70, .05 + .04 * bp); g.fill();
+      g.fillStyle = hsl(45, 95, 75); g.fillRect(x - 20, GY - 146, 10, 4);
+    }
+  }
+}
+function villeGround(nb, hsl) {
+  g.fillStyle = hsl(250, 14, 12); g.fillRect(-12, GY, W + 24, 45);
+  const off = (nb * PPB) % 80;
+  g.fillStyle = hsl(50, 80, 70, .45);
+  for (let x = -off; x < W; x += 80) g.fillRect(x, GY + 26, 40, 3);
+}
+// Barrière de chantier
+function villeBlock(x, fill) {
+  g.save();
+  rr(x - 18, GY - 34, 36, 22, 3); g.fillStyle = fill; g.fill(); g.clip();
+  g.fillStyle = hexA(COL.ink, .8);
+  for (let s = -40; s < 50; s += 12) {
+    g.beginPath(); g.moveTo(x + s, GY - 34); g.lineTo(x + s + 6, GY - 34); g.lineTo(x + s - 16, GY - 12); g.lineTo(x + s - 22, GY - 12); g.closePath(); g.fill();
+  }
+  g.restore();
+  g.fillStyle = fill; g.fillRect(x - 15, GY - 12, 4, 12); g.fillRect(x + 11, GY - 12, 4, 12);
+}
+// Rideau de fer suspendu
+function villeBeam(x, fill) {
+  g.strokeStyle = hexA(COL.fg, .18); g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(x - 12, 280); g.lineTo(x - 12, 438); g.moveTo(x + 12, 280); g.lineTo(x + 12, 438); g.stroke();
+  rr(x - 18, 436, 36, 24, 3); g.fillStyle = fill; g.fill();
+  g.fillStyle = hexA(COL.ink, .3);
+  for (let yy = 440; yy < 458; yy += 5) g.fillRect(x - 16, yy, 32, 1.5);
+}
+// Pont du métro
+function villeTunnel(a, b, fill) {
+  g.save();
+  rr(a, 420, b - a, 42, 4); g.fillStyle = fill; g.fill(); g.clip();
+  g.strokeStyle = hexA(COL.ink, .35); g.lineWidth = 2; g.beginPath();
+  for (let rx = a; rx < b; rx += 24) { g.moveTo(rx, 422); g.lineTo(rx + 24, 460); g.moveTo(rx + 24, 422); g.lineTo(rx, 460); }
+  g.stroke(); g.restore();
+  g.fillStyle = hexA(COL.fg, .3); g.fillRect(a, 414, b - a, 3);
+}
+// Drone du Bureau du Silence : le son capturé brille dans son bocal
+function villeEnemy(x, y, ev, col, a, nb, hsl) {
+  const big = ev.kind === "refrain", j = big ? 20 : 15, top = y - j / 2 + 4;
+  rr(x - j / 2, top, j, j, 4); g.fillStyle = hsl(250, 20, 90, .12 * a); g.fill();
+  g.strokeStyle = hsl(250, 20, 90, .6 * a); g.lineWidth = 1.5; g.stroke();
+  g.beginPath(); g.arc(x, y + 4, big ? 6 : 4.5, 0, Math.PI * 2); g.fillStyle = col; g.fill();
+  rr(x - 16, top - 7, 32, 7, 3); g.fillStyle = hsl(250, 10, 62, a); g.fill();
+  const spin = Math.abs(Math.sin(nb * 12 + ev.beat));
+  g.fillStyle = hsl(250, 10, 82, .6 * a);
+  g.fillRect(x - 14 - 9 * spin, top - 10, 18 * spin + 2, 2); g.fillRect(x + 14 - 9 * spin, top - 10, 18 * spin + 2, 2);
+  if (big && Math.floor(nb * 2) % 2 === 0) { g.beginPath(); g.arc(x, top - 10, 2.5, 0, Math.PI * 2); g.fillStyle = hexA(COL.bad, a); g.fill(); }
+}
+
+/* La Boîte à musique */
+function boiteBack(nb, hsl, bp) {
+  const wall = g.createLinearGradient(0, 0, 0, GY);
+  wall.addColorStop(0, hsl(24, 40, 7)); wall.addColorStop(1, hsl(28, 42, 16));
+  g.fillStyle = wall; g.fillRect(-12, -12, W + 24, GY + 12);
+  // Planches du grenier
+  const woff = nb * PPB * .12, k0 = Math.floor(woff / 64);
+  for (let k = k0; k < k0 + W / 64 + 2; k++) {
+    const x = k * 64 - woff;
+    g.fillStyle = hsl(26, 35, 9 + hh(k, 1) * 4, .6); g.fillRect(x, 0, 62, GY);
+    g.fillStyle = hsl(26, 30, 4, .6); g.fillRect(x + 62, 0, 2, GY);
+  }
+  // Engrenages : ils tournent avec la musique, et brillent quand les engrenages jouent
+  const e = energy();
+  for (const [speed, slot, l, layer] of [[.08, 300, 14, 0], [.22, 240, 19, 1]]) {
+    const off = nb * PPB * speed, g0 = Math.floor(off / slot) - 1;
+    for (let k = g0; k < g0 + W / slot + 3; k++) {
+      if (hh(k, layer + 20) < .25) continue;
+      const r = 40 + hh(k, layer + 21) * (layer ? 50 : 80);
+      const cx = k * slot - off + slot / 2, cy = layer ? GY - 40 - hh(k, 22) * 120 : 120 + hh(k, 23) * 220;
+      gear(cx, cy, r, Math.round(r / 6), (k % 2 ? 1 : -1) * nb * Math.PI / 8 * (60 / r), hsl(38, 40 + 25 * e, l + 6 * e));
+    }
+  }
+  // Lumière de la lucarne et poussière qui danse
+  g.beginPath(); g.moveTo(800, -12); g.lineTo(930, -12); g.lineTo(760, GY); g.lineTo(520, GY); g.closePath();
+  g.fillStyle = hsl(42, 85, 75, .05 + .04 * bp + .05 * e); g.fill();
+  for (let i = 0; i < 40; i++) {
+    const v = ((hh(i, 6) - nb * .012 * (1 + hh(i, 7))) % 1 + 1) % 1, yy = v * GY;
+    const left = 800 - 280 * v, right = 930 - 170 * v;
+    const xx = left + hh(i, 5) * (right - left) + Math.sin(nb + i) * 4;
+    g.fillStyle = hsl(45, 80, 85, .2 + .45 * bp * hh(i, 8)); g.fillRect(xx, yy, 2, 2);
+  }
+}
+function gear(cx, cy, r, teeth, ang, color) {
+  g.save(); g.translate(cx, cy); g.rotate(ang);
+  g.fillStyle = color; g.beginPath();
+  for (let i = 0; i < teeth * 2; i++) g.arc(0, 0, i % 2 ? r : r + 7, i / (teeth * 2) * Math.PI * 2, (i + 1) / (teeth * 2) * Math.PI * 2);
+  g.closePath(); g.fill();
+  g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.arc(0, 0, r * .62, 0, Math.PI * 2); g.fill();
+  g.fillStyle = color;
+  for (let s = 0; s < 4; s++) { g.rotate(Math.PI / 2); g.fillRect(-3, 0, 6, r * .62); }
+  g.beginPath(); g.arc(0, 0, r * .18, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+// Le peigne : chaque couloir est une lame, qui vibre quand on la joue
+function drawComb(pnow, hsl) {
+  const bx = HITX - 46;
+  rr(bx, 128, 14, 294, 4); g.fillStyle = hsl(40, 55, 36); g.fill();
+  for (let i = 0; i < 4; i++) {
+    const fl = clamp(1 - (pnow - S.laneFlash[i]) / 300, 0, 1), vib = Math.sin(pnow / 18) * 2.5 * fl;
+    g.fillStyle = hsl(42, 65, 50 + 18 * fl);
+    g.beginPath();
+    g.moveTo(bx + 14, LANE_Y[i] - 4); g.lineTo(HITX - 17, LANE_Y[i] - 2 + vib);
+    g.lineTo(HITX - 17, LANE_Y[i] + 2 + vib); g.lineTo(bx + 14, LANE_Y[i] + 4);
+    g.closePath(); g.fill();
+  }
+}
+// Le sol est le cylindre de la boîte, hérissé de picots
+function boiteGround(nb, hsl) {
+  const cyl = g.createLinearGradient(0, GY, 0, GY + 40);
+  cyl.addColorStop(0, hsl(42, 60, 50)); cyl.addColorStop(.3, hsl(40, 55, 32)); cyl.addColorStop(1, hsl(34, 50, 13));
+  g.fillStyle = cyl; g.fillRect(-12, GY, W + 24, 45);
+  const off = nb * PPB;
+  for (let k = Math.floor((off - PX - 40) / 23); k * 23 - off + PX < W + 20; k++) {
+    if (hh(k, 40) < .55) continue;
+    g.fillStyle = hsl(45, 70, 72, .7);
+    g.beginPath(); g.arc(k * 23 - off + PX, GY + 9 + hh(k, 41) * 24, 1.8, 0, Math.PI * 2); g.fill();
+  }
+}
+// Gros picot de laiton
+function boiteBlock(x, fill) {
+  rr(x - 7, GY - 26, 14, 26, 3); g.fillStyle = fill; g.fill();
+  g.beginPath(); g.ellipse(x, GY - 27, 17, 9, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = hexA(COL.fg, .35); g.beginPath(); g.ellipse(x - 5, GY - 30, 5, 2.5, 0, 0, Math.PI * 2); g.fill();
+}
+// Levier du mécanisme
+function boiteBeam(x, fill) {
+  g.fillStyle = hexA(COL.bass, .35); g.fillRect(x - 2, 250, 4, 188);
+  rr(x - 18, 436, 36, 24, 11); g.fillStyle = fill; g.fill();
+}
+// Le grand ressort, au-dessus de la tête
+function boiteTunnel(a, b, fill) {
+  rr(a, 424, b - a, 34, 17); g.fillStyle = hexA(COL.ink, .5); g.fill();
+  g.strokeStyle = fill; g.lineWidth = 3;
+  for (let x = a + 8; x < b - 6; x += 9) { g.beginPath(); g.ellipse(x, 441, 6, 17, .25, 0, Math.PI * 2); g.stroke(); }
+}
+// Papillon de nuit qui a avalé une note : elle brille dans son ventre
+function boiteEnemy(x, y, ev, col, a, nb, hsl) {
+  const big = ev.kind === "refrain", flap = .35 + .65 * Math.abs(Math.sin(nb * Math.PI * 2 + ev.beat * 3));
+  const ww = big ? 17 : 13, wh = (big ? 15 : 11) * flap;
+  g.fillStyle = hsl(32, 25, big ? 70 : 62, .9 * a);
+  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(x + s * ww * .55, y - 3, ww * .6, wh, s * .5, 0, Math.PI * 2); g.fill(); }
+  if (big) { g.fillStyle = col; for (const s of [-1, 1]) { g.beginPath(); g.arc(x + s * ww * .6, y - 3, 1 + 3 * flap, 0, Math.PI * 2); g.fill(); } }
+  g.fillStyle = col; g.beginPath(); g.ellipse(x, y + 2, 4, 9, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = hsl(32, 25, 72, a); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(x - 1, y - 7); g.lineTo(x - 5, y - 15); g.moveTo(x + 1, y - 7); g.lineTo(x + 5, y - 15); g.stroke();
 }
 
 /* ---------- Écrans ---------- */
@@ -1178,9 +1477,9 @@ function show(kind) {
   const len = Math.round(s.totalBars * 4 * spb());
   let h = "";
   if (kind === "title") {
-    h = `<p class="eyebrow">Chanson n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}</p>
-      <h2>${s.keyName}</h2>
-      <p class="meta">${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
+    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}</p>
+      <h2>${placeName()}</h2>
+      <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button></div>
       <p class="hint">Gauche ${k("KeyW")} ${k("KeyS")} · Droite ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`;
@@ -1191,7 +1490,7 @@ function show(kind) {
   } else if (kind === "dead") {
     const bar = clamp(Math.floor(S.deathBeat / 4), 0, s.totalBars - 1), sec = sectionAtBar(bar);
     const where = { intro: "au début", couplet: "au couplet", refrain: "au refrain", pont: "au solo", outro: "à l'outro" }[S.cp ? S.cp.sec.kind : "intro"];
-    h = `<p class="eyebrow">Harmonie à zéro</p><h2>La musique s'est arrêtée</h2>
+    h = `<p class="eyebrow">${TH().deadTag}</p><h2>${TH().deadTitle}</h2>
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
@@ -1200,7 +1499,7 @@ function show(kind) {
     const total = S.perfect + S.good + S.miss, acc = (S.perfect + .6 * S.good) / Math.max(1, total);
     const rank = acc >= .95 ? "Virtuose" : acc >= .85 ? "Soliste" : acc >= .7 ? "Choriste" : "Élève";
     const tag = S.autoUsed ? `${S.auto ? "auto-play" : "entraînement"}, score non classé` : `précision ${Math.round(acc * 100)} %`;
-    h = `<p class="eyebrow">Chanson n° ${S.seed} terminée · ${tag}</p><h2>${S.auto ? "Écoute terminée" : S.autoUsed ? "Entraînement terminé" : rank}</h2>
+    h = `<p class="eyebrow">${placeName()} · ${TH().unit} n° ${S.seed} · ${tag}</p><h2>${S.auto ? "Écoute terminée" : S.autoUsed ? "Entraînement terminé" : rank}</h2>
       <div class="stats">
         <div><b>${S.score.toLocaleString("fr-CA")}</b><span>Score</span></div>
         <div><b>${S.perfect}</b><span>Parfait</span></div>
@@ -1235,7 +1534,7 @@ function load(seed, diff) {
   S.mode = "title";
   $("#seed").value = seed;
   const r = document.getElementById("d-" + diff); if (r) r.checked = true;
-  $("#songline").textContent = `${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
+  $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
   try { localStorage.setItem("deux-mains-diff", diff); } catch (e) {}
   show("title");
 }
@@ -1290,6 +1589,14 @@ addEventListener("blur", pause);
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
 document.querySelectorAll('input[name="diff"]').forEach(r => r.addEventListener("change", () => load(S.seed, r.value)));
 document.querySelectorAll('input[name="hands"]').forEach(r => r.addEventListener("change", () => setPractice(r.value)));
+document.querySelectorAll('input[name="theme"]').forEach(r => r.addEventListener("change", () => setTheme(r.value)));
+function setTheme(v) {
+  S.theme = v;
+  const r = document.getElementById("t-" + v); if (r) r.checked = true;
+  try { localStorage.setItem("deux-mains-theme", v); } catch (e) {}
+  if (S.song) $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
+  if (S.mode === "title" && S.song) show("title");
+}
 function setPractice(v) {
   S.practice = v;
   const r = document.getElementById("h-" + v); if (r) r.checked = true;
@@ -1327,13 +1634,14 @@ function frame(now) {
 }
 
 let savedDiff = null;
-let savedHands = null;
-try { savedDiff = localStorage.getItem("deux-mains-diff"); savedHands = localStorage.getItem("deux-mains-hands"); } catch (e) {}
+let savedHands = null, savedTheme = null;
+try { savedDiff = localStorage.getItem("deux-mains-diff"); savedHands = localStorage.getItem("deux-mains-hands"); savedTheme = localStorage.getItem("deux-mains-theme"); } catch (e) {}
 const HANDS = ["both", "L", "R"];
 const hot = window.claude && window.claude.hot;
-if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice }));
+if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, theme: S.theme }));
 const boot = data => {
   data = data || {};
+  setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : (DIFFS[savedDiff] ? savedDiff : "normal"));
   requestAnimationFrame(frame);
