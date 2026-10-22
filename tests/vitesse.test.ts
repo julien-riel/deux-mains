@@ -35,6 +35,7 @@ describe("temps à vitesse réduite", () => {
   function partie(vitesse: number, ev: Note[]) {
     Object.assign(S, structuredClone(ETAT_NEUF), { mode: "play", vitessePartie: vitesse });
     S.song = { bpm: 60, ev, sections: [{ name: "Couplet", kind: "couplet", bars: 8, start: 0 }] } as unknown as Chanson;
+    S.ev = ev;
     return ev;
   }
 

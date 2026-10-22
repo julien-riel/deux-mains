@@ -25,6 +25,7 @@ beforeEach(() => {
 
 function partie(diff: string, reglages: Partial<typeof S> = {}) {
   Object.assign(S, structuredClone(ETAT_NEUF), { diff, mode: "play", song: buildSong(GRAINE, diff) }, reglages);
+  S.ev = S.song.ev;
   return S.song;
 }
 /** Le séquenceur parcourt la chanson pas à pas (double-croches) ; renvoie les notes que l'auto-play a prises. */

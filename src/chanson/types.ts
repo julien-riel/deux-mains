@@ -47,6 +47,8 @@ export interface Note {
   auto?: boolean;
   voice?: Voix;
   missAt?: number;
+  /** Le passage de la boucle auquel appartient cette copie de la note (ADR-0009) */
+  passage?: number;
 }
 
 export interface Progression {

@@ -1,7 +1,8 @@
 /* ---------- Écrans ---------- */
+import { songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { METRONOME } from "../jeu/calibrage";
-import { S, sectionAtBar } from "../jeu/etat";
+import { S, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb } from "../jeu/etat";
 import { clamp } from "../outils";
 import { TH, placeName } from "../univers/univers";
 import { COMMANDES, KEYLABEL } from "./touches";
@@ -13,10 +14,11 @@ export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff];
   // La durée à la vitesse choisie, qui s'appliquera au départ (#4)
-  const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse));
+  const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse)),
+    boucle = s.sections[S.boucle];
   let h = "";
   if (kind === "title") {
-    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}</p>
+    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
@@ -65,9 +67,11 @@ export function show(kind) {
   } else if (kind === "pause") {
     h = `<p class="eyebrow">Pause</p><h2>La chanson attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>
-      <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button></div>`;
+      <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>${
+        S.bouclePartie ? `<button type="button" data-act="quitter-boucle">Quitter la boucle <kbd>B</kbd></button>` : ""
+      }</div>`;
   } else if (kind === "dead") {
-    const bar = clamp(Math.floor(S.deathBeat / 4), 0, s.totalBars - 1),
+    const bar = clamp(mesureDeLaChanson(Math.floor(S.deathBeat / 4)), 0, s.totalBars - 1),
       sec = sectionAtBar(bar);
     const where = {
       intro: "au début",
@@ -82,8 +86,7 @@ export function show(kind) {
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   } else if (kind === "done") {
-    const total = S.perfect + S.good + S.miss,
-      acc = (S.perfect + 0.6 * S.good) / Math.max(1, total);
+    const acc = precision(S.perfect, S.good, S.miss);
     const rank = acc >= 0.95 ? "Virtuose" : acc >= 0.85 ? "Soliste" : acc >= 0.7 ? "Choriste" : "Élève";
     const tag = S.autoUsed
       ? `${S.auto ? "auto-play" : "entraînement"}, score non classé`
@@ -95,11 +98,22 @@ export function show(kind) {
         <div><b>${S.good}</b><span>Bien</span></div>
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
-      </div>
+      </div>${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       <button type="button" data-act="listen">Réécouter ${k("KeyA")}</button>
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;
   overlay.hidden = false;
+}
+
+// Fin d'une boucle (#5) : le nombre de passages terminés et la précision du dernier
+function resumeBoucle() {
+  const { sec, passages } = S.bouclePartie,
+    n = passageAt(songNow() / spb()),
+    d = passages[n - 1];
+  if (!n) return `${sec.name} en boucle · aucun passage terminé`;
+  return `${sec.name} en boucle · ${n} passage${n > 1 ? "s" : ""} terminé${n > 1 ? "s" : ""}${
+    d ? ` · dernier passage : précision ${Math.round(precision(d.parfait, d.bien, d.rate) * 100)} %` : ""
+  }`;
 }

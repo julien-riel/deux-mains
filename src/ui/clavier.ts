@@ -1,7 +1,7 @@
 import { songNow } from "../audio/moteur";
 import { randomSeed } from "../chanson/aleatoire";
 import { presser, relacher } from "../jeu/actions";
-import { newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
+import { finish, newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
@@ -16,13 +16,15 @@ overlay.addEventListener("click", (e) => {
   else if (act === "listen") newRun(true);
   else if (act === "resume") resumeCP();
   else if (act === "continue") unpause();
+  else if (act === "quitter-boucle") finish();
   else if (act === "new") load(randomSeed(), S.diff);
 });
 
 /* ---------- Entrées ---------- */
 addEventListener("keydown", (e) => {
   const t = e.target as HTMLInputElement;
-  if (t && ((t.tagName === "INPUT" && t.type !== "radio") || t.tagName === "TEXTAREA")) return;
+  if (t && ((t.tagName === "INPUT" && t.type !== "radio") || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))
+    return;
   const c = e.code;
   if (S.mode === "play") {
     if (c in KEYLABEL || c === "Space" || c === "Escape") e.preventDefault();
@@ -66,7 +68,7 @@ addEventListener("keydown", (e) => {
     } else if (c === "Enter") {
       e.preventDefault();
       newRun();
-    }
+    } else if (c === "KeyB" && S.bouclePartie) finish();
   } else if (S.mode === "dead" || S.mode === "done") {
     if (c === "KeyR" && S.mode === "dead") resumeCP();
     else if (c === "KeyA") newRun(true);

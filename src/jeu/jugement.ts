@@ -3,7 +3,7 @@
 // de la chanson (en secondes) en paramètre, et passe par les effets qu'on lui branche pour le son et l'image.
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
-import { S, mult, sectionAtBar, spb } from "./etat";
+import { S, compterPassage, mult, sectionAtBar, spb } from "./etat";
 
 export interface Effets {
   /** Fait sonner la note : sur son temps `beat` (coup en avance, quantifié), ou tout de suite (`null`). */
@@ -31,7 +31,7 @@ export function findNear(hand: Main, ns: number, pred?: (ev: Note) => boolean) {
   const wg = DIFFS[S.diff].win[1];
   let best = null,
     bd = 1e9;
-  for (const ev of S.song.ev) {
+  for (const ev of S.ev) {
     if (ev.state !== "pending" || ev.hand !== hand) continue;
     const d = ns - ev.beat * spb();
     if (d < -wg) break;
@@ -57,6 +57,7 @@ export function hitEv(ev: Note, d: number) {
   S.maxCombo = Math.max(S.maxCombo, S.combo);
   if (perfect) S.perfect++;
   else S.good++;
+  compterPassage(ev, perfect ? "parfait" : "bien");
   S.score += Math.round((perfect ? 300 : 120) * mult());
   if (S.combo % 8 === 0) S.health = Math.min(100, S.health + 4);
   // Quantification : en avance, la note part pile sur le temps ; en retard, tout de suite
@@ -72,6 +73,7 @@ export function missEv(ev: Note) {
   ev.state = "miss";
   S.combo = 0;
   S.miss++;
+  compterPassage(ev, "rate");
   effets.rate(ev);
   damage(ev.hand === "L" ? D.dmgL : D.dmgR);
 }
@@ -89,7 +91,7 @@ export function breakHold(ev: Note) {
 }
 export function release(hand: Main, lane: number, ns: number) {
   const wg = DIFFS[S.diff].win[1];
-  for (const ev of S.song.ev) {
+  for (const ev of S.ev) {
     if (ev.state !== "holding" || ev.hand !== hand || (hand === "R" && ev.lane !== lane)) continue;
     if ((ev.beat + ev.dur) * spb() - ns > wg) breakHold(ev);
     else completeHold(ev, false);

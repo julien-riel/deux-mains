@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté), univers, mains jouées, vitesse, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté), univers, mains jouées, vitesse, boucle, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -30,6 +30,7 @@ export function load(seed: number, diff: string) {
   const r = document.getElementById("d-" + diff) as HTMLInputElement;
   if (r) r.checked = true;
   $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
+  listerSections();
   try {
     localStorage.setItem("deux-mains-diff", diff);
   } catch {
@@ -87,6 +88,27 @@ export function setVitesse(v: number) {
   }
   if (S.mode === "title" && S.song) show("title");
 }
+// Boucle (#5) : une section de la chanson à rejouer sans fin, ou aucune. Elle s'applique au prochain départ.
+function listerSections() {
+  const sel = $<HTMLSelectElement>("#boucle");
+  sel.innerHTML =
+    `<option value="-1">Aucune</option>` +
+    S.song.sections
+      .map((s, i) => `<option value="${i}">${s.name} · mesures ${s.start + 1} à ${s.start + s.bars}</option>`)
+      .join("");
+  setBoucle(S.boucle < S.song.sections.length ? S.boucle : -1);
+}
+export function setBoucle(i: number) {
+  S.boucle = i;
+  $<HTMLSelectElement>("#boucle").value = String(i);
+  if (S.mode === "title" && S.song) show("title");
+}
+$("#boucle").addEventListener("change", (e) => {
+  const sel = e.target as HTMLSelectElement;
+  setBoucle(+sel.value);
+  // On rend le clavier au jeu : Espace lance la partie au lieu de rouvrir la liste
+  sel.blur();
+});
 document
   .querySelectorAll<HTMLInputElement>('input[name="commandes"]')
   .forEach((r) => r.addEventListener("change", () => setCommandes(r.value)));

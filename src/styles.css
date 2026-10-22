@@ -247,7 +247,8 @@ button kbd {
   outline-offset: -2px;
 }
 #seed,
-#decalage {
+#decalage,
+#boucle {
   font-family: var(--mono);
   font-size: 14px;
   width: 8ch;
@@ -256,6 +257,11 @@ button kbd {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px 8px;
+}
+#boucle {
+  width: auto;
+  max-width: 100%;
+  font-family: var(--body);
 }
 .unite {
   font-family: var(--mono);
@@ -456,7 +462,8 @@ html.tactile.menu #fermer-reglages {
 }
 /* 16 px : en dessous, Safari zoome sur le champ quand on le touche */
 html.tactile #seed,
-html.tactile #decalage {
+html.tactile #decalage,
+html.tactile #boucle {
   font-size: 16px;
 }
 @media (orientation: portrait) {
