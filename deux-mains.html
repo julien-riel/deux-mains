@@ -1637,6 +1637,14 @@ let savedDiff = null;
 let savedHands = null, savedTheme = null;
 try { savedDiff = localStorage.getItem("deux-mains-diff"); savedHands = localStorage.getItem("deux-mains-hands"); savedTheme = localStorage.getItem("deux-mains-theme"); } catch (e) {}
 const HANDS = ["both", "L", "R"];
+// Interface de test : la simulation (tests/simulation.test.ts) crée window.__deuxMainsTest avant de lancer le script,
+// et le jeu y dépose l'état de la partie et de quoi choisir la chanson. Sans cet objet, rien n'est exposé.
+//   state            l'état S (mode, health, miss, perfect, song…), en lecture
+//   load(seed, diff) charge une chanson et affiche l'écran titre
+//   setTheme(v)      choisit l'univers : "ville" ou "boite"
+//   setPractice(v)   choisit les mains jouées : "both", "L" ou "R"
+// La partie se lance ensuite au clavier, comme pour un joueur (Espace, A).
+if (window.__deuxMainsTest) Object.assign(window.__deuxMainsTest, { state: S, load, setTheme, setPractice });
 const hot = window.claude && window.claude.hot;
 if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, theme: S.theme }));
 const boot = data => {

@@ -36,6 +36,6 @@ Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
 | `npm run lint` | ESLint |
 
-Ces commandes sont mises en place par la première issue de migration. Tant qu'elles n'existent pas, la vérification se limite à `node --check` sur le script extrait et à la simulation sans navigateur.
+Pendant la migration (ADR-0007), le jeu reste dans `deux-mains.html` : la simulation exécute son script tel quel dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état par l'interface `window.__deuxMainsTest`, décrite à la fin du script.
 
 Pour publier le jeu en artefact : `npm run build`, puis republier `dist/deux-mains.html` à l'adresse du prototype.

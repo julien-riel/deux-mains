@@ -1,2 +1,4 @@
 .DS_Store
 .impeccable/hook.cache.json
+node_modules/
+dist/

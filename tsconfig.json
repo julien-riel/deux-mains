@@ -1,0 +1,16 @@
+{
+  // Mode souple pendant la migration (ADR-0007) : « strict » sera activé une fois le découpage terminé.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    "strict": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src", "tests", "vite.config.ts"]
+}
