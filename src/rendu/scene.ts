@@ -247,13 +247,12 @@ export function render(nb, dt) {
     S.combo >= 8 ? COL.good : COL.muted,
     "right",
   );
-  const badge = S.auto
-    ? "AUTO-PLAY"
-    : S.practice === "L"
-      ? "MAIN GAUCHE SEULE"
-      : S.practice === "R"
-        ? "MAIN DROITE SEULE"
-        : "";
+  const badge = [
+    S.auto ? "AUTO-PLAY" : S.practice === "L" ? "MAIN GAUCHE SEULE" : S.practice === "R" ? "MAIN DROITE SEULE" : "",
+    S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   if (badge && playing) {
     g.font = `600 11px ${FONT.mono}`;
     const bw = g.measureText(badge).width + 24;

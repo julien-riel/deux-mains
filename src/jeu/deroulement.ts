@@ -47,6 +47,9 @@ export function startAt(beat) {
   B.master.gain.linearRampToValueAtTime(0.8, t + 0.05);
   B.filt.frequency.cancelScheduledValues(t);
   B.filt.frequency.setValueAtTime(18000, t);
+  // La vitesse choisie s'applique au départ : une partie ralentie est un entraînement, son score n'est pas classé
+  S.vitessePartie = S.vitesse;
+  if (S.vitesse < 1) S.autoUsed = true;
   B.delay.delayTime.setValueAtTime(0.75 * spb(), t);
   S.startBeat = beat;
   S.t0 = t + 0.12;
