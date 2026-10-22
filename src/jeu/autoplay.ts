@@ -2,8 +2,7 @@
 // Ce module décide quoi jouer ; le séquenceur fait sonner les notes.
 import type { Note, Section } from "../chanson/types";
 import { clamp } from "../outils";
-import { LANE_CODES } from "../ui/touches";
-import { S, autoFor, spb } from "./etat";
+import { COULOIRS, S, autoFor, spb } from "./etat";
 import { hitEv } from "./jugement";
 
 /** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
@@ -32,7 +31,7 @@ export function autoHit(ev: Note) {
   const ns = ev.beat * spb(),
     pnow = performance.now();
   if (ev.hand === "L") {
-    S.keyFlash[ev.lane ? "KeyW" : "KeyS"] = pnow;
+    S.keyFlash[ev.lane ? "sauter" : "glisser"] = pnow;
     if (ev.lane) {
       S.jumpAt = ns;
       S.jumpAir = ev.air * spb();
@@ -41,7 +40,7 @@ export function autoHit(ev: Note) {
       S.jumpAt = -99;
     }
   } else {
-    S.keyFlash[LANE_CODES[ev.lane]] = pnow;
+    S.keyFlash[COULOIRS[ev.lane]] = pnow;
     S.laneFlash[ev.lane] = pnow;
     S.beams.push({ lane: ev.lane, at: pnow, ok: true });
   }

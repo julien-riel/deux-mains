@@ -5,10 +5,9 @@ import { startScheduler, stopScheduler } from "../audio/sequenceur";
 import { DIFFS } from "../chanson/difficultes";
 import { burst, HITX, LANE_HUE, LANE_Y } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
-import { LANE_CODES } from "../ui/touches";
 import { TH } from "../univers/univers";
 import { autoHit } from "./autoplay";
-import { S, autoFor, sectionAtBar, spb } from "./etat";
+import { COULOIRS, S, autoFor, sectionAtBar, spb } from "./etat";
 import { completeHold, missEv } from "./jugement";
 
 /* ---------- Partie ---------- */
@@ -139,7 +138,7 @@ export function update(nb) {
         continue;
       }
       const pnow = performance.now();
-      S.keyFlash[LANE_CODES[q.solo]] = pnow;
+      S.keyFlash[COULOIRS[q.solo]] = pnow;
       S.laneFlash[q.solo] = pnow;
       S.beams.push({ lane: q.solo, at: pnow, ok: true });
       burst(HITX + 40, LANE_Y[q.solo], LANE_HUE[q.solo], 10);

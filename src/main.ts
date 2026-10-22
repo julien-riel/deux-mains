@@ -10,7 +10,8 @@ import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
 import { show } from "./ui/ecrans";
-import { load, setPractice, setTheme } from "./ui/reglages";
+import { load, setCommandes, setPractice, setTheme } from "./ui/reglages";
+import "./ui/tactile";
 import { THEMES } from "./univers/univers";
 
 // Mise à jour à chaud de l'artefact publié : la plateforme garde la chanson et les réglages d'une version à l'autre
@@ -58,19 +59,23 @@ function frame(now) {
 
 let savedDiff = null;
 let savedHands = null,
-  savedTheme = null;
+  savedTheme = null,
+  savedCommandes = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
   savedHands = localStorage.getItem("deux-mains-hands");
   savedTheme = localStorage.getItem("deux-mains-theme");
+  savedCommandes = localStorage.getItem("deux-mains-commandes");
 } catch {
   /* stockage indisponible */
 }
-const HANDS = ["both", "L", "R"];
+const HANDS = ["both", "L", "R"],
+  COMMANDES = ["auto", "clavier", "tactile"];
 const hot = window.claude && window.claude.hot;
 if (hot && hot.snapshot) hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, theme: S.theme }));
 const boot = (data) => {
   data = data || {};
+  setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");

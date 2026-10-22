@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté), univers et mains jouées, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté), univers, mains jouées et commandes, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -8,6 +8,8 @@ import { S } from "../jeu/etat";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
+import { ecranTactile } from "./tactile";
+import { COMMANDES, etiquettes } from "./touches";
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 
@@ -68,6 +70,23 @@ export function setPractice(v: string) {
   } catch {
     /* stockage indisponible */
   }
+  if (S.mode === "title" && S.song) show("title");
+}
+document
+  .querySelectorAll<HTMLInputElement>('input[name="commandes"]')
+  .forEach((r) => r.addEventListener("change", () => setCommandes(r.value)));
+// Commandes : automatique (tactile sur un téléphone ou une tablette), clavier ou tactile (ADR-0008)
+export function setCommandes(v: string) {
+  const r = document.getElementById("c-" + v) as HTMLInputElement;
+  if (r) r.checked = true;
+  try {
+    localStorage.setItem("deux-mains-commandes", v);
+  } catch {
+    /* stockage indisponible */
+  }
+  COMMANDES.tactile = v === "tactile" || (v === "auto" && ecranTactile());
+  document.documentElement.classList.toggle("tactile", COMMANDES.tactile);
+  etiquettes();
   if (S.mode === "title" && S.song) show("title");
 }
 $("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, S.diff));

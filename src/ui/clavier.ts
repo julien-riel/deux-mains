@@ -1,11 +1,11 @@
 import { songNow } from "../audio/moteur";
 import { randomSeed } from "../chanson/aleatoire";
+import { presser, relacher } from "../jeu/actions";
 import { newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
-import { S, autoFor } from "../jeu/etat";
-import { leftPress, release, rightPress } from "../jeu/jugement";
+import { S } from "../jeu/etat";
 import { overlay, show } from "./ecrans";
 import { load } from "./reglages";
-import { KEYLABEL, LANE_CODES } from "./touches";
+import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
 overlay.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>("button[data-act]");
@@ -37,16 +37,7 @@ addEventListener("keydown", (e) => {
       };
       return;
     }
-    const hand = c === "KeyW" || c === "KeyS" ? "L" : LANE_CODES.includes(c) ? "R" : null;
-    if (hand && autoFor(hand)) return;
-    if (S.keys[c]) return;
-    S.keys[c] = true;
-    if (c === "KeyW") leftPress(1, songNow());
-    else if (c === "KeyS") leftPress(0, songNow());
-    else {
-      const lane = LANE_CODES.indexOf(c);
-      if (lane >= 0) rightPress(lane, songNow());
-    }
+    if (ACTION_DE[c]) presser(ACTION_DE[c], songNow());
     return;
   }
   if (e.repeat) return;
@@ -74,15 +65,8 @@ addEventListener("keydown", (e) => {
   }
 });
 addEventListener("keyup", (e) => {
-  const c = e.code;
-  S.keys[c] = false;
-  if (S.mode !== "play") return;
-  if (c === "KeyS") {
-    if (!autoFor("L")) release("L", 0, songNow());
-  } else {
-    const lane = LANE_CODES.indexOf(c);
-    if (lane >= 0 && !autoFor("R")) release("R", lane, songNow());
-  }
+  const a = ACTION_DE[e.code];
+  if (a) relacher(a, S.mode === "play" ? songNow() : 0);
 });
 addEventListener("blur", pause);
 document.addEventListener("visibilitychange", () => {
@@ -94,13 +78,14 @@ try {
   (navigator as Navigator & { keyboard: { getLayoutMap(): Promise<Map<string, string>> } }).keyboard
     .getLayoutMap()
     .then((m) => {
-      for (const c of Object.keys(KEYLABEL)) {
+      for (const c of Object.keys(CLAVIER)) {
         const v = m.get(c);
-        if (v) KEYLABEL[c] = v.toUpperCase();
+        if (v) CLAVIER[c] = v.toUpperCase();
       }
+      etiquettes();
       document
         .querySelectorAll<HTMLElement>("kbd[data-code]")
-        .forEach((el) => (el.textContent = KEYLABEL[el.dataset.code]));
+        .forEach((el) => (el.textContent = CLAVIER[el.dataset.code]));
       if (S.mode === "title") show("title");
     })
     .catch(() => {});
