@@ -33,7 +33,7 @@ export function show(kind) {
       }</div>
       ${
         COMMANDES.tactile
-          ? `<p class="hint">Pouce gauche : en haut pour sauter, en bas pour glisser, le doigt posé pour tenir. Pouce droit : la bande du couloir de l'ennemi.</p>
+          ? `<p class="hint">Pouce gauche : en haut pour sauter (une seconde fois en l'air pour un double saut), en bas pour glisser, le doigt posé pour tenir. Pouce droit : la bande du couloir de l'ennemi.</p>
       <p class="hint">Sur iPhone, coupe le mode silencieux pour entendre la musique.</p>`
           : `<p class="hint">Gauche ${k("KeyW")} ${k("KeyS")} · Droite ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`
       }`;

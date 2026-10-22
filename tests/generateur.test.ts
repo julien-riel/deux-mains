@@ -100,11 +100,11 @@ describe("générateur", () => {
       }
   });
 
-  it("chaque note de la main gauche est la fondamentale (glisser) ou l'octave (sauter)", () => {
+  it("chaque note de la main gauche est la fondamentale (glisser), l'octave (sauter) ou la quinte au-dessus (double saut)", () => {
     for (const { chanson } of CHANSONS)
       for (const ev of gauche(chanson)) {
-        const { bass } = chanson.chords[ev.bar];
-        expect(ev.midi).toBe(ev.lane === 1 ? bass + 12 : bass);
+        const { bass, ints } = chanson.chords[ev.bar];
+        expect(ev.midi).toBe([bass, bass + 12, bass + 12 + ints[2]][ev.lane]);
       }
   });
 
@@ -112,14 +112,23 @@ describe("générateur", () => {
     for (const { chanson } of CHANSONS) expect(droite(chanson).filter((ev) => ev.kind === "pont")).toEqual([]);
   });
 
-  it("les sauts durent moins que l'écart avec l'obstacle suivant", () => {
+  it("les sauts durent moins que l'écart avec l'obstacle suivant, sauf celui qui précède un double saut", () => {
     for (const { chanson } of CHANSONS) {
       const ls = gauche(chanson);
       ls.forEach((ev, i) => {
         const ecart = i + 1 < ls.length ? ls[i + 1].beat - ev.beat : 2;
         expect(ev.air).toBeGreaterThan(0);
-        expect(ev.air).toBeLessThan(ecart);
+        if (ls[i + 1]?.lane !== 2) expect(ev.air).toBeLessThan(ecart);
       });
+    }
+  });
+
+  it("le saut qui précède un double saut dure jusqu'au second appui, même joué en retard après un premier en avance", () => {
+    for (const { diff, chanson } of CHANSONS) {
+      const spb = 60 / chanson.bpm,
+        bien = DIFFS[diff].win[1],
+        ls = gauche(chanson);
+      ls.forEach((ev, i) => ls[i + 1]?.lane === 2 && expect(ev.air * spb).toBeGreaterThan(0.5 * spb + 2 * bien));
     }
   });
 
@@ -127,6 +136,27 @@ describe("générateur", () => {
     for (const { chanson } of CHANSONS) {
       expect(chanson.ev.every((ev) => ev.state === "pending")).toBe(true);
       chanson.ev.forEach((ev, i) => i && expect(ev.beat).toBeGreaterThanOrEqual(chanson.ev[i - 1].beat));
+    }
+  });
+});
+
+describe("hauts obstacles (#7)", () => {
+  const hauts = (c: Chanson) => gauche(c).filter((ev) => ev.lane === 2);
+
+  it.each(["debutant", "facile"])("en %s, aucun haut obstacle", (diff) => {
+    for (const chanson of dans(diff)) expect(hauts(chanson)).toEqual([]);
+  });
+
+  it.each(["normal", "difficile"])("en %s, chaque chanson a des hauts obstacles, au couplet et au refrain", (diff) => {
+    for (const chanson of dans(diff)) {
+      expect(new Set(hauts(chanson).map((ev) => ev.kind))).toEqual(new Set(["couplet", "refrain"]));
+    }
+  });
+
+  it("chaque haut obstacle suit un saut, une croche plus tôt : les deux appuis sont espacés d'une croche", () => {
+    for (const { chanson } of CHANSONS) {
+      const ls = gauche(chanson);
+      ls.forEach((ev, i) => ev.lane === 2 && expect([ls[i - 1].lane, ev.beat - ls[i - 1].beat]).toEqual([1, 0.5]));
     }
   });
 });

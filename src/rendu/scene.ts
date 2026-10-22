@@ -20,7 +20,7 @@ import {
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
-import { boiteBack, boiteBlock, boiteBeam, boiteEnemy, boiteGround, boiteTunnel, drawComb } from "./boite";
+import { boiteBack, boiteBlock, boiteBeam, boiteHaut, boiteEnemy, boiteGround, boiteTunnel, drawComb } from "./boite";
 import {
   COL,
   DEG,
@@ -44,7 +44,7 @@ import {
   rr,
   txt,
 } from "./outils";
-import { villeBack, villeBeam, villeBlock, villeEnemy, villeGround, villeTunnel } from "./ville";
+import { villeBack, villeBeam, villeBlock, villeEnemy, villeGround, villeHaut, villeTunnel } from "./ville";
 
 export function visualBeat() {
   if (!AC || auRepos()) return S.titleBeat;
@@ -208,8 +208,10 @@ export function render(nb, dt) {
     }
   }
   keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("sauter"));
-  txt("SAUTER · OCTAVE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
+  // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
+  txt("OCTAVE · 2× QUINTE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
   txt(noteName(ch.bass + 12), 64, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
+  txt(noteName(ch.bass + 12 + ch.ints[2]), 118, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
   keycap(24, GY - 40, KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
   txt("GLISSER · FOND.", 64, GY - 28, `600 10px ${FONT.mono}`, COL.muted);
   txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
@@ -431,7 +433,7 @@ export function drawChordLinks(grp, nb) {
 // et il passe sous le personnage au sommet du saut (ou pendant la glissade)
 export function drawObstacle(ev, nb, hsl) {
   const x0 = PX + PW / 2 + (ev.beat - nb) * PPB;
-  const x = x0 + (ev.lane === 1 ? 0.315 * ev.air : 0.25) * PPB;
+  const x = x0 + (ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
   if (x < -80 || x0 > W + 80 + ev.dur * PPB) return;
   if (ev.state === "pending") {
     g.beginPath();
@@ -447,17 +449,20 @@ export function drawObstacle(ev, nb, hsl) {
   const fill = missed ? hexA(COL.bad, 0.85) : hsl(HUE_BASS, 90, 62, passed ? 0.4 : 1);
   const ink = hexA(COL.ink, 0.85),
     boite = S.theme === "boite";
-  if (ev.lane === 1) {
-    if (boite) boiteBlock(x, fill);
+  if (ev.lane >= 1) {
+    // Le haut obstacle (#7) passe sous le personnage au sommet du double saut ; un saut simple le heurte
+    const haut = ev.lane === 2 ? (boite ? 48 : 68) : 0;
+    if (ev.lane === 2) (boite ? boiteHaut : villeHaut)(x, fill);
+    else if (boite) boiteBlock(x, fill);
     else villeBlock(x, fill);
     g.beginPath();
-    g.moveTo(x - 7, GY - 44);
-    g.lineTo(x, GY - 52);
-    g.lineTo(x + 7, GY - 44);
+    g.moveTo(x - 7, GY - 44 - haut);
+    g.lineTo(x, GY - 52 - haut);
+    g.lineTo(x + 7, GY - 44 - haut);
     g.strokeStyle = fill;
     g.lineWidth = 2.5;
     g.stroke();
-    txt(KEYLABEL.KeyW, x, GY - 58, `600 13px ${FONT.mono}`, fill, "center");
+    txt(KEYLABEL.KeyW, x, GY - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti
     const a = x - 16,
@@ -526,10 +531,15 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
     sliding = false,
     jumping = false;
   if (!auRepos()) {
-    const p = (ns - S.jumpAt) / S.jumpAir;
+    // Le double saut (#7) part de la hauteur atteinte au second appui, monte plus haut et redescend au sol
+    const haut = (p: number) => Math.sin(Math.PI * Math.pow(p, 0.6)),
+      double = S.doubleAt >= S.jumpAt,
+      p = double ? (ns - S.doubleAt) / S.doubleAir : (ns - S.jumpAt) / S.jumpAir;
     if (p >= 0 && p < 1) {
       jumping = true;
-      yOff = -122 * Math.sin(Math.PI * Math.pow(p, 0.6));
+      yOff = double
+        ? -(122 * haut(clamp((S.doubleAt - S.jumpAt) / S.jumpAir, 0, 1)) * (1 - p) + 110 * haut(p))
+        : -122 * haut(p);
     } else if (S.keys.glisser || ns < S.slideUntil) sliding = true;
   }
   const run = S.mode === "play" && !jumping && !sliding,

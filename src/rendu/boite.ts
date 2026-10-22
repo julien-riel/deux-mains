@@ -134,6 +134,22 @@ export function boiteBlock(x, fill) {
   g.ellipse(x - 5, GY - 30, 5, 2.5, 0, 0, Math.PI * 2);
   g.fill();
 }
+// Picot double, deux fois plus haut, à franchir d'un double saut (#7)
+export function boiteHaut(x, fill) {
+  rr(x - 7, GY - 74, 14, 74, 3);
+  g.fillStyle = fill;
+  g.fill();
+  for (const y of [GY - 27, GY - 75]) {
+    g.fillStyle = fill;
+    g.beginPath();
+    g.ellipse(x, y, 17, 9, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = hexA(COL.fg, 0.35);
+    g.beginPath();
+    g.ellipse(x - 5, y - 3, 5, 2.5, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+}
 // Levier du mécanisme
 export function boiteBeam(x, fill) {
   g.fillStyle = hexA(COL.bass, 0.35);

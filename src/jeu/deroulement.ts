@@ -25,6 +25,7 @@ export function resetRun() {
     curSec: null,
     banner: null,
     jumpAt: -99,
+    doubleAt: -99,
     slideUntil: -99,
     keys: {},
     beams: [],
@@ -128,6 +129,7 @@ export function resumeCP() {
     combo: 0,
     keys: {},
     jumpAt: -99,
+    doubleAt: -99,
     slideUntil: -99,
   });
   // En boucle, une mort fait reprendre la boucle au début de la section

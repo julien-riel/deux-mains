@@ -32,12 +32,15 @@ export function autoHit(ev: Note) {
     pnow = performance.now();
   if (ev.hand === "L") {
     S.keyFlash[ev.lane ? "sauter" : "glisser"] = pnow;
-    if (ev.lane) {
+    if (ev.lane === 2) {
+      S.doubleAt = ns;
+      S.doubleAir = ev.air * spb();
+    } else if (ev.lane) {
       S.jumpAt = ns;
       S.jumpAir = ev.air * spb();
     } else {
       S.slideUntil = ns + (ev.dur > 0 ? ev.dur : 0.55) * spb();
-      S.jumpAt = -99;
+      S.jumpAt = S.doubleAt = -99;
     }
   } else {
     S.keyFlash[COULOIRS[ev.lane]] = pnow;
