@@ -24,6 +24,7 @@ import {
   PX,
   W,
   cv,
+  formeCouloir,
   g,
   hexA,
   rr,
@@ -98,8 +99,7 @@ export function render(nb, dt) {
   for (let i = 0; i < 4; i++) {
     const held = S.keys[COULOIRS[i]],
       fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1);
-    g.beginPath();
-    g.arc(HITX, LANE_Y[i], 17, 0, Math.PI * 2);
+    formeCouloir(i, HITX, LANE_Y[i], 17);
     g.fillStyle = hsl(LANE_HUE[i], 80, 65, held ? 0.3 : fl * 0.5);
     g.fill();
     g.strokeStyle = hsl(LANE_HUE[i], 80, 70, 0.7);
@@ -185,6 +185,11 @@ export function render(nb, dt) {
     keycap(24, LANE_Y[i] - 15, KEYLABEL[LANE_CODES[i]], hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
     txt(DEG[i], 64, LANE_Y[i] - 3, `600 10px ${FONT.mono}`, COL.muted);
     txt(NOTE[ch.lanes[i] % 12], 64, LANE_Y[i] + 13, `600 15px ${FONT.mono}`, COL.fg);
+    if (S.formes) {
+      formeCouloir(i, 158, LANE_Y[i], 8);
+      g.fillStyle = hsl(LANE_HUE[i], 80, 70);
+      g.fill();
+    }
   }
   keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("sauter"));
   txt("SAUTER · OCTAVE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
@@ -463,10 +468,15 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     }
     if (ev.state === "holding") x = HITX;
   }
-  g.beginPath();
-  g.arc(x, y, 24, 0, Math.PI * 2);
+  // Halo à la forme du couloir, autour de l'ennemi de l'univers
+  formeCouloir(ev.lane, x, y, 24);
   g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
   g.fill();
+  if (S.formes) {
+    g.strokeStyle = ev.state === "miss" ? hexA(COL.bad, 0.6 * a) : hsl(hue, 80, 68, 0.6 * a);
+    g.lineWidth = 2;
+    g.stroke();
+  }
   if (S.theme === "boite") boiteEnemy(x, y, ev, col, a, nb, hsl);
   else villeEnemy(x, y, ev, col, a, nb, hsl);
 }

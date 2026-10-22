@@ -73,6 +73,18 @@
       <span class="unite">ms</span>
       <button id="calibrer" type="button">Calibrer</button>
     </div>
+    <div class="field">
+      <span class="flabel" id="formes-label">Formes</span>
+      <div
+        class="seg"
+        role="radiogroup"
+        aria-labelledby="formes-label"
+        title="Une forme par couloir, en plus de la couleur"
+      >
+        <input type="radio" name="formes" id="f-oui" value="oui" /><label for="f-oui">Oui</label>
+        <input type="radio" name="formes" id="f-non" value="non" /><label for="f-non">Non</label>
+      </div>
+    </div>
     <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
     <p class="song" id="songline"></p>
     <button class="primary seulement-tactile" id="fermer-reglages" type="button">Fermer les réglages</button>

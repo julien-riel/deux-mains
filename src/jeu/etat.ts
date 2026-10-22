@@ -73,6 +73,8 @@ export interface Etat {
   keyFlash: Partial<Record<Action, number>>;
   practice: string;
   theme: string;
+  /** Une forme par couloir, en plus de la couleur (#31) */
+  formes: boolean;
   keyAng: number;
 }
 
@@ -118,6 +120,7 @@ export const S: Etat = {
   keyFlash: {},
   practice: "both",
   theme: "ville",
+  formes: true,
   keyAng: 0,
 };
 export const spb = () => 60 / S.song.bpm;

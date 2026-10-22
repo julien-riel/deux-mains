@@ -19,6 +19,7 @@ export interface InterfaceJeu {
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R"): void;
   setCommandes(v: "auto" | "clavier" | "tactile"): void;
+  setFormes(oui: boolean): void;
   /** Le temps de la chanson, en secondes */
   songNow(): number;
 }
@@ -188,6 +189,7 @@ export class Navigateur {
       setTheme: reglages.setTheme,
       setPractice: reglages.setPractice,
       setCommandes: reglages.setCommandes,
+      setFormes: reglages.setFormes,
       songNow,
     };
     return nav;
