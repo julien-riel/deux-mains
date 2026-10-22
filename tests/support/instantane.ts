@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 export const GRAINES = [
   1, 2, 3, 7, 42, 99, 123, 777, 1000, 2024, 4242, 5000, 9999, 12345, 31415, 50000, 65536, 77777, 88888, 99999,
 ];
-export const DIFFICULTES = ["facile", "normal", "difficile"] as const;
+export const DIFFICULTES = ["debutant", "facile", "normal", "difficile"] as const;
 
 interface NoteBrute {
   hand: string;

@@ -1,5 +1,5 @@
-// Les chansons ne changent pas : 20 graines × 3 difficultés comparées à un instantané pris avant le découpage
-// en modules (#2). Si un changement du générateur est voulu, régénérer avec `npx vitest run -u` et le dire.
+// Les chansons ne changent pas : 20 graines × 4 difficultés comparées à un instantané pris avant le découpage
+// en modules (#2), Débutant ajouté avec #40. Si un changement du générateur est voulu, régénérer avec `npx vitest run -u` et le dire.
 
 import { expect, it } from "vitest";
 import { buildSong } from "../src/chanson/generateur";

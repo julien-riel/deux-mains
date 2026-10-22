@@ -1,7 +1,34 @@
-// Les trois difficultés : fenêtres de jugement, dégâts, motifs de basse et réglages de la mélodie
+// Les quatre difficultés : fenêtres de jugement, dégâts, motifs de basse et réglages de la mélodie
 
 // Basse : une chaîne de 8 croches par mesure. S = glisser, W = sauter, T = tunnel (tenu sur les « - »)
+// Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant)
 export const DIFFS = {
+  debutant: {
+    label: "Débutant",
+    win: [0.09, 0.19],
+    dmgL: 10,
+    dmgR: 4,
+    bass: {
+      couplet: ["S.......", "W......."],
+      refrain: ["S.......", "W......."],
+      pont: ["S......."],
+      outro: ["S.......", "........"],
+    },
+    mel: {
+      even: 0.5,
+      odd: 0,
+      surLesTemps: true,
+      gap: 2,
+      avoid: "all",
+      holdP: 0,
+      max: 5,
+      dyadP: 0,
+      dyadStrong: true,
+      cross: [],
+      crossP: 0,
+      triad: false,
+    },
+  },
   facile: {
     label: "Facile",
     win: [0.075, 0.16],

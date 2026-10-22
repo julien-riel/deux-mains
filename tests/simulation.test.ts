@@ -7,7 +7,7 @@ import { Navigateur, type Difficulte, type Univers } from "./support/navigateur"
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
 const GRAINE = 4242;
 const UNIVERS: Univers[] = ["ville", "boite"];
-const DIFFICULTES: Difficulte[] = ["facile", "normal", "difficile"];
+const DIFFICULTES: Difficulte[] = ["debutant", "facile", "normal", "difficile"];
 
 let nav: Navigateur;
 afterEach(() => nav?.fermer());
@@ -70,5 +70,18 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       // Elles passent après la fin de la fenêtre « Bien », pas avant
       expect(nav.jeu.songNow() - (premieres[0].beat * 60) / S.song.bpm).toBeGreaterThan(D.win[1]);
     });
+  });
+});
+
+describe("difficulté retenue", () => {
+  it("choisir Débutant recharge la chanson, et le choix est retenu à la visite suivante", async () => {
+    await chargerPartie("ville", "normal");
+    nav.jeu.load(GRAINE, "debutant");
+    expect([nav.jeu.state.diff, nav.jeu.state.mode]).toEqual(["debutant", "title"]);
+    expect(nav.stockage.get("deux-mains-diff")).toBe("debutant");
+    nav.fermer();
+
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-diff": "debutant" } });
+    expect(nav.jeu.state.diff).toBe("debutant");
   });
 });
