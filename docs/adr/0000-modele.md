@@ -12,9 +12,11 @@ Quel problème ou quelle contrainte oblige à décider ? Ce qui est vrai aujourd
 ## Options considérées
 
 ### Option A : nom
+
 Comment ça marche, en deux ou trois phrases. Avantages, inconvénients.
 
 ### Option B : nom
+
 Idem.
 
 ## Décision

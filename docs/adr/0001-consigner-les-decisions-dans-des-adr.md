@@ -11,9 +11,11 @@ Le projet passe d'un prototype exploratoire à un développement organisé en is
 ## Options considérées
 
 ### Option A : ADR en Markdown dans le dépôt
+
 Un fichier par décision dans `docs/adr/`, versionné avec le code, indexé dans `docs/adr/README.md`.
 
 ### Option B : décisions dans les issues GitHub
+
 Pas de fichier, la discussion de l'issue fait foi. Plus léger, mais les décisions se perdent dans le fil des commentaires et ne suivent pas le code.
 
 ## Décision

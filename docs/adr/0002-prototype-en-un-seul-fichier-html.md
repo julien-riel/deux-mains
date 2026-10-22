@@ -11,9 +11,11 @@ Le premier objectif était de tester vite la sensation de jeu à deux mains. Le 
 ## Options considérées
 
 ### Option A : un seul fichier `deux-mains.html`
+
 HTML, CSS et JavaScript dans un fichier ; Canvas 2D pour le rendu, Web Audio pour le son, synthétisé en direct (aucun fichier audio).
 
 ### Option B : un moteur de jeu (Phaser, PixiJS) et des échantillons audio
+
 Plus de fonctionnalités, mais une installation, un build et des fichiers à charger.
 
 ## Décision

@@ -6,14 +6,14 @@ Tout tient dans un seul fichier, `deux-mains.html` (HTML, Canvas et Web Audio, s
 
 ## Commandes
 
-| Main | Touche | Action | Note jouée |
-|---|---|---|---|
-| Gauche | `W` | Sauter par-dessus un bloc | Octave de la basse |
-| Gauche | `S` | Glisser sous une barre | Fondamentale |
-| Gauche | `S` tenu | Traverser un tunnel | Note tenue |
-| Droite | `J` `K` `L` `;` | Tirer dans un couloir | Fondamentale, tierce, quinte, octave de l'accord en cours |
-| — | `A` | Activer ou couper l'auto-play | |
-| — | `Échap` | Pause | |
+| Main   | Touche          | Action                        | Note jouée                                                |
+| ------ | --------------- | ----------------------------- | --------------------------------------------------------- |
+| Gauche | `W`             | Sauter par-dessus un bloc     | Octave de la basse                                        |
+| Gauche | `S`             | Glisser sous une barre        | Fondamentale                                              |
+| Gauche | `S` tenu        | Traverser un tunnel           | Note tenue                                                |
+| Droite | `J` `K` `L` `;` | Tirer dans un couloir         | Fondamentale, tierce, quinte, octave de l'accord en cours |
+| —      | `A`             | Activer ou couper l'auto-play |                                                           |
+| —      | `Échap`         | Pause                         |                                                           |
 
 Les touches suivent leur position physique : en AZERTY, le saut est sur `Z` et l'octave sur `M`.
 

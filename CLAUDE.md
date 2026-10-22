@@ -28,13 +28,13 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest, Prettier et ESLint. Uniquement des dépendances de développement.
 
-| Commande | Rôle |
-|---|---|
-| `npm run dev` | Serveur de développement avec rechargement à chaud |
-| `npm test` | Tests Vitest (unitaires et simulation) |
-| `npm run build` | Produit `dist/deux-mains.html`, le fichier à publier |
+| Commande         | Rôle                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| `npm run dev`    | Serveur de développement avec rechargement à chaud                                         |
+| `npm test`       | Tests Vitest (unitaires et simulation)                                                     |
+| `npm run build`  | Produit `dist/deux-mains.html`, le fichier à publier                                       |
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
-| `npm run lint` | ESLint |
+| `npm run lint`   | ESLint                                                                                     |
 
 Pendant la migration (ADR-0007), le jeu reste dans `deux-mains.html` : la simulation exécute son script tel quel dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état par l'interface `window.__deuxMainsTest`, décrite à la fin du script.
 
