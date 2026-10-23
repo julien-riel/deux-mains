@@ -185,6 +185,77 @@ describe("trilles (#15)", () => {
   });
 });
 
+describe("serpents (#16)", () => {
+  const serpents = (c: Chanson) => droite(c).filter((ev) => ev.serpent);
+
+  it.each(["debutant", "facile"])("en %s, aucun serpent", (diff) => {
+    for (const chanson of dans(diff)) expect(serpents(chanson)).toEqual([]);
+  });
+
+  it.each(["normal", "difficile"])("en %s, des chansons ont des serpents", (diff) => {
+    expect(dans(diff).filter((c) => serpents(c).length > 0).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("un serpent traverse deux à quatre couloirs voisins dans un seul sens, chacun sur son degré de l'accord", () => {
+    const longueurs = new Set<number>();
+    for (const { chanson } of CHANSONS)
+      for (const ev of serpents(chanson)) {
+        const s = ev.serpent;
+        longueurs.add(s.length);
+        expect(s[0]).toBe(ev.lane);
+        expect(s.length).toBeGreaterThanOrEqual(2);
+        expect(s.length).toBeLessThanOrEqual(4);
+        expect(new Set(s.slice(1).map((l, k) => l - s[k])).size).toBe(1);
+        expect(Math.abs(s[1] - s[0])).toBe(1);
+        expect(ev.midiSerpent).toEqual(s.map((l) => chanson.chords[ev.bar].lanes[l]));
+        expect(ev.midi).toBe(ev.midiSerpent[0]);
+        expect(ev.trille).toBeUndefined();
+      }
+    // Les trois longueurs existent
+    expect([...longueurs].sort()).toEqual([2, 3, 4]);
+  });
+
+  it("chaque couloir dure une croche ou un temps, et le serpent reste dans sa mesure (un seul accord)", () => {
+    for (const { diff, chanson } of CHANSONS)
+      for (const ev of serpents(chanson)) {
+        const pas = ev.dur / ev.serpent.length;
+        expect(DIFFS[diff].mel.serpentPas.map((p: number) => p / 2)).toContain(pas);
+        expect(ev.beat + ev.dur).toBeLessThanOrEqual((ev.bar + 1) * 4);
+      }
+  });
+
+  it("aucune autre note de la main droite pendant un serpent, et au moins une croche avant la suivante", () => {
+    for (const { chanson } of CHANSONS)
+      for (const ev of serpents(chanson)) {
+        const autres = droite(chanson).filter((e) => e !== ev && e.beat >= ev.beat && e.beat < ev.beat + ev.dur + 0.5);
+        expect(autres).toEqual([]);
+        expect((ev.grp ?? []).filter((e) => e.hand === "R")).toEqual(ev.grp ? [ev] : []);
+      }
+  });
+
+  it("les serpents ne déplacent pas le reste de la chanson : leurs notes gardent leurs temps", () => {
+    // Sans serpent, la même graine donne la même chanson, où chaque serpent était une suite de notes
+    for (const diff of ["normal", "difficile"]) {
+      const P = DIFFS[diff].mel,
+        avant = P.serpentP;
+      for (const graine of GRAINES) {
+        const avec = buildSong(graine, diff);
+        P.serpentP = 0;
+        const sans = buildSong(graine, diff);
+        P.serpentP = avant;
+        const hors = (c: Chanson, tous: Note[]) =>
+          c.ev.filter((e) => !tous.some((s) => e.hand === "R" && e.beat >= s.beat && e.beat < s.beat + s.dur));
+        const sp = serpents(avec),
+          resume = (notes: Note[]) => notes.map(({ hand, beat, lane, dur, midi }) => [hand, beat, lane, dur, midi]);
+        expect(resume(hors(avec, sp))).toEqual(resume(hors(sans, sp)));
+        // La tête du serpent est la première note de sa suite
+        for (const s of sp)
+          expect(sans.ev.some((e) => e.hand === "R" && e.beat === s.beat && e.lane === s.lane)).toBe(true);
+      }
+    }
+  });
+});
+
 describe("Débutant", () => {
   it("la main droite joue sur les temps uniquement, refrain compris", () => {
     for (const c of dans("debutant")) for (const ev of droite(c)) expect(ev.beat % 1).toBe(0);

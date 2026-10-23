@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { Note } from "../src/chanson/types";
-import { appuis } from "./support/appuis";
+import { appuis, coupsAttendus } from "./support/appuis";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage. Celle-ci a des accords de la main droite
@@ -116,7 +116,7 @@ describe.each(UNIVERS)("au doigt, univers %s", (univers) => {
 
     expect(etat.mode).toBe("done");
     expect(etat.miss).toBe(0);
-    expect(etat.perfect).toBe(etat.song.ev.length);
+    expect(etat.perfect).toBe(coupsAttendus(etat.song.ev));
     expect(etat.song.ev.every((ev) => ev.state === "hit" || ev.state === "done")).toBe(true);
   });
 });

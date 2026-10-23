@@ -3,6 +3,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { seuilTrille } from "../src/jeu/jugement";
+import { coupsAttendus } from "./support/appuis";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
@@ -36,8 +37,9 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(nav.overlay.hidden).toBe(false);
       expect(nav.overlay.innerHTML).toContain("Écoute terminée");
       expect(etat.miss).toBe(0);
-      // Les notes de la partie : la phrase du solo de l'auto-play revient au dernier refrain (ADR-0012)
-      expect(etat.perfect).toBe(etat.ev.length);
+      // Les notes de la partie : la phrase du solo de l'auto-play revient au dernier refrain (ADR-0012) ; chaque
+      // passage de serpent (#16) est un coup jugé en plus
+      expect(etat.perfect).toBe(coupsAttendus(etat.ev));
       expect(etat.health).toBe(100);
       // Les pentes (#12), en Normal et en Difficile : tenues jusqu'au bout
       const pentes = etat.ev.filter((ev) => ev.fin !== undefined);
@@ -48,6 +50,11 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       const trilles = etat.ev.filter((ev) => ev.trille !== undefined);
       expect(trilles.length > 0).toBe(difficulte === "normal");
       expect(trilles.every((ev) => ev.state === "done" && ev.alternances >= seuilTrille(ev))).toBe(true);
+      // Les serpents (#16) : l'auto-play les suit tous jusqu'au bout, en passant par chacun de leurs couloirs ;
+      // cette chanson-ci n'en a qu'en Difficile (le générateur est testé sur d'autres graines)
+      const serpents = etat.ev.filter((ev) => ev.serpent);
+      expect(serpents.length > 0).toBe(difficulte === "difficile");
+      expect(serpents.every((ev) => ev.state === "done" && ev.troncon === ev.serpent.length - 1)).toBe(true);
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

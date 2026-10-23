@@ -51,6 +51,9 @@ class Horloge {
   sons: { debut: number; fin: number }[] = [];
   /** Les glissandos programmés sur la fréquence d'une source (#12) : d'où à où (en Hz), et l'heure d'arrivée */
   glissandos: { de: number; vers: number; fin: number }[] = [];
+  /** Les glissements de la fréquence d'une source vers une autre note, sans la couper (serpent, #16) : d'où, vers
+   * où (en Hz), et l'heure de départ */
+  glissements: { de: number; vers: number; debut: number }[] = [];
 }
 
 /* ---------- Web Audio ---------- */
@@ -98,6 +101,10 @@ function source(horloge: Horloge) {
   Object.assign(frequency, {
     exponentialRampToValueAtTime: (vers: number, fin: number) => {
       horloge.glissandos.push({ de: frequency.value, vers, fin });
+      return frequency;
+    },
+    setTargetAtTime: (vers: number, debut: number) => {
+      horloge.glissements.push({ de: frequency.value, vers, debut });
       return frequency;
     },
   });

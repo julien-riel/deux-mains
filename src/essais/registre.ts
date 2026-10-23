@@ -219,6 +219,29 @@ export const ESSAIS: Essai[] = [
     repere: (ev) => ev.hand === "R" && !!ev.reprise,
     variation: true,
   },
+  {
+    id: "serpent",
+    titre: "Serpent",
+    verifier:
+      "Un serpent traverse deux à quatre couloirs à chaque mesure : tire sur son premier couloir, puis appuie sur le couloir suivant chaque fois qu'il change, sans jamais tout lâcher (les deux touches peuvent se chevaucher). Le son glisse de note en note sans se couper, chaque passage est jugé ; tout lâcher le casse.",
+    issue: 16,
+    univers: "ville",
+    diff: "difficile",
+    mains: "R",
+    // Des serpents qui montent et descendent, d'une croche ou d'un temps par couloir
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "difficile",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        {
+          couplet: ["0///..2.", "3-\\-\\-.."],
+          refrain: ["1//..0..", "2-\\-\\-.."],
+        },
+      ),
+    repere: (ev) => ev.hand === "R" && ev.serpent !== undefined,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

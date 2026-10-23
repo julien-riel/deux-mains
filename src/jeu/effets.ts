@@ -1,10 +1,10 @@
 // Les effets du jugement : ce que le son et l'image font quand un coup est jugé
-import { harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
+import { glisserVoix, harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
 import { AC, timeOfBeat } from "../audio/moteur";
 import { COL, GY, HITX, HUE_BASS, LANE_HUE, LANE_Y, PW, PX, burst, popup, reduced } from "../rendu/outils";
 import { die } from "./deroulement";
 import { S, chordAtBeat, layers } from "./etat";
-import type { Effets } from "./jugement";
+import { couloirDe, type Effets } from "./jugement";
 
 export const effets: Effets = {
   jouer(ev, beat, lane) {
@@ -51,7 +51,13 @@ export const effets: Effets = {
     }
   },
   lache(ev) {
-    popup("Lâché", ev.hand === "L" ? PX + 20 : HITX + 30, ev.hand === "L" ? GY - 140 : LANE_Y[ev.lane] - 26, COL.bad);
+    // Le serpent (#16) casse sur le couloir où il en était
+    popup(
+      "Lâché",
+      ev.hand === "L" ? PX + 20 : HITX + 30,
+      ev.hand === "L" ? GY - 140 : LANE_Y[couloirDe(ev)] - 26,
+      COL.bad,
+    );
   },
   mauvaisCouloir(lane) {
     tick();
@@ -71,6 +77,21 @@ export const effets: Effets = {
   trille(ev, lane) {
     ev.trilleAt = performance.now();
     burst(HITX, LANE_Y[lane], LANE_HUE[lane], 4);
+  },
+  glisser(ev, k, beat) {
+    glisserVoix(ev, k, beat === null ? AC.currentTime : timeOfBeat(beat));
+  },
+  passage(ev, k, parfait) {
+    const lane = ev.serpent[k],
+      y = LANE_Y[lane] - 26;
+    if (parfait === null) {
+      tick();
+      popup("Raté", HITX + 30, y, COL.bad);
+      return;
+    }
+    ev.passeAt = performance.now();
+    popup(parfait ? "Parfait" : "Bien", HITX + 30, y, parfait ? COL.good : COL.fg);
+    burst(HITX, LANE_Y[lane], LANE_HUE[lane], 10);
   },
   tir(lane, ok) {
     const at = performance.now();

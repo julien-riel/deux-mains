@@ -17,7 +17,7 @@ import {
   spb,
   type Action,
 } from "../jeu/etat";
-import { seuilTrille } from "../jeu/jugement";
+import { couloirDe, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -27,6 +27,7 @@ import {
   boiteBeam,
   boiteHaut,
   boiteEnemy,
+  boiteSerpent,
   boiteGround,
   boitePente,
   boitePlaque,
@@ -66,6 +67,7 @@ import {
   villeHaut,
   villePente,
   villePlaque,
+  villeSerpent,
   villeTunnel,
 } from "./ville";
 
@@ -213,11 +215,12 @@ export function render(nb, dt) {
     if (ev.state !== "holding" || ev.hand !== "R" || ev.trille !== undefined) continue;
     // Le vibrato (#17) fait trembler le rayon plus fort
     const v = ondulation(ev, pnow);
-    g.strokeStyle = hsl(LANE_HUE[ev.lane], 85, 75, 0.7 + 0.3 * Math.random());
+    g.strokeStyle = hsl(LANE_HUE[couloirDe(ev)], 85, 75, 0.7 + 0.3 * Math.random());
     g.lineWidth = 4 + 2 * v;
     g.beginPath();
     g.moveTo(S.gun[0], S.gun[1]);
-    g.lineTo(HITX, LANE_Y[ev.lane] + (Math.random() * 2 - 1) * (2 + (reduced ? 0 : 5 * v)));
+    // Le rayon tenu sur un serpent (#16) suit le couloir où le joueur en est
+    g.lineTo(HITX, LANE_Y[couloirDe(ev)] + (Math.random() * 2 - 1) * (2 + (reduced ? 0 : 5 * v)));
     g.stroke();
   }
 
@@ -615,15 +618,18 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   const x2 = HITX + (ev.beat + ev.dur - nb) * PPB;
   if (x2 < 0 || x > W + 40) return;
   const y = LANE_Y[ev.lane] + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
-  const hue = LANE_HUE[ev.lane];
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
   if (a <= 0) return;
-  const col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
-  let yh = y;
+  // Le couloir de l'ennemi : celui où en est le serpent (#16), qui change en chemin
+  let yh = y,
+    lane = ev.lane;
   if (ev.trille !== undefined) [x, yh] = dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a);
-  else if (ev.dur > 0) {
+  else if (ev.serpent) [x, yh, lane] = dessinerSerpent(ev, x, nb, pnow, hsl, a);
+  const hue = LANE_HUE[lane],
+    col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
+  if (ev.dur > 0 && ev.trille === undefined && !ev.serpent) {
     const sx = ev.state === "holding" ? HITX : x,
       v = ondulation(ev, pnow);
     if (x2 > sx) {
@@ -639,7 +645,7 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     if (ev.state === "holding") x = HITX;
   }
   // Halo à la forme du couloir, autour de l'ennemi de l'univers
-  formeCouloir(ev.lane, x, yh, 24);
+  formeCouloir(lane, x, yh, 24);
   g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
   g.fill();
   if (S.formes) {
@@ -663,6 +669,60 @@ function etoile(x, y, r, couleur) {
   g.closePath();
   g.fillStyle = couleur;
   g.fill();
+}
+/**
+ * Le serpent (#16) : un corps qui suit ses couloirs l'un après l'autre, chacun pendant un pas, et passe de l'un au
+ * suivant par une courbe douce centrée sur le temps du passage. L'univers l'habille (câble lumineux dans la Ville,
+ * ruban de papillons dans la Boîte, ADR-0006). Une marque à la forme du couloir annonce chaque passage à venir.
+ * Pendant le serpent, la tête reste sur la ligne de tir et monte ou descend avec le corps. Renvoie la place de la
+ * tête et son couloir.
+ */
+function dessinerSerpent(ev, x, nb, pnow, hsl, a): [number, number, number] {
+  const tenu = ev.state === "holding",
+    s = ev.serpent,
+    pas = pasDuSerpent(ev),
+    // La courbe d'un passage dure un tiers de pas, un quart de temps au plus
+    demi = Math.min(pas / 6, 0.125),
+    marche = (u: number) => {
+      u = clamp(u, 0, 1);
+      return u * u * (3 - 2 * u);
+    },
+    onde = (b: number) => (reduced ? 0 : 3 * Math.sin((b - nb) * 5 + pnow / 160)),
+    yDe = (b: number) =>
+      s.reduce(
+        (y, l, k) =>
+          k ? y + (LANE_Y[l] - LANE_Y[s[k - 1]]) * marche((b - tempsDuPassage(ev, k) + demi) / (2 * demi)) : y,
+        LANE_Y[s[0]],
+      ) + onde(b),
+    xDe = (b: number) => HITX + (b - nb) * PPB,
+    debut = tenu ? nb : ev.beat,
+    couleur = (l: number, alpha: number) =>
+      ev.state === "miss" ? hexA(COL.bad, alpha * a) : hsl(LANE_HUE[l], 80, 68, alpha * a);
+  // Le corps, tronçon par tronçon : chacun a la couleur de son couloir
+  const troncons = s.map((l, k) => {
+    const pts: [number, number][] = [],
+      fin = tempsDuPassage(ev, k + 1);
+    for (let b = Math.max(debut, tempsDuPassage(ev, k)); b < fin && xDe(b) < W + 40; b += 4 / PPB)
+      pts.push([xDe(b), yDe(b)]);
+    if (pts.length && xDe(fin) < W + 40) pts.push([xDe(fin), yDe(fin)]);
+    return { lane: l, pts };
+  });
+  (S.theme === "boite" ? boiteSerpent : villeSerpent)(
+    troncons.filter((t) => t.pts.length > 1),
+    couleur,
+    nb,
+  );
+  // Les passages à venir, à la forme de leur couloir (#31)
+  for (let k = 1; k < s.length; k++) {
+    const b = tempsDuPassage(ev, k);
+    if (b < debut || (tenu && k <= ev.troncon)) continue;
+    formeCouloir(s[k], xDe(b), LANE_Y[s[k]], 8);
+    g.strokeStyle = couleur(s[k], 0.9);
+    g.lineWidth = 2;
+    g.stroke();
+  }
+  if (!tenu) return [x, yDe(ev.beat), s[0]];
+  return [HITX, yDe(nb), s[clamp(Math.floor((nb - ev.beat) / pas), 0, s.length - 1)]];
 }
 /**
  * La trille (#15) : une bande qui couvre ses deux couloirs, traversée d'un zigzag en double-croches de l'un à

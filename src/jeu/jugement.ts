@@ -3,7 +3,7 @@
 // de la chanson (en secondes) en paramètre, et passe par les effets qu'on lui branche pour le son et l'image.
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
-import { S, compterPassage, mult, sectionAtBar, spb } from "./etat";
+import { COULOIRS, S, compterPassage, mult, sectionAtBar, spb } from "./etat";
 import { noterAuSolo } from "./variations";
 
 export interface Effets {
@@ -24,6 +24,11 @@ export interface Effets {
   vibrato(ev: Note, points: number): void;
   /** Un appui sur un des deux couloirs d'une trille en cours (#15) : l'ennemi vibre */
   trille(ev: Note, lane: number): void;
+  /** Fait glisser la voix d'un serpent (#16) jusqu'à la note de son couloir `k` : sur son temps (passage en
+   * avance, quantifié), ou tout de suite (`null`) */
+  glisser(ev: Note, k: number, beat: number | null): void;
+  /** Un passage du serpent vers son couloir `k` : « Parfait » (true), « Bien » (false) ou raté (null) */
+  passage(ev: Note, k: number, parfait: boolean | null): void;
   /** Le rayon tiré dans un couloir : réussi, dans le mauvais couloir, ou dans le vide (`null`). */
   tir(lane: number, ok: boolean | null): void;
   mourir(): void;
@@ -107,6 +112,8 @@ function jugerAccord(ev: Note) {
 export function hitEv(ev: Note, d: number) {
   if (ev.trille !== undefined) return commencerTrille(ev, d, ev.lane);
   ev.state = ev.dur > 0 ? "holding" : "hit";
+  // Le serpent (#16) commence sur son premier couloir
+  if (ev.serpent) ev.troncon = 0;
   const perfect = compter(ev, d);
   // Quantification : en avance, la note part pile sur le temps ; en retard, tout de suite
   if (!ev.auto) effets.jouer(ev, d < 0 ? ev.beat : null);
@@ -140,6 +147,11 @@ export function breakHold(ev: Note) {
 export function release(hand: Main, lane: number, ns: number) {
   const wg = DIFFS[S.diff].win[1];
   for (const ev of S.ev) {
+    // Le serpent (#16) ne tient pas à une touche : il tient tant qu'il en reste une
+    if (hand === "R" && ev.state === "holding" && ev.serpent) {
+      lacherSerpent(ev, ns);
+      continue;
+    }
     if (ev.state !== "holding" || ev.hand !== hand || (hand === "R" && ev.lane !== lane)) continue;
     // Une trille (#15) ne se tient pas : on lâche ses touches entre deux appuis
     if (ev.trille !== undefined) continue;
@@ -156,8 +168,8 @@ export function vibrer(ns: number): Note[] {
     tenues: Note[] = [];
   for (const ev of S.ev) {
     if (ev.beat > nb) break;
-    // Une trille (#15) n'est pas une note tenue : elle ne vibre pas
-    if (ev.hand !== "R" || ev.state !== "holding" || ev.trille !== undefined) continue;
+    // Une trille (#15) n'est pas une note tenue, et le serpent (#16) glisse déjà : ils ne vibrent pas
+    if (ev.hand !== "R" || ev.state !== "holding" || ev.trille !== undefined || ev.serpent) continue;
     ev.vibrato = (ev.vibrato ?? 0) + 1;
     const points = ev.vibrato <= VIBRATO.max ? VIBRATO.points : 0;
     gagner(points, "R");
@@ -206,6 +218,81 @@ export function trilleEnCours(ns: number) {
   }
   return null;
 }
+/* ---------- Serpent (#16) ---------- */
+// On le suit au rayon d'une touche à l'autre : la tête se joue comme une note tenue, puis chaque changement de
+// couloir (un passage) se joue en appuyant sur le couloir suivant à son temps. Il tient tant qu'une touche de la
+// main droite reste enfoncée : l'ancienne et la nouvelle peuvent se chevaucher.
+
+/** La durée de chaque couloir du serpent, en temps, et le temps du passage vers son couloir `k` */
+export const pasDuSerpent = (ev: Note) => ev.dur / ev.serpent.length;
+export const tempsDuPassage = (ev: Note, k: number) => ev.beat + k * pasDuSerpent(ev);
+/** Le couloir où en est la note : le dernier atteint par un serpent, le sien sinon */
+export const couloirDe = (ev: Note) => (ev.serpent ? ev.serpent[ev.troncon ?? 0] : ev.lane);
+/** Le serpent de la main droite en cours à ce moment, ou null */
+export function serpentEnCours(ns: number) {
+  const nb = ns / spb();
+  for (const ev of S.ev) {
+    if (ev.beat > nb) break;
+    if (ev.hand === "R" && ev.state === "holding" && ev.serpent) return ev;
+  }
+  return null;
+}
+/** Un passage joué dans la fenêtre de son temps : jugé comme une note, et la voix glisse jusqu'au nouveau couloir */
+export function passer(ev: Note, d: number) {
+  const k = ++ev.troncon;
+  ev.lacheAt = undefined;
+  const perfect = compter(ev, d);
+  if (!ev.auto) effets.glisser(ev, k, d < 0 ? tempsDuPassage(ev, k) : null);
+  effets.passage(ev, k, perfect);
+}
+/** Un passage qui n'est pas venu à temps : raté, comme une note manquée ; le serpent continue, sans glisser */
+export function manquerPassage(ev: Note) {
+  const k = ++ev.troncon;
+  casser(ev.hand);
+  S.miss++;
+  S.parMain[ev.hand].miss++;
+  compterPassage(ev, "rate");
+  effets.passage(ev, k, null);
+  damage(DIFFS[S.diff].dmgR);
+}
+/** Le serpent au fil du temps : ses passages manqués sont ratés, et s'il a été lâché juste avant, il casse ; au
+ * bout, une fois tous ses passages joués ou ratés, il est réussi. */
+export function suivreSerpent(ev: Note, ns: number) {
+  const wg = DIFFS[S.diff].win[1],
+    dernier = ev.serpent.length - 1;
+  while (ev.state === "holding" && S.mode === "play" && ev.troncon < dernier) {
+    if (ns - tempsDuPassage(ev, ev.troncon + 1) * spb() <= wg) return;
+    if (ev.lacheAt !== undefined) breakHold(ev);
+    else manquerPassage(ev);
+  }
+  if (ev.state === "holding" && ns >= (ev.beat + ev.dur) * spb()) completeHold(ev, false);
+}
+// Plus aucune touche de la main droite : le serpent casse, avec les dégâts d'une note tenue lâchée. Juste avant
+// un passage, il attend : joué à temps, le passage le rattrape (on a levé l'ancienne touche un peu tôt).
+function lacherSerpent(ev: Note, ns: number) {
+  if (COULOIRS.some((a) => S.keys[a])) return;
+  const wg = DIFFS[S.diff].win[1],
+    k = ev.troncon + 1;
+  if (k < ev.serpent.length) {
+    if (ns >= tempsDuPassage(ev, k) * spb() - wg) ev.lacheAt = ns;
+    else breakHold(ev);
+  } else if ((ev.beat + ev.dur) * spb() - ns > wg) breakHold(ev);
+  else completeHold(ev, false);
+}
+// Un appui pendant un serpent : le passage s'il vient sur le couloir suivant, dans la fenêtre. Renvoie true s'il
+// l'a pris ; sinon le jeu continue (une note qui suit le serpent peut se jouer).
+function appuiSurSerpent(ev: Note, lane: number, ns: number) {
+  // Une touche enfoncée de nouveau : le serpent tient
+  ev.lacheAt = undefined;
+  const k = ev.troncon + 1;
+  if (k >= ev.serpent.length || lane !== ev.serpent[k]) return false;
+  const d = ns - tempsDuPassage(ev, k) * spb();
+  if (Math.abs(d) > DIFFS[S.diff].win[1]) return false;
+  passer(ev, d);
+  effets.tir(lane, true);
+  return true;
+}
+
 /** En l'air, sur un saut simple : un second appui sur sauter y devient un double saut (#7) */
 export const enLair = (ns: number) => S.doubleAt < S.jumpAt && ns >= S.jumpAt && ns < S.jumpAt + S.jumpAir;
 export function leftPress(lane: number, ns: number) {
@@ -243,6 +330,9 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
     effets.tir(lane, true);
     return [];
   }
+  // Pendant un serpent (#16), le couloir suivant est un passage : ni vibrato, ni mauvais couloir
+  const serpent = serpentEnCours(ns);
+  if (serpent && appuiSurSerpent(serpent, lane, ns)) return [];
   // Une trille (#15) commence sur l'un ou l'autre de ses deux couloirs
   const near = findNear("R", ns, (ev) => ev.lane === lane || ev.trille === lane);
   if (near && near.ev.trille !== undefined) {
@@ -272,8 +362,9 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   }
   // Pendant une note tenue, l'autre touche fait vibrer la note au lieu de compter comme un mauvais couloir
   if (vibrer(ns).length) return [];
-  // Pendant une trille, un autre couloir ne la casse pas et ne compte pas : ce n'est pas une erreur non plus
-  if (trille) {
+  // Pendant une trille ou un serpent, un autre couloir ne les casse pas et ne compte pas : ce n'est pas une
+  // erreur non plus
+  if (trille || serpent) {
     effets.tir(lane, null);
     return [];
   }

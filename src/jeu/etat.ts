@@ -127,8 +127,9 @@ export interface Etat {
   // Auto-play et réglages
   auto: boolean;
   autoUsed: boolean;
-  /** Ce que l'auto-play anime au moment où on l'entend : une note, un appui de trille (#15) sur un couloir, ou le solo */
-  autoQ: { at: number; ev?: Note; trille?: number; solo?: number }[];
+  /** Ce que l'auto-play anime au moment où on l'entend : une note, un appui de trille (#15) sur un couloir, un
+   * passage de serpent (#16) vers son couloir de ce rang, ou le solo */
+  autoQ: { at: number; ev?: Note; trille?: number; passage?: number; solo?: number }[];
   keyFlash: Partial<Record<Action, number>>;
   practice: Mains;
   /** Vitesse de lecture choisie (#4), et celle de la partie en cours, figée au départ pour que l'horloge ne saute pas */

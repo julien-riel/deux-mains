@@ -19,6 +19,8 @@ interface NoteBrute {
   fin?: number;
   trille?: number;
   midiTrille?: number;
+  serpent?: number[];
+  midiSerpent?: number[];
   harm?: number;
   vel?: number;
   air?: number;
@@ -76,6 +78,8 @@ function canonique(s: ChansonBrute) {
       e.grp ? e.grp.map((x) => s.ev.indexOf(x)) : null,
       // Les trilles (#15) ne s'ajoutent qu'aux notes qui en sont : les chansons sans trille gardent leur empreinte
       ...(e.trille !== undefined ? [e.trille, e.midiTrille] : []),
+      // De même pour les serpents (#16)
+      ...(e.serpent ? [e.serpent, e.midiSerpent] : []),
     ]),
   };
 }

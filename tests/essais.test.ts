@@ -8,6 +8,7 @@ import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
 import { soloEtRefrain } from "../src/jeu/variations";
+import { coupsAttendus } from "./support/appuis";
 import { Navigateur } from "./support/navigateur";
 
 let nav: Navigateur;
@@ -42,6 +43,13 @@ function verifierChanson(c: Chanson) {
       // Une trille (#15) alterne deux degrés voisins de l'accord, sur une note longue
       expect(Math.abs(ev.trille - ev.lane)).toBe(1);
       expect([ev.hand, ev.midiTrille, ev.dur > 0]).toEqual(["R", ch.lanes[ev.trille], true]);
+    }
+    if (ev.serpent) {
+      // Un serpent (#16) traverse des couloirs voisins dans un seul sens, chacun sur son degré, dans sa mesure
+      const pas = new Set(ev.serpent.slice(1).map((l, k) => l - ev.serpent[k]));
+      expect([ev.hand, ev.serpent[0], pas.size, Math.abs([...pas][0])]).toEqual(["R", ev.lane, 1, 1]);
+      expect(ev.midiSerpent).toEqual(ev.serpent.map((l) => ch.lanes[l]));
+      expect(ev.beat + ev.dur).toBeLessThanOrEqual((ev.bar + 1) * 4);
     }
     const memeTemps = c.ev.filter((e) => e.beat === ev.beat);
     expect(ev.grp ?? [ev]).toEqual(memeTemps);
@@ -143,6 +151,25 @@ describe("registre des essais", () => {
     ]);
   });
 
+  it("la fabrique écrit des serpents : un couloir de plus par / en montant, par \\ en descendant", () => {
+    const c = assembler(
+      4242,
+      "difficile",
+      [{ nom: "Couplet", genre: "couplet", de: 2, mesures: 2 }],
+      {},
+      { couplet: ["0///2.3.", "3-\\-\\-1."] },
+    );
+    verifierChanson(c);
+    const droite = c.ev.filter((e) => e.hand === "R");
+    expect(droite.map(({ beat, lane, dur, serpent }) => ({ beat, lane, dur, serpent }))).toEqual([
+      { beat: 0, lane: 0, dur: 2, serpent: [0, 1, 2, 3] },
+      { beat: 2, lane: 2, dur: 0, serpent: undefined },
+      { beat: 3, lane: 3, dur: 0, serpent: undefined },
+      { beat: 4, lane: 3, dur: 3, serpent: [3, 2, 1] },
+      { beat: 7, lane: 1, dur: 0, serpent: undefined },
+    ]);
+  });
+
   it("accorder ajoute un accord à deux mains par mesure de couplet, sans toucher à l'intro", () => {
     const c = accorder(
       assembler(4242, "facile", [
@@ -177,8 +204,9 @@ describe.each(ESSAIS.map((e) => [e.id, e] as const))("essai %s", (id, e) => {
     nav.avancerJusqua((s) => s.mode !== "play", (S.song.endBeat * 60) / S.song.bpm + 10);
 
     expect(S.mode).toBe("done");
-    // Les notes jouées sont celles de la partie, variations comprises (ADR-0012)
-    expect([S.miss, S.health, S.perfect]).toEqual([0, 100, S.ev.length]);
+    // Les notes jouées sont celles de la partie, variations comprises (ADR-0012), et chaque passage de serpent
+    // (#16) est un coup en plus
+    expect([S.miss, S.health, S.perfect]).toEqual([0, 100, coupsAttendus(S.ev)]);
     if (e.variation) {
       const { solo } = soloEtRefrain(S.song.sections),
         reperes = S.ev.filter(e.repere);

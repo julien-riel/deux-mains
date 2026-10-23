@@ -6,10 +6,10 @@ import { DIFFS } from "../chanson/difficultes";
 import { burst, HITX, LANE_HUE, LANE_Y } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { TH } from "../univers/univers";
-import { autoAlterner, autoHit } from "./autoplay";
+import { autoAlterner, autoHit, autoPasser } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
-import { completeHold, finirTrille, gagner, missEv } from "./jugement";
+import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
 import { repriseNeuve, reprendreLeSolo } from "./variations";
 
 /* ---------- Partie ---------- */
@@ -47,6 +47,7 @@ export function resetRun() {
     ev.voice = null;
     ev.auto = false;
     ev.vibrato = ev.vibreAt = ev.ecart = ev.dernier = ev.alternances = ev.trilleAt = undefined;
+    ev.troncon = ev.lacheAt = ev.passeAt = undefined;
   }
 }
 export function startAt(beat) {
@@ -105,6 +106,9 @@ function passage(k: number): Note[] {
         dernier: undefined,
         alternances: undefined,
         trilleAt: undefined,
+        troncon: undefined,
+        lacheAt: undefined,
+        passeAt: undefined,
         passage: k,
       });
   for (const c of copies.values()) if (c.grp) c.grp = c.grp.map((ev) => copies.get(ev));
@@ -158,6 +162,7 @@ export function resumeCP() {
     ev.voice = null;
     ev.auto = false;
     ev.vibrato = ev.vibreAt = ev.ecart = ev.dernier = ev.alternances = ev.trilleAt = undefined;
+    ev.troncon = ev.lacheAt = ev.passeAt = undefined;
     ev.state = ev.beat >= b0 - 0.01 ? "pending" : "skip";
   }
   S.autoQ = [];
@@ -231,6 +236,10 @@ export function update(nb) {
         autoAlterner(q.ev, q.trille);
         continue;
       }
+      if (q.ev && q.passage !== undefined) {
+        autoPasser(q.ev, q.passage);
+        continue;
+      }
       if (q.ev) {
         if (q.ev.state === "pending") autoHit(q.ev);
         continue;
@@ -249,6 +258,10 @@ export function update(nb) {
     if (autoFor(ev.hand) && ev.state === "pending" && !ev.auto && ns >= ev.beat * spb()) autoHit(ev);
     if (ev.state === "pending" && ns - ev.beat * spb() > wg) {
       missEv(ev);
+      if (S.mode !== "play") return;
+    } else if (ev.state === "holding" && ev.serpent) {
+      // Le serpent (#16) juge ses passages au fil du temps, et se finit quand ils le sont tous
+      suivreSerpent(ev, ns);
       if (S.mode !== "play") return;
     } else if (ev.state === "holding" && ns >= (ev.beat + ev.dur) * spb()) {
       // La trille (#15) se juge à sa fin, sur ses alternances : ratée, elle fait des dégâts

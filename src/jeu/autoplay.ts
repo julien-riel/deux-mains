@@ -2,7 +2,7 @@
 // Ce module décide quoi jouer ; le séquenceur fait sonner les notes.
 import type { Note, Section } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, spb } from "./etat";
-import { alterner, hitEv } from "./jugement";
+import { alterner, hitEv, pasDuSerpent, passer, tempsDuPassage } from "./jugement";
 import { improviser, noterAuSolo } from "./variations";
 
 /** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
@@ -34,6 +34,23 @@ export function autoTrilles(step: number) {
   }
   return appuis;
 }
+/** Les passages de serpent (#16) de ce pas : l'auto-play change de couloir pile au temps de chaque passage. Ils
+ * sont mis en file pour l'animation et le jugement ; le séquenceur fait glisser la voix. */
+export function autoSerpents(step: number) {
+  const b = step / 4,
+    passages: { ev: Note; k: number }[] = [];
+  if (!autoFor("R")) return passages;
+  for (const ev of S.ev) {
+    if (ev.beat >= b) break;
+    if (!ev.serpent || b >= ev.beat + ev.dur) continue;
+    if (ev.state !== "holding" && !(ev.state === "pending" && ev.auto)) continue;
+    const k = Math.round((b - ev.beat) / pasDuSerpent(ev));
+    if (Math.abs(tempsDuPassage(ev, k) - b) > 1e-6) continue;
+    passages.push({ ev, k });
+    S.autoQ.push({ at: b * spb(), ev, passage: k });
+  }
+  return passages;
+}
 // Pendant le solo libre, le bot improvise par degrés voisins, à partir de la graine (ADR-0012) : renvoie le
 // couloir joué, ou null. Ses notes sont gardées comme celles d'une personne, et sa phrase revient au refrain.
 let impro = { graine: NaN, croches: 0, couloirs: new Map<number, number>() };
@@ -64,6 +81,13 @@ export function autoAlterner(ev: Note, lane: number) {
   if (ev.state !== "holding") return;
   tirer(lane);
   alterner(ev, lane);
+}
+/** Un passage de serpent de l'auto-play, au moment où on l'entend : la touche du nouveau couloir s'allume et le
+ * passage compte. Un passage déjà jugé (l'auto-play repris en cours de serpent) ne compte pas deux fois. */
+export function autoPasser(ev: Note, k: number) {
+  if (ev.state !== "holding" || ev.troncon !== k - 1) return;
+  tirer(ev.serpent[k]);
+  passer(ev, 0);
 }
 export function autoHit(ev: Note) {
   const ns = ev.beat * spb(),
