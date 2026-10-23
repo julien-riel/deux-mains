@@ -330,7 +330,8 @@ button kbd {
 }
 #seed,
 #decalage,
-#boucle {
+#boucle,
+#separation {
   font-family: var(--mono);
   font-size: 14px;
   width: 8ch;
@@ -340,10 +341,55 @@ button kbd {
   border-radius: 8px;
   padding: 6px 8px;
 }
-#boucle {
+#boucle,
+#separation {
   width: auto;
   max-width: 100%;
   font-family: var(--body);
+}
+/* Clavier MIDI (ADR-0011) : l'état de l'accès, une indication discrète, jamais une erreur */
+.midi-etat {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 46ch;
+}
+/* Rappel de la table MIDI sur deux octaves : touches de la basse en ambre, couloirs à leurs couleurs */
+.piano {
+  position: relative;
+  display: flex;
+  width: min(100%, 34em);
+  height: 6.5em;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.piano .blanche {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 4px;
+  background: var(--fg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0 0 5px 5px;
+  line-height: 1.15;
+}
+.piano .blanche.gauche {
+  background: var(--bass);
+}
+.piano .blanche small {
+  font-size: 9px;
+}
+.piano .noire {
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) / 15 * 100% - 2.2%);
+  width: 4.4%;
+  height: 55%;
+  background: var(--ink);
+  border-radius: 0 0 3px 3px;
 }
 .unite {
   font-family: var(--mono);

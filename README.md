@@ -17,6 +17,21 @@ Le jeu est écrit en TypeScript (Canvas et Web Audio, sans dépendance au moment
 
 Les touches suivent leur position physique : en AZERTY, le saut est sur `Z` et l'octave sur `M`.
 
+### Clavier MIDI
+
+Un clavier de piano MIDI joue aussi, en même temps que le clavier d'ordinateur (et en duo : les deux joueurs sur le même clavier MIDI, ou l'un au MIDI et l'autre au clavier d'ordinateur). Sept touches blanches, placées autour du point de séparation (le Do central, Do4, par défaut), font les actions ([ADR-0011](docs/adr/0011-touches-midi-en-position-fixe.md)) :
+
+| Main   | Touche MIDI         | Action                              |
+| ------ | ------------------- | ----------------------------------- |
+| Gauche | Do3                 | Glisser (tenue : tunnel, pente)     |
+| Gauche | Mi3                 | Écraser la plaque                   |
+| Gauche | Sol3                | Sauter (en l'air : double saut)     |
+| Droite | Do4, Mi4, Sol4, Do5 | Les quatre couloirs, du bas en haut |
+
+Les autres touches ne font rien. Le réglage « Séparation » déplace les sept touches d'une octave à l'autre (de Do2 à Do6). Le bouton « Activer » des réglages demande l'accès au MIDI ; une fois la permission accordée, le jeu se branche tout seul aux visites suivantes, et le bas de la scène indique le clavier détecté.
+
+Le MIDI ne marche que dans Chrome ou Edge (Safari et Firefox sans module n'ont pas Web MIDI), et **pas dans la page d'artefact claude.ai**, qui refuse l'accès aux périphériques : ouvre `dist/deux-mains.html` ou lance `npm run dev`. L'essai `midi` (bouton « Essais » de l'écran titre, ou `?essai=midi`) rappelle la table des touches.
+
 ## Principes de gameplay
 
 - **Tout le jeu parle en degrés.** La zone donne l'accord, et chaque action choisit un degré de cet accord. Il est donc impossible de jouer faux.

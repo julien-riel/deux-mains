@@ -100,6 +100,18 @@
         <input type="radio" name="formes" id="f-non" value="non" /><label for="f-non">Non</label>
       </div>
     </div>
+    <div class="field">
+      <span class="flabel">MIDI</span>
+      <span class="midi-etat" id="midi-etat" role="status"></span>
+      <button id="midi-activer" type="button" hidden>Activer</button>
+    </div>
+    <div class="field">
+      <label class="flabel" for="separation">Séparation</label>
+      <select
+        id="separation"
+        title="Clavier MIDI : les touches sous ce Do jouent la basse, celles à partir de ce Do la mélodie"
+      ></select>
+    </div>
     <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
     <p class="song" id="songline"></p>
     <button class="primary seulement-tactile" id="fermer-reglages" type="button">Fermer les réglages</button>
@@ -151,6 +163,12 @@
     Sur téléphone ou tablette, le jeu passe en commandes tactiles. Au clavier, <kbd>Échap</kbd> met en pause,
     <kbd data-code="KeyA">A</kbd> active ou coupe l'auto-play à tout moment. Les touches suivent leur position physique
     : en AZERTY, le saut est sur <kbd>Z</kbd> et l'octave sur <kbd>M</kbd>.
+  </p>
+  <p class="note">
+    Clavier MIDI (Chrome ou Edge) : <kbd>Do3</kbd> glisser, <kbd>Mi3</kbd> écraser, <kbd>Sol3</kbd> sauter ;
+    <kbd>Do4</kbd> <kbd>Mi4</kbd> <kbd>Sol4</kbd> <kbd>Do5</kbd> pour les quatre couloirs. Les touches suivent le point
+    de séparation choisi. La page d'artefact claude.ai bloque les périphériques : pour jouer au MIDI, ouvre le fichier
+    <code>deux-mains.html</code> ou le serveur de développement.
   </p>
 </div>
 

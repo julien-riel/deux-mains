@@ -18,7 +18,7 @@ import {
   type Action,
 } from "../jeu/etat";
 import { clamp } from "../outils";
-import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
+import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
 import {
   boiteBack,
@@ -392,8 +392,15 @@ export function render(nb, dt) {
       "center",
     );
   }
-  if (!COMMANDES.tactile)
-    txt(`${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`, W - 24, 608, `600 11px ${FONT.mono}`, COL.muted, "right");
+  // Aide du clavier, et indicateur du clavier MIDI (#10) : quand il est branché, ou pendant l'essai du MIDI
+  const aide = COMMANDES.tactile ? "" : `${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`,
+    petit = `600 11px ${FONT.mono}`;
+  if (aide) txt(aide, W - 24, 608, petit, COL.muted, "right");
+  if (MIDI.etat === "connecte" || S.essai?.essai.midi) {
+    g.font = petit;
+    const dx = aide ? g.measureText(aide).width + 16 : 0;
+    txt(etatMidiCourt(), W - 24 - dx, 608, petit, MIDI.etat === "connecte" ? COL.good : COL.muted, "right");
+  }
 
   // Décompte (intro, ou mesure de reprise)
   if (S.mode === "play") {
@@ -449,7 +456,16 @@ export function keycap(x, y, label, color, down) {
   g.strokeStyle = color;
   g.lineWidth = 1.5;
   g.stroke();
-  txt(label, x + 15, y + 21 + (down ? 2 : 0), `600 14px ${FONT.mono}`, down ? COL.ink : COL.fg, "center");
+  // Une touche MIDI (« Sol3 ») s'écrit plus petit pour tenir dans la touche
+  const taille = String(label).length > 2 ? 10 : 14;
+  txt(
+    label,
+    x + 15,
+    y + 19 + taille / 7 + (down ? 2 : 0),
+    `600 ${taille}px ${FONT.mono}`,
+    down ? COL.ink : COL.fg,
+    "center",
+  );
 }
 
 // Accords : une barre relie les ennemis à tirer ensemble, un pointillé descend vers l'obstacle du même temps

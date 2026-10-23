@@ -3,16 +3,68 @@ import { songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
+import { touchesMidi } from "../jeu/midi";
 import { S, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
 import { clamp } from "../outils";
+import { LANE_HUE } from "../rendu/outils";
 import { TH, placeName } from "../univers/univers";
-import { COMMANDES, KEYLABEL } from "./touches";
+import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
 // Pendant un essai, ce qu'il faut vérifier reste écrit sur la scène
 const bandeau = document.querySelector<HTMLElement>("#essai-bandeau");
 
 export const k = (c) => `<kbd>${KEYLABEL[c] || c}</kbd>`;
+// Les touches du clavier d'ordinateur, même quand la scène montre celles du clavier MIDI
+const kc = (c: string) => `<kbd>${CLAVIER[c] || c}</kbd>`;
+
+/* ---------- Clavier MIDI (ADR-0011) ---------- */
+// Ce que fait chaque touche de la table : les actions de la basse, les degrés des couloirs (ADR-0003)
+const ROLE = {
+  glisser: "glisser",
+  ecraser: "écraser",
+  sauter: "sauter",
+  couloir0: "fond.",
+  couloir1: "tierce",
+  couloir2: "quinte",
+  couloir3: "octave",
+};
+// Le rappel de la table en une ligne : sur l'écran de départ, quand un clavier MIDI est branché
+const ligneMidi = (duo: boolean) => {
+  const t = touchesMidi(MIDI.separation),
+    nom = (i: number) => `<kbd>${t[i].nom}</kbd>`;
+  return `<p class="hint">Clavier MIDI · ${duo ? "Basse" : "Gauche"} : ${nom(0)} glisser, ${nom(1)} écraser, ${nom(2)} sauter · ${duo ? "Mélodie" : "Droite"} : ${nom(3)} ${nom(4)} ${nom(5)} ${nom(6)}</p>`;
+};
+// Le rappel de la table sur un clavier de deux octaves autour de la séparation : les touches de la basse aux
+// couleurs de la main gauche, celles des couloirs aux couleurs de leur couloir
+function pianoMidi() {
+  const sep = MIDI.separation,
+    table = touchesMidi(sep),
+    blanches: string[] = [],
+    noires: string[] = [];
+  for (let n = sep - 12; n <= sep + 12; n++) {
+    if ([1, 3, 6, 8, 10].includes(n % 12)) {
+      noires.push(`<span class="noire" style="--x:${blanches.length}"></span>`);
+      continue;
+    }
+    const t = table.find((t) => t.note === n),
+      lane = t ? ["couloir0", "couloir1", "couloir2", "couloir3"].indexOf(t.action) : -1,
+      style = lane >= 0 ? ` style="background:hsl(${LANE_HUE[lane]} 80% 70%)"` : "";
+    blanches.push(
+      t
+        ? `<span class="blanche ${lane >= 0 ? "droite" : "gauche"}"${style}><b>${t.nom}</b><small>${ROLE[t.action]}</small></span>`
+        : `<span class="blanche"></span>`,
+    );
+  }
+  return `<div class="piano" role="img" aria-label="Touches du clavier MIDI : ${table.map((t) => `${t.nom} ${ROLE[t.action]}`).join(", ")}">${blanches.join("")}${noires.join("")}</div>`;
+}
+// L'état de l'accès MIDI, et le bouton pour l'activer quand il ne l'est pas encore
+const etatMidi = () =>
+  `<p class="hint">${etatMidiLong()}</p>${
+    MIDI.etat === "inactif" || MIDI.etat === "refuse"
+      ? `<div class="actions"><button type="button" data-act="midi">Activer le clavier MIDI</button></div>`
+      : ""
+  }`;
 // Les boutons de sortie d'un essai, sur ses écrans de départ, de mort et de fin
 const sortiesEssai = () =>
   `<button type="button" data-act="essais">Autres essais <kbd>E</kbd></button>
@@ -27,6 +79,7 @@ export function show(kind) {
     duo = S.practice === "duo",
     mains =
       S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : duo ? " · duo" : "";
+  etiquettes();
   bandeau.hidden = !essai;
   bandeau.textContent = essai ? `Essai · ${essai.titre} — ${essai.verifier}` : "";
   let h = "";
@@ -35,6 +88,7 @@ export function show(kind) {
       <h2>${essai.titre}</h2>
       <p class="meta">À vérifier : ${essai.verifier}</p>
       <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s</p>
+      ${essai.midi ? pianoMidi() + etatMidi() : ""}
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
       ${sortiesEssai()}</div>`;
@@ -65,8 +119,8 @@ export function show(kind) {
         COMMANDES.tactile
           ? `<p class="hint">Pouce gauche : en haut pour sauter (une seconde fois en l'air pour un double saut), en bas pour glisser ou écraser la plaque d'un refrain, le doigt posé pour tenir. Pouce droit : la bande du couloir de l'ennemi.</p>
       <p class="hint">Sur iPhone, coupe le mode silencieux pour entendre la musique.</p>`
-          : `<p class="hint">${duo ? "Basse" : "Gauche"} ${k("KeyW")} ${k("KeyS")} ${k("Space")} · ${duo ? "Mélodie" : "Droite"} ${k("KeyJ")} ${k("KeyK")} ${k("KeyL")} ${k("Semicolon")}</p>`
-      }`;
+          : `<p class="hint">${duo ? "Basse" : "Gauche"} ${kc("KeyW")} ${kc("KeyS")} ${kc("Space")} · ${duo ? "Mélodie" : "Droite"} ${kc("KeyJ")} ${kc("KeyK")} ${kc("KeyL")} ${kc("Semicolon")}</p>`
+      }${MIDI.etat === "connecte" ? ligneMidi(duo) : ""}`;
   } else if (kind === "calib") {
     const r = S.calib.resultat,
       geste = COMMANDES.tactile ? "Touche l'écran" : `Appuie sur <kbd>Espace</kbd>`,

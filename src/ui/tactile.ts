@@ -1,6 +1,6 @@
 // Commandes tactiles (ADR-0008) : la moitié gauche de l'écran commande la basse (en haut : sauter, en bas : glisser),
 // la moitié droite est coupée en quatre bandes, chacune à la hauteur de son couloir. Chaque doigt est suivi à part.
-import { songNow } from "../audio/moteur";
+import { heureDe, retardDe } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { pause } from "../jeu/deroulement";
 import { COULOIRS, S, type Action } from "../jeu/etat";
@@ -23,14 +23,9 @@ function zone(x: number, y: number): Action {
     i = LIMITES.findIndex((l) => sy > l);
   return COULOIRS[i < 0 ? 3 : i];
 }
-// Le temps écoulé depuis le toucher, en secondes : le délai de traitement ne compte pas.
-// Un horodatage d'une autre base (anciens navigateurs) est ignoré.
-function retard(e: PointerEvent) {
-  const ms = performance.now() - e.timeStamp;
-  return ms >= 0 && ms < 1000 ? ms / 1000 : 0;
-}
-// L'heure du toucher, ramenée sur l'horloge de la chanson (ADR-0004)
-const heure = (e: PointerEvent) => songNow() - retard(e);
+// Le temps écoulé depuis le toucher, et son heure sur l'horloge de la chanson (ADR-0004)
+const retard = (e: PointerEvent) => retardDe(e.timeStamp);
+const heure = (e: PointerEvent) => heureDe(e.timeStamp);
 
 scene.addEventListener("pointerdown", (e) => {
   if ((e.target as HTMLElement).closest("button")) return;

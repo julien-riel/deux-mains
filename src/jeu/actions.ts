@@ -1,4 +1,4 @@
-// Couche d'entrée commune (ADR-0008) : le clavier, le tactile (et plus tard le MIDI) traduisent leurs événements
+// Couche d'entrée commune (ADR-0008) : le clavier, le tactile et le MIDI (ADR-0011) traduisent leurs événements
 // en actions, jugées au temps de la chanson (en secondes) où elles ont eu lieu.
 import { S, autoFor, type Action } from "./etat";
 import { findNear, leftPress, release, rightPress } from "./jugement";
