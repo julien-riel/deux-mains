@@ -30,7 +30,9 @@ function remplacer(doc: Sauvegarde) {
  */
 export function noterFinDePartie() {
   S.progres = null;
-  if (S.bouclePartie || S.jam || S.autoUsed || (S.essai && !S.essai.sauvegarde)) return;
+  // Le boss de fin (#26) n'est pas la chanson de sa graine : il n'allume pas son lieu et ne garde pas son score
+  // (le noter demandera une nouvelle version du format, ADR-0014)
+  if (S.bouclePartie || S.jam || S.autoUsed || S.song.boss || (S.essai && !S.essai.sauvegarde)) return;
   const reussite = { univers: S.theme, lieu: S.song.prog.name };
   const { doc, progres } = noterReussite(
     progression(),

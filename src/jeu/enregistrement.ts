@@ -63,6 +63,8 @@ export interface ReglagesDePartie {
   difficulte: string;
   /** L'essai joué (son id), ou null pour une chanson générée : sa chanson se refait par le registre des essais */
   essai: string | null;
+  /** Le niveau du boss de fin de la graine (#26), plutôt que sa chanson */
+  boss?: true;
   mains: Mains;
   vitesse: number;
   auto: boolean;
@@ -111,6 +113,7 @@ export const reglagesDe = ({
   graine,
   difficulte,
   essai,
+  boss,
   mains,
   vitesse,
   auto,
@@ -118,6 +121,7 @@ export const reglagesDe = ({
   graine,
   difficulte,
   essai,
+  ...(boss && { boss }),
   mains,
   vitesse,
   auto,

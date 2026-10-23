@@ -1,7 +1,10 @@
 // Les effets du jugement : ce que le son et l'image font quand un coup est jugé
 import { glisserVoix, harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
 import { AC, timeOfBeat } from "../audio/moteur";
+import { TH } from "../univers/univers";
 import {
+  BOSS_X,
+  BOSS_Y,
   COL,
   GY,
   HITX,
@@ -134,6 +137,21 @@ export const effets: Effets = {
     popup(`Relais +${points}`, HITX + 30, LANE_Y[0] + 44, COL.good);
     burst(HITX, LANE_Y[m[m.length - 1].lane], LANE_HUE[m[m.length - 1].lane], 14);
     burst(PX + PW / 2, GY - 20, HUE_BASS, 14);
+  },
+  canon(notes, points, touche) {
+    // La phrase du canon rejouée juste (#26) : le bonus, une gerbe dans chaque couloir, et le boss touché recule
+    popup(`Canon +${points}`, HITX + 30, LANE_Y[3] - 40, COL.good);
+    for (const lane of new Set(notes.map((n) => n.lane))) burst(HITX, LANE_Y[lane], LANE_HUE[lane], 10);
+    if (!touche || !S.boss) return;
+    S.boss.toucheAt = performance.now();
+    burst(BOSS_X - 40, BOSS_Y, LANE_HUE[notes[notes.length - 1].lane], 18);
+  },
+  bossVaincu(points) {
+    // Le boss tombe (#26) : il se tait, la scène tremble, et le joueur finit le canon seul
+    popup(`Victoire +${points}`, BOSS_X - 60, BOSS_Y - 110, COL.good);
+    for (const hue of LANE_HUE) burst(BOSS_X, BOSS_Y, hue, 22);
+    S.shake = reduced ? 0 : 10;
+    S.banner = { text: TH().boss.nom, sub: TH().boss.vaincu, at: performance.now() };
   },
   tir(lane, ok) {
     const at = performance.now();

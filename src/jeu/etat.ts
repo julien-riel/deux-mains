@@ -41,6 +41,21 @@ export interface AccordsDuo {
   total: number;
 }
 
+/** Le boss de fin dans la partie (#26) : sa vie et sa vie de départ, les phrases du canon rejouées justes et
+ * jugées, le temps de la partie où il est tombé (null tant qu'il tient), et l'heure du dernier coup reçu pour
+ * l'image */
+export interface EtatBoss {
+  vie: number;
+  max: number;
+  reussies: number;
+  total: number;
+  vaincu: number | null;
+  toucheAt: number;
+}
+/** Le boss neuf d'une chanson, ou null pour une chanson sans boss */
+export const bossNeuf = (song: Chanson): EtatBoss | null =>
+  song.boss ? { vie: song.boss.vie, max: song.boss.vie, reussies: 0, total: 0, vaincu: null, toucheAt: -1e9 } : null;
+
 /** Point de reprise : le début de la section en cours et le score à ce moment-là */
 export interface PointDeReprise {
   sec: Section;
@@ -52,6 +67,7 @@ export interface PointDeReprise {
   parMain: Record<Main, StatsMain>;
   accordsDuo: AccordsDuo;
   relais: AccordsDuo;
+  boss: EtatBoss | null;
 }
 
 /** Les coups d'un passage de la boucle */
@@ -181,6 +197,8 @@ export interface Etat {
   remontage: RemontageEnCours | null;
   /** L'harmonie de départ des parties de la chanson en place, gagnée au remontage (#27) ; null : 100 */
   depart: number | null;
+  /** Le boss de fin de la partie (#26), dans un niveau de boss ; null sinon */
+  boss: EtatBoss | null;
 }
 
 export const S: Etat = {
@@ -246,6 +264,7 @@ export const S: Etat = {
   progres: null,
   remontage: null,
   depart: null,
+  boss: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
@@ -291,6 +310,12 @@ export const chordAtBar = (bar: number) => S.song.chords[mesureDeLaChanson(bar)]
 export const chanteurAtBar = (bar: number) => {
   const b = mesureDeLaChanson(bar);
   return (S.song.chanteurs ?? []).find((c) => c.bar === b);
+};
+/** La phrase que le boss de fin (#26) joue sur cette mesure de la partie, ou undefined. Comme celles du chanteur,
+ * ses notes sont aux temps de la chanson : en boucle, on les décale de `4 * (bar - phrase.bar)` (ADR-0009). */
+export const phraseDuBossAt = (bar: number) => {
+  const b = mesureDeLaChanson(bar);
+  return S.song.boss?.phrases.find((p) => p.bar === b);
 };
 export const chordAtBeat = (b: number) =>
   S.song.chords[clamp(mesureDeLaChanson(Math.floor(b / 4)), 0, S.song.totalBars - 1)];

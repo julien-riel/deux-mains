@@ -39,6 +39,7 @@ type Bilan = Pick<
   | "auto"
   | "autoUsed"
   | "reprise"
+  | "boss"
 >;
 const bilanDe = (s: Etat): Bilan => ({
   score: s.score,
@@ -53,6 +54,7 @@ const bilanDe = (s: Etat): Bilan => ({
   auto: s.auto,
   autoUsed: s.autoUsed,
   reprise: s.reprise,
+  boss: s.boss,
 });
 
 /** La réécoute en cours : la partie rejouée, le rang du prochain coup, le temps jusqu'où la partie a avancé (elle
@@ -81,6 +83,7 @@ export function enregistrer() {
         graine: S.song.seed,
         difficulte: S.diff,
         essai: S.essai?.essai.id ?? null,
+        ...(S.song.boss && { boss: true as const }),
         mains: S.practice,
         vitesse: S.vitesse,
         auto: S.auto,

@@ -4,6 +4,7 @@
 // ou un second joueur.
 // On l'ouvre par le menu Essais de l'écran titre, ou par l'adresse : ?essai=<id> ou #essai=<id>.
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
+import { buildBoss } from "../chanson/boss";
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
 import { NOM_CROISEE, NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/generateur";
@@ -514,6 +515,19 @@ export const ESSAIS: Essai[] = [
     remontage: true,
     chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]),
     repere: () => true,
+  },
+  {
+    id: "boss",
+    titre: "Boss de fin",
+    verifier:
+      "Le Grand Drone arrive pendant l'intro, puis joue une phrase : ses notes approchent en haut, aux couleurs de leurs couloirs, et on l'entend une octave plus bas. Rejoue-la une mesure plus tard (J K L ;) pendant qu'il enchaîne la suivante : on entend un canon, sans fausse note. Chaque phrase juste affiche « Canon + », le fait reculer et retire un segment à sa barre de vie (en haut, à la place des couches). Trois phases annoncées, de plus en plus serrées ; à sa dernière vie, il s'écrase et se tait, et tu finis le canon seul. La Mite reine fait de même dans la Boîte (réglages).",
+    issue: 26,
+    univers: "ville",
+    diff: "normal",
+    mains: "R",
+    // Le niveau du boss, avec des phases de quatre mesures : trois phrases en canon par phase, dès la troisième mesure
+    chanson: () => buildBoss(GRAINE, "normal", 4),
+    repere: (ev) => ev.canon !== undefined,
   },
 ];
 

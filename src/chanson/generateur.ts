@@ -452,6 +452,21 @@ const tirerProgression = (rng: () => number) => PROGS[Math.floor(rng() * PROGS.l
 /** La progression de la chanson d'une graine, sans construire la chanson (même tirage que buildSong) */
 export const progressionDe = (seed: number) => tirerProgression(tirage(seed));
 
+/** Les finitions des notes d'une chanson : triées, la durée des sauts, un état neuf et les accords reliés */
+export function finirLesNotes(ev: Note[]) {
+  ev.sort((a, b) => a.beat - b.beat || (a.hand < b.hand ? -1 : 1));
+  const Ls = ev.filter((e) => e.hand === "L");
+  Ls.forEach((e, i) => {
+    const nx = Ls[i + 1];
+    // Le saut qui précède un double saut dure un temps : le second appui doit venir en l'air, même en retard
+    e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
+  });
+  ev.forEach((e) => (e.state = "pending"));
+  // Notes simultanées (du même pas, ADR-0013) = un accord : reliées à l'écran, bonus quand l'accord est complet
+  relierAccords(ev);
+  return ev;
+}
+
 export function buildSong(seed: number, diffKey: string): Chanson {
   const rng = tirage(seed);
   // Les chanteurs (#18) ont leur propre tirage : le reste de la chanson ne change pas avec eux
@@ -603,16 +618,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       }
     }
   }
-  ev.sort((a, b) => a.beat - b.beat || (a.hand < b.hand ? -1 : 1));
-  const Ls = ev.filter((e) => e.hand === "L");
-  Ls.forEach((e, i) => {
-    const nx = Ls[i + 1];
-    // Le saut qui précède un double saut dure un temps : le second appui doit venir en l'air, même en retard
-    e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
-  });
-  ev.forEach((e) => (e.state = "pending"));
-  // Notes simultanées (du même pas, ADR-0013) = un accord : reliées à l'écran, bonus quand l'accord est complet
-  relierAccords(ev);
+  finirLesNotes(ev);
   const names = prog.chords.map((c) => makeChord(keyPc, c).name);
   return {
     seed,

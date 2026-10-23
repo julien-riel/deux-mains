@@ -46,6 +46,8 @@ beforeEach(() => {
     tir: vi.fn(),
     phrase: vi.fn(),
     relais: vi.fn(),
+    canon: vi.fn(),
+    bossVaincu: vi.fn(),
     mourir: vi.fn(),
   };
   brancherEffets(effets);

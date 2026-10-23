@@ -14,6 +14,7 @@ import {
   mesureDeLaChanson,
   mult,
   passageAt,
+  phraseDuBossAt,
   precision,
   sansFin,
   sectionAtBar,
@@ -31,6 +32,7 @@ import { dessinerRemontage } from "./remontage";
 import {
   boiteBack,
   boiteBlock,
+  boiteBoss,
   boiteBeam,
   boiteChanteur,
   boiteHaut,
@@ -46,6 +48,8 @@ import {
 } from "./boite";
 import {
   AXE,
+  BOSS_X,
+  BOSS_Y,
   COL,
   DEG,
   FONT,
@@ -77,6 +81,7 @@ import {
   villeBack,
   villeBeam,
   villeBlock,
+  villeBoss,
   villeChanteur,
   villeEnemy,
   villeGround,
@@ -137,16 +142,19 @@ function jauges() {
     g.fillRect(hx + (hw * q) / 100, 42, 2, 10);
   }
   const L = layers();
-  [L.arp, L.choir, L.strings]
-    .map((on, i) => [TH().layers[i], on])
-    .forEach(([n, on], i) => {
-      const x = hx + i * 104;
-      g.beginPath();
-      g.arc(x + 4, 71, 4, 0, Math.PI * 2);
-      g.fillStyle = on ? COL.good : hexA(COL.muted, 0.35);
-      g.fill();
-      txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, 0.6));
-    });
+  // Pendant le boss de fin (#26), sa vie prend la place des couches du combo, qui continuent de sonner
+  if (S.boss) vieDuBoss(hx, hw);
+  else
+    [L.arp, L.choir, L.strings]
+      .map((on, i) => [TH().layers[i], on])
+      .forEach(([n, on], i) => {
+        const x = hx + i * 104;
+        g.beginPath();
+        g.arc(x + 4, 71, 4, 0, Math.PI * 2);
+        g.fillStyle = on ? COL.good : hexA(COL.muted, 0.35);
+        g.fill();
+        txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, 0.6));
+      });
   if (S.practice === "duo") scoresDuo();
   else {
     txt(S.score.toLocaleString("fr-CA"), W - 24, 46, `600 30px ${FONT.mono}`, COL.fg, "right");
@@ -274,6 +282,8 @@ export function render(nb, dt) {
   g.fillStyle = TH().under;
   g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
 
+  // Le boss de fin (#26), derrière les ennemis qu'il envoie
+  dessinerBoss(nb, pnow, hsl, playing);
   // Obstacles (main gauche) et ennemis (main droite), sous le fil des relais (#20)
   dessinerRelais(nb, pnow);
   for (const ev of S.ev) {
@@ -871,6 +881,82 @@ function dessinerSilhouette(ev, x, nb, hsl) {
   g.setLineDash([]);
   (S.theme === "boite" ? boiteEnemy : villeEnemy)(x, y, ev, gris(250, 10, 78), 0.85, nb, gris);
   txt("?", x, y - 26, `700 16px ${FONT.display}`, COL.muted, "center");
+}
+/**
+ * Le boss de fin (#26) : il arrive pendant l'intro et plane à droite, derrière les couloirs. Il ouvre son pavillon
+ * (ou ses ailes) sur chaque note qu'il joue ; ses notes approchent sur la ligne du chanteur, aux couleurs de leurs
+ * couloirs : on lit sa phrase une mesure avant de la rejouer. Touché, il recule et s'éclaire ; tombé, il chute et se
+ * tait ; à l'outro, s'il tient encore, il s'enfuit. Les mesures sont celles de la partie (ADR-0009).
+ */
+function dessinerBoss(nb, pnow, hsl, playing) {
+  const boss = S.boss;
+  if (!boss) return;
+  const ici = Math.floor(nb / 4);
+  let ouvert = 0;
+  for (let bar = Math.max(0, ici - 1); boss.vaincu === null && bar <= ici + 2; bar++) {
+    const p = phraseDuBossAt(bar);
+    if (!p) continue;
+    const decale = 4 * (bar - p.bar);
+    for (const n of p.notes) {
+      const b = n.beat + decale,
+        xn = HITX + (b - nb) * PPB;
+      if (b >= nb && xn < W + 20) croche(xn, Y_CHANTEUR, hsl(LANE_HUE[n.lane], 80, 72, 0.85));
+      // La note qu'il joue en ce moment ouvre son pavillon, puis il se referme
+      if (playing && nb - b >= 0 && nb - b < 0.4) ouvert = Math.max(ouvert, 1 - (nb - b) / 0.4);
+    }
+  }
+  const outro = S.song.sections.find((s) => s.kind === "outro"),
+    sec = sectionAtBar(clamp(ici, 0, S.song.totalBars - 1));
+  let x = BOSS_X,
+    y = BOSS_Y + (reduced ? 0 : 7 * Math.sin((pnow / 1000) * 1.6)),
+    a = 0.9,
+    rot = 0;
+  // Il arrive pendant l'intro
+  if (playing && nb < 6) x += (1 - clamp(nb / 6, 0, 1)) ** 2 * 340;
+  if (boss.vaincu !== null) {
+    const e = Math.max(0, nb - boss.vaincu);
+    [y, rot, a] = [y + 30 * e * e, 0.3 * e, a * clamp(1 - e / 4, 0, 1)];
+  } else if (playing && outro && !S.bouclePartie && nb > outro.start * 4) {
+    const e = nb - outro.start * 4;
+    [x, y, rot] = [x + 50 * e * e, y - 30 * e, -0.15];
+  }
+  if (a <= 0 || x > W + 220) return;
+  const touche = clamp(1 - (pnow - boss.toucheAt) / 350, 0, 1);
+  (S.theme === "boite" ? boiteBoss : villeBoss)(
+    x + (reduced ? 0 : 14 * touche),
+    y,
+    {
+      ouvert,
+      touche,
+      phase: sec.boss ?? (sec.kind === "intro" ? 1 : 3),
+      vaincu: boss.vaincu !== null,
+      a,
+      t: pnow / 1000,
+      rot,
+    },
+    hsl,
+  );
+}
+/** La vie du boss de fin (#26) dans le HUD : son nom, puis une barre d'un segment par vie, « vaincu » quand il tombe */
+function vieDuBoss(hx: number, hw: number) {
+  const b = S.boss,
+    bx = hx + 150,
+    bw = hw - 150,
+    vaincu = b.vaincu !== null;
+  txt(TH().boss.nom.toUpperCase(), hx, 75, `600 11px ${FONT.mono}`, vaincu ? COL.good : COL.fg);
+  rr(bx, 66, bw, 10, 5);
+  g.fillStyle = COL.panel;
+  g.fill();
+  if (b.vie > 0) {
+    rr(bx, 66, Math.max(10, (bw * b.vie) / b.max), 10, 5);
+    g.fillStyle = "hsl(350,75%,60%)";
+    g.fill();
+  }
+  for (let k = 1; k < b.max; k++) {
+    g.fillStyle = hexA(COL.ink, 0.8);
+    g.fillRect(bx + (bw * k) / b.max - 0.5, 66, 1, 10);
+  }
+  if (vaincu) txt("VAINCU", bx + bw / 2, 75, `700 10px ${FONT.mono}`, COL.good, "center");
 }
 /** Une croche dessinée, sans couleur de couloir : une note chantée (#18) */
 function croche(x, y, couleur) {

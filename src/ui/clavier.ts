@@ -9,7 +9,7 @@ import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./
 import { aRemonter, overlay, show } from "./ecrans";
 import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
 import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
-import { nouvelleChanson, quitterEssai } from "./reglages";
+import { basculerBoss, nouvelleChanson, quitterEssai } from "./reglages";
 import { lancerRemontage, passerLeRemontage, taperRemontage } from "./remontage";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
@@ -37,6 +37,7 @@ overlay.addEventListener("click", (e) => {
   else if (act === "sauvegarde") ouvrirSauvegarde();
   else if (act === "copier") copierCode();
   else if (act === "coller") collerCode(document.querySelector<HTMLTextAreaElement>("#code-colle")?.value ?? "");
+  else if (act === "boss") basculerBoss();
 });
 
 /* ---------- Entrées ---------- */
@@ -118,6 +119,7 @@ addEventListener("keydown", (e) => {
     else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyE") menuEssais();
     else if (c === "KeyC") ouvrirCarte();
+    else if (c === "KeyB" && !S.essai) basculerBoss();
     else if (c === "Escape" && S.essai) quitterEssai();
   } else if (S.mode === "pause" && S.jam) {
     if (c === "Space") {
@@ -141,6 +143,7 @@ addEventListener("keydown", (e) => {
       e.preventDefault();
       newRun();
     } else if (c === "KeyN") nouvelleChanson();
+    else if (c === "KeyB" && S.mode === "done" && !S.essai) basculerBoss();
     else if (c === "KeyE" && S.essai) menuEssais();
     else if (c === "Escape" && S.essai) quitterEssai();
     else if (c === "KeyC") ouvrirCarte();

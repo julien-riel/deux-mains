@@ -2,6 +2,7 @@
 import { B, AC, songNow } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
+import { buildBoss } from "../chanson/boss";
 import { buildSong } from "../chanson/generateur";
 import type { Chanson } from "../chanson/types";
 import type { Essai } from "../essais/registre";
@@ -17,11 +18,12 @@ import { COMMANDES, etiquettes } from "./touches";
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 
-export function load(seed: number, diff: string) {
+/** Charge la chanson de cette graine dans cette difficulté, ou son niveau de boss de fin (#26) */
+export function load(seed: number, diff: string, boss = false) {
   seed = clamp(Math.round(seed) || 1, 1, 99999);
   if (S.essai) rendreReglages();
   S.seed = seed;
-  installer(buildSong(seed, diff), diff);
+  installer(boss ? buildBoss(seed, diff) : buildSong(seed, diff), diff);
   $<HTMLInputElement>("#seed").value = String(seed);
   try {
     localStorage.setItem("deux-mains-diff", diff);
@@ -55,6 +57,15 @@ function installer(song: Chanson, diff: string) {
 export const diffDuJoueur = () => (S.essai ? S.essai.avant.diff : S.diff);
 /** Une nouvelle chanson générée, dans la difficulté du joueur : quitte l'essai en cours */
 export const nouvelleChanson = () => load(randomSeed(), diffDuJoueur());
+/** Le niveau affiché est-il un boss de fin (#26), hors essai ? Changer de difficulté ou de graine le garde. */
+export const enBoss = () => !S.essai && !!S.song?.boss;
+/**
+ * Le boss de fin (#26) de cette graine, dans la difficulté du joueur : c'est par ici que la carte du monde (#25)
+ * l'ouvrira. Sans graine, celui de la chanson affichée ; quitte l'essai en cours.
+ */
+export const chargerBoss = (seed = S.seed, diff = diffDuJoueur()) => load(seed, diff, true);
+/** Passe de la chanson à son boss, ou du boss à sa chanson */
+export const basculerBoss = () => load(S.seed, diffDuJoueur(), !enBoss());
 
 /* ---------- Mode essai ---------- */
 // Un essai impose son univers, sa difficulté et ses mains sans les enregistrer : en le quittant, le joueur
@@ -98,7 +109,7 @@ function retenir<K extends keyof typeof CLES>(k: K, v: EssaiEnCours["avant"][K])
 
 document
   .querySelectorAll<HTMLInputElement>('input[name="diff"]')
-  .forEach((r) => r.addEventListener("change", () => load(S.seed, r.value)));
+  .forEach((r) => r.addEventListener("change", () => load(S.seed, r.value, enBoss())));
 document
   .querySelectorAll<HTMLInputElement>('input[name="hands"]')
   .forEach((r) => r.addEventListener("change", () => setPractice(r.value as Mains)));
@@ -204,5 +215,5 @@ export function setFormes(oui: boolean) {
   }
 }
 $("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));
-$("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, diffDuJoueur()));
+$("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, diffDuJoueur(), enBoss()));
 $("#new").addEventListener("click", nouvelleChanson);

@@ -1,7 +1,7 @@
 import { S, progression } from "../jeu/etat";
 import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
-import { COL, GY, HITX, LANE_Y, PPB, PX, W, energy, g, hexA, hh, rr } from "./outils";
+import { COL, GY, HITX, LANE_Y, PPB, PX, W, energy, g, hexA, hh, rr, type PoseDuBoss } from "./outils";
 
 /* La Boîte à musique */
 export function boiteBack(nb, hsl, bp) {
@@ -463,5 +463,141 @@ export function boiteCle(cx: number, cy: number, ang: number, tension: number) {
   g.fillStyle = "#e0b45c";
   g.fill();
   g.stroke();
+  g.restore();
+}
+
+// Le boss de fin (#26) : la Mite reine, qui ronge les souvenirs de la boîte. Ses ailes battent plus vite à chaque
+// phase et s'ouvrent sur chaque note, ses antennes frémissent et laissent tomber des écailles. Touchée, ses ailes
+// pâlissent ; tombée, elles se replient et sa couronne s'éteint.
+export function boiteBoss(x: number, y: number, p: PoseDuBoss, hsl) {
+  const { ouvert, touche, phase, vaincu, a, t } = p;
+  g.save();
+  g.translate(x, y);
+  g.rotate(p.rot);
+  const bat = vaincu ? 0.15 : 0.55 + 0.45 * Math.abs(Math.sin(t * (2.5 + 1.2 * phase))),
+    e = 0.55 + 0.35 * bat + 0.2 * ouvert;
+  for (const s of [-1, 1]) {
+    // Aile postérieure
+    g.beginPath();
+    g.ellipse(s * 42 * e, 24, 46 * e, 30, s * 0.5, 0, Math.PI * 2);
+    g.fillStyle = hsl(26, 45, 28 + 30 * touche, a);
+    g.fill();
+    g.strokeStyle = hsl(36, 50, 60, 0.7 * a);
+    g.lineWidth = 1.5;
+    g.stroke();
+    // Aile antérieure
+    g.beginPath();
+    g.moveTo(s * 8, -14);
+    g.bezierCurveTo(s * 40, -74, s * 110 * e, -84, s * 126 * e, -42);
+    g.bezierCurveTo(s * 120 * e, -6, s * 62 * e, 14, s * 8, 6);
+    g.closePath();
+    g.fillStyle = hsl(34, 55, 40 + 30 * touche, a);
+    g.fill();
+    g.strokeStyle = hsl(40, 60, 72, a);
+    g.lineWidth = 2;
+    g.stroke();
+    // Nervures
+    g.strokeStyle = hsl(30, 40, 25, 0.6 * a);
+    g.lineWidth = 1;
+    for (const [vx, vy] of [
+      [100, -66],
+      [116, -38],
+      [86, -6],
+    ]) {
+      g.beginPath();
+      g.moveTo(s * 10, -4);
+      g.quadraticCurveTo(s * vx * e * 0.5, vy * 0.4, s * vx * e, vy);
+      g.stroke();
+    }
+    // Ocelle, l'œil peint sur l'aile
+    for (const [rr2, l, h] of [
+      [14, 26, 18],
+      [9, 62, 44],
+      [4, 12, 250],
+    ]) {
+      g.beginPath();
+      g.arc(s * 74 * e, -38, rr2, 0, Math.PI * 2);
+      g.fillStyle = hsl(h, 70, l, a);
+      g.fill();
+    }
+  }
+  // Corps velu, en anneaux
+  g.beginPath();
+  g.ellipse(0, 12, 13, 40, 0, 0, Math.PI * 2);
+  g.fillStyle = hsl(36, 30, 52, a);
+  g.fill();
+  for (let k = 0; k < 4; k++) {
+    g.fillStyle = hsl(30, 30, 34, 0.7 * a);
+    g.fillRect(-11, 4 + 9 * k, 22, 2.5);
+  }
+  // Tête et yeux noirs brillants
+  g.beginPath();
+  g.arc(0, -34, 12, 0, Math.PI * 2);
+  g.fillStyle = hsl(36, 30, 58, a);
+  g.fill();
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.arc(s * 6, -36, 4.5, 0, Math.PI * 2);
+    g.fillStyle = hsl(250, 30, 8, a);
+    g.fill();
+    g.beginPath();
+    g.arc(s * 6 - 1.5, -37.5, 1.3, 0, Math.PI * 2);
+    g.fillStyle = hsl(40, 30, 90, a);
+    g.fill();
+    // Antennes plumeuses, qui frémissent sur la note
+    const fx = s * 34,
+      fy = -80 - 8 * ouvert + (vaincu ? 26 : 0);
+    g.strokeStyle = hsl(40, 45, 70, a);
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(s * 4, -44);
+    g.quadraticCurveTo(s * 10, -70, fx, fy);
+    g.stroke();
+    for (let k = 1; k < 6; k++) {
+      const u = k / 6,
+        ax = s * 4 + (fx - s * 4) * u,
+        ay = -44 + (fy + 44) * u,
+        f = Math.sin(t * 30 + k) * 2 * ouvert;
+      g.beginPath();
+      g.moveTo(ax, ay);
+      g.lineTo(ax + s * 6, ay - 6 + f);
+      g.stroke();
+    }
+  }
+  // La couronne : une pierre allumée par phase
+  g.beginPath();
+  g.moveTo(-11, -44);
+  for (const [cx, cy] of [
+    [-11, -58],
+    [-5.5, -50],
+    [0, -62],
+    [5.5, -50],
+    [11, -58],
+    [11, -44],
+  ])
+    g.lineTo(cx, cy);
+  g.closePath();
+  g.fillStyle = hsl(46, 80, vaincu ? 35 : 58, a);
+  g.fill();
+  for (let k = 0; k < 3; k++) {
+    g.beginPath();
+    g.arc(-6 + 6 * k, -48, 2, 0, Math.PI * 2);
+    g.fillStyle = k < phase && !vaincu ? hsl(350, 85, 60, a) : hsl(30, 20, 30, a);
+    g.fill();
+  }
+  // Les ondes de la note, et des écailles qui tombent des ailes
+  if (ouvert > 0) {
+    g.strokeStyle = hsl(40, 90, 85, ouvert * a);
+    g.lineWidth = 2;
+    for (let k = 1; k <= 3; k++) {
+      g.beginPath();
+      g.arc(-14, -34, 10 + 10 * k * ouvert, Math.PI * 0.72, Math.PI * 1.28);
+      g.stroke();
+    }
+    for (let k = 0; k < 6; k++) {
+      g.fillStyle = hsl(40, 60, 75, ouvert * a * 0.8);
+      g.fillRect((k - 2.5) * 30 * e, 30 + 18 * (1 - ouvert) + (k % 2) * 10, 2.5, 2.5);
+    }
+  }
   g.restore();
 }

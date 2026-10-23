@@ -74,6 +74,17 @@ const boutonReecoute = () =>
   peutReecouter()
     ? `<button type="button" data-act="reecouter">Réécouter ${S.auto ? "la" : "ma"} partie <kbd>R</kbd></button>`
     : "";
+// Le boss de fin (#26) : le bouton qui y mène depuis la chanson (ou qui revient à la chanson), hors essai
+const boutonBoss = () =>
+  S.song.boss
+    ? `<button type="button" data-act="boss">Retour à la chanson <kbd>B</kbd></button>`
+    : `<button type="button" data-act="boss">Affronter le boss <kbd>B</kbd></button>`;
+// Le bilan du boss sur l'écran de fin : tombé, ou encore debout, et les phrases du canon rejouées justes
+function bilanBoss() {
+  const b = S.boss;
+  if (!b || S.bouclePartie) return "";
+  return `<p class="meta">${TH().boss.nom} : ${b.vaincu !== null ? "vaincu" : `encore debout, ${b.vie} vie${b.vie > 1 ? "s" : ""} sur ${b.max}`} · canon : ${b.reussies} / ${b.total} phrases justes</p>`;
+}
 // Les boutons de sortie d'un essai, sur ses écrans de départ, de mort et de fin
 const sortiesEssai = () =>
   `<button type="button" data-act="essais">Autres essais <kbd>E</kbd></button>
@@ -140,6 +151,15 @@ export function show(kind) {
           `<button type="button" data-act="essai" data-essai="${e.id}"><kbd>${i + 1}</kbd><span><b>${e.titre}</b><small>${e.verifier}</small></span></button>`,
       ).join("")}</div>
       <div class="actions"><button type="button" data-act="titre">Retour <kbd>Échap</kbd></button></div>`;
+  } else if (kind === "title" && s.boss) {
+    h = `<p class="eyebrow">Boss de fin · ${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
+      <h2>${placeName()}</h2>
+      <p class="meta">Il joue une phrase : rejoue-la une mesure plus tard, pendant qu'il enchaîne la suivante. Chaque phrase juste lui retire une vie ; trois phases, de plus en plus serrées.</p>
+      <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s · ${s.boss.vie} vies</p>
+      <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      ${boutonBoss()}
+      <button type="button" data-act="essais">Essais <kbd>E</kbd></button></div>`;
   } else if (kind === "title") {
     h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
       <h2>${placeName()}</h2>
@@ -149,6 +169,7 @@ export function show(kind) {
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
       <button type="button" data-act="jam">Jam ${kc("KeyJ")}</button>
       ${boutonCarte()}
+      ${boutonBoss()}
       <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
@@ -208,16 +229,18 @@ export function show(kind) {
   } else if (kind === "dead") {
     const bar = clamp(mesureDeLaChanson(Math.floor(S.deathBeat / 4)), 0, s.totalBars - 1),
       sec = sectionAtBar(bar);
-    const where = S.cp?.sec.croisee
-      ? "aux mains croisées"
-      : {
-          intro: "au début",
-          couplet: "au couplet",
-          refrain: "au refrain",
-          pont: "au solo",
-          polyrythmie: "au 3 contre 2",
-          outro: "à l'outro",
-        }[S.cp ? S.cp.sec.kind : "intro"];
+    const where = S.cp?.sec.boss
+      ? `à la phase ${S.cp.sec.boss}`
+      : S.cp?.sec.croisee
+        ? "aux mains croisées"
+        : {
+            intro: "au début",
+            couplet: "au couplet",
+            refrain: "au refrain",
+            pont: "au solo",
+            polyrythmie: "au 3 contre 2",
+            outro: "à l'outro",
+          }[S.cp ? S.cp.sec.kind : "intro"];
     h = `<p class="eyebrow">${TH().deadTag}</p><h2>${TH().deadTitle}</h2>
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
@@ -236,7 +259,7 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
+      }${bilanBoss()}${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
       <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
@@ -258,11 +281,11 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
+      }${bilanBoss()}${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
-      ${boutonSuivant()}${boutonCarte()}
+      ${boutonSuivant()}${boutonBoss()}${boutonCarte()}
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;

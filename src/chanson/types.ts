@@ -35,6 +35,8 @@ export interface Section {
   /** Un pont en mains croisées (#21) : la scène s'y retourne, mais les touches et le jugement restent les mêmes.
    * Ce pont a une mélodie écrite : ce n'est pas un solo libre. */
   croisee?: true;
+  /** Une phase du boss de fin (#26), de 1 à 3 : il y joue ses phrases en canon, de plus en plus serrées */
+  boss?: number;
 }
 
 /** Un événement de note : un obstacle (main gauche) ou un ennemi (main droite). */
@@ -93,6 +95,9 @@ export interface Note {
   /** Une note d'une phrase en relais (#20) : la mesure où commence le relais, qui le désigne dans la partie (en
    * boucle, chaque passage a le sien). Une main joue la première mesure, l'autre finit la phrase sur la suivante. */
   relais?: number;
+  /** Une note du canon contre le boss (#26) : la mesure où le boss a joué la phrase, que le joueur rejoue sur la
+   * mesure suivante. Elle désigne la phrase dans la partie (en boucle, chaque passage a la sienne). */
+  canon?: number;
 }
 
 /** Une note chantée par le chanteur (#18) : on l'entend, on ne la joue pas */
@@ -107,6 +112,19 @@ export interface NoteChantee {
 export interface Chanteur {
   bar: number;
   notes: NoteChantee[];
+}
+
+/** Une phrase du boss de fin (#26) : il la joue sur sa mesure, et le joueur la rejoue sur la mesure suivante, pendant
+ * que le boss enchaîne la phrase d'après. Ses notes, comme celles du chanteur, s'entendent sans se jouer. */
+export interface PhraseDuBoss {
+  bar: number;
+  notes: NoteChantee[];
+}
+
+/** Le boss de fin (#26) : ses phrases en canon, et sa vie, le nombre de phrases rejouées justes qui le battent */
+export interface Boss {
+  phrases: PhraseDuBoss[];
+  vie: number;
 }
 
 export interface Progression {
@@ -129,6 +147,8 @@ export interface Chanson {
   ev: Note[];
   /** Les chanteurs (#18) : leur phrase n'est pas dans `ev`, elle ne se joue pas et n'est pas jugée */
   chanteurs: Chanteur[];
+  /** Le boss de fin (#26), dans un niveau de boss seulement : ses phrases ne sont pas dans `ev` */
+  boss?: Boss;
   endBeat: number;
   keyName: string;
   progLabel: string;

@@ -34,6 +34,11 @@ export interface Effets {
   phrase(notes: Note[], points: number): void;
   /** Une phrase en relais (#20) entièrement réussie, aux deux mains : ses notes, et le bonus gagné */
   relais(notes: Note[], points: number): void;
+  /** Une phrase du canon contre le boss (#26) rejouée juste : ses notes, le bonus gagné, et si le boss y a perdu
+   * une vie (pas en boucle, ni une fois tombé) */
+  canon(notes: Note[], points: number, touche: boolean): void;
+  /** Le boss de fin (#26) est tombé : le bonus de la victoire */
+  bossVaincu(points: number): void;
   /** Le rayon tiré dans un couloir : réussi, dans le mauvais couloir, ou dans le vide (`null`). */
   tir(lane: number, ok: boolean | null): void;
   mourir(): void;
@@ -143,6 +148,33 @@ function jugerRelais(ev: Note) {
   gagner(points);
   effets.relais(phrase, points);
 }
+/** Le boss de fin (#26) : une phrase du canon rejouée juste rapporte `bonus` points, multipliés par le combo, et lui
+ * retire une vie ; quand il n'en a plus, il tombe et la victoire rapporte `victoire` points. En boucle, il ne perd
+ * pas de vie : la section rejouée est un entraînement (ADR-0009). */
+export const BOSS = { bonus: 400, victoire: 2000 };
+/** Les notes de la phrase du canon de cette note, dans la partie : en boucle, chaque passage a la sienne */
+export const notesDuCanon = (ev: Note) => S.ev.filter((e) => e.canon === ev.canon);
+// La phrase du canon dont cette note vient d'être jugée : comptée quand sa dernière note l'est, et si elle est juste,
+// le bonus et une vie de moins pour le boss
+function jugerCanon(ev: Note) {
+  const boss = S.boss;
+  if (ev.canon === undefined || !boss) return;
+  const phrase = notesDuCanon(ev);
+  if (phrase.some((e) => e.state === "pending")) return;
+  boss.total++;
+  if (!phrase.every(reussie)) return;
+  boss.reussies++;
+  const points = Math.round(BOSS.bonus * mult(ev.hand)),
+    touche = !S.bouclePartie && boss.vie > 0;
+  gagner(points, ev.hand);
+  if (touche) boss.vie--;
+  effets.canon(phrase, points, touche);
+  if (!touche || boss.vie > 0) return;
+  // Il tombe au temps de la dernière note de la phrase : la réécoute (#23) le fait tomber au même moment
+  boss.vaincu = Math.max(...phrase.map((e) => e.beat));
+  gagner(BOSS.victoire, ev.hand);
+  effets.bossVaincu(BOSS.victoire);
+}
 export function hitEv(ev: Note, d: number) {
   if (ev.trille !== undefined) return commencerTrille(ev, d, ev.lane);
   ev.state = ev.dur > 0 ? "holding" : "hit";
@@ -155,6 +187,7 @@ export function hitEv(ev: Note, d: number) {
   jugerAccord(ev);
   jugerReponse(ev);
   jugerRelais(ev);
+  jugerCanon(ev);
 }
 export function missEv(ev: Note) {
   const D = DIFFS[S.diff];
@@ -165,6 +198,7 @@ export function missEv(ev: Note) {
   compterPassage(ev, "rate");
   suivreAccordDuo(ev);
   jugerRelais(ev);
+  jugerCanon(ev);
   effets.rate(ev);
   // L'harmonie est commune : en duo, l'erreur d'un joueur la fait baisser pour les deux
   damage(ev.hand === "L" ? D.dmgL : D.dmgR);

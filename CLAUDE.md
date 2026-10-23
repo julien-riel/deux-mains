@@ -13,7 +13,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 - `index.html` : la structure de la page, qui charge `src/styles.css` et `src/main.ts`.
 - `src/` : le code TypeScript, organisé par domaine (ADR-0007) :
-  - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire, temps (la grille de 12 pas par temps, ADR-0013) et générateur ;
+  - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire, temps (la grille de 12 pas par temps, ADR-0013), générateur et niveau du boss de fin (`boss.ts`) ;
   - `jeu/` : état de la partie, couche d'actions, jugement des coups, table des touches MIDI, auto-play, variations de la partie (reprise du solo), enregistrement des coups et réécoute de fin de partie (#23), jam sans obstacles ni ennemis (#24), lieux de la carte du monde (#25), remontage entre deux lieux (#27), déroulement (départ, pause, mort, reprise), et les effets du jugement sur le son et l'image ;
   - `audio/` : moteur Web Audio, instruments, séquenceur ;
   - `rendu/` : outils de dessin, scène et HUD, décors de la Ville et de la Boîte ;

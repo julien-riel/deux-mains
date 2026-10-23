@@ -1,6 +1,6 @@
 import { S, layers, progression } from "../jeu/etat";
 import { lieuxReussis } from "../sauvegarde/format";
-import { COL, GY, PPB, PW, PX, W, energy, g, hexA, hh, rr } from "./outils";
+import { COL, GY, PPB, PW, PX, W, energy, g, hexA, hh, rr, type PoseDuBoss } from "./outils";
 
 /* La Ville Muette */
 export function villeBack(nb, hsl, bp) {
@@ -426,5 +426,137 @@ export function villeManivelle(cx: number, cy: number, ang: number, allumees: nu
   g.arc(0, 0, 16, 0, Math.PI * 2);
   g.fillStyle = "#8a80b0";
   g.fill();
+  g.restore();
+}
+
+// Le boss de fin (#26) : le Grand Drone du Bureau du Silence, un chanteur géant. Quatre rotors qui tournent plus vite
+// à chaque phase, un œil qui balaie la rue et un pavillon qui s'ouvre sur chaque note. Touché, sa coque s'éclaire ;
+// tombé, ses rotors ralentissent, son œil s'éteint et il fume.
+export function villeBoss(x: number, y: number, p: PoseDuBoss, hsl) {
+  const { ouvert, touche, phase, vaincu, a, t } = p;
+  g.save();
+  g.translate(x, y);
+  g.rotate(p.rot);
+  // Bras et rotors
+  for (const [bx, by] of [
+    [-74, -50],
+    [74, -50],
+    [-62, 46],
+    [62, 46],
+  ]) {
+    g.strokeStyle = hsl(250, 12, 40, a);
+    g.lineWidth = 7;
+    g.beginPath();
+    g.moveTo(bx * 0.5, by * 0.5);
+    g.lineTo(bx, by);
+    g.stroke();
+    g.fillStyle = hsl(250, 10, 80, 0.16 * a);
+    g.beginPath();
+    g.ellipse(bx, by - 7, 36, 7, 0, 0, Math.PI * 2);
+    g.fill();
+    const c = Math.cos(t * (vaincu ? 4 : 16 + 6 * phase) + bx);
+    g.strokeStyle = hsl(250, 10, 88, 0.7 * a);
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(bx - 34 * c, by - 7);
+    g.lineTo(bx + 34 * c, by - 7);
+    g.stroke();
+    g.beginPath();
+    g.arc(bx, by - 7, 4, 0, Math.PI * 2);
+    g.fillStyle = hsl(250, 12, 60, a);
+    g.fill();
+  }
+  // Coque blindée, qui s'éclaire sous le coup
+  g.beginPath();
+  for (const [px, py] of [
+    [-64, -32],
+    [64, -32],
+    [82, 0],
+    [64, 34],
+    [-64, 34],
+    [-82, 0],
+  ])
+    g.lineTo(px, py);
+  g.closePath();
+  g.fillStyle = hsl(250, 22, 20 + 40 * touche, a);
+  g.fill();
+  g.strokeStyle = hsl(250, 25, 72, a);
+  g.lineWidth = 2;
+  g.stroke();
+  // Bande d'avertissement sous la coque
+  g.save();
+  g.beginPath();
+  g.rect(-60, 22, 120, 9);
+  g.clip();
+  for (let k = -64; k < 64; k += 12) {
+    g.fillStyle = hsl(48, 85, 55, 0.85 * a);
+    g.beginPath();
+    g.moveTo(k, 31);
+    g.lineTo(k + 6, 31);
+    g.lineTo(k + 15, 22);
+    g.lineTo(k + 9, 22);
+    g.closePath();
+    g.fill();
+  }
+  g.restore();
+  // Rivets et grilles d'aération
+  for (let k = 0; k < 4; k++) {
+    g.fillStyle = hsl(250, 20, 70, 0.45 * a);
+    g.fillRect(36, -20 + 7 * k, 26, 2);
+  }
+  // Les phases : des voyants qui s'allument un à un
+  for (let k = 0; k < 3; k++) {
+    g.beginPath();
+    g.arc(-18 + 14 * k, 14, 3.5, 0, Math.PI * 2);
+    g.fillStyle = k < phase && !vaincu ? hexA(COL.bad, a) : hsl(250, 12, 32, a);
+    g.fill();
+  }
+  // L'œil, qui balaie la rue ; éteint quand il est tombé
+  g.beginPath();
+  g.arc(12, -8, 13, 0, Math.PI * 2);
+  g.fillStyle = hsl(250, 30, 10, a);
+  g.fill();
+  g.strokeStyle = hsl(250, 20, 75, a);
+  g.stroke();
+  if (!vaincu) {
+    g.beginPath();
+    g.arc(12 + 6 * Math.sin(t * 1.7), -8, 5 + 2 * ouvert, 0, Math.PI * 2);
+    g.fillStyle = hexA(COL.bad, a);
+    g.fill();
+  }
+  // Le pavillon tourné vers le joueur, qui s'ouvre sur la note
+  const r = 26 + 10 * ouvert;
+  g.beginPath();
+  g.moveTo(-62, -12);
+  g.lineTo(-116, -r);
+  g.lineTo(-116, r);
+  g.lineTo(-62, 12);
+  g.closePath();
+  g.fillStyle = hsl(45, 70, 42 + 22 * ouvert, a);
+  g.fill();
+  g.strokeStyle = hsl(45, 80, 80, a);
+  g.stroke();
+  g.beginPath();
+  g.ellipse(-116, 0, 7, r, 0, 0, Math.PI * 2);
+  g.fillStyle = hsl(250, 30, 8, a);
+  g.fill();
+  if (ouvert > 0) {
+    g.strokeStyle = hsl(45, 90, 80, ouvert * a);
+    g.lineWidth = 2.5;
+    for (let k = 1; k <= 3; k++) {
+      g.beginPath();
+      g.arc(-116, 0, 12 + 12 * k * ouvert, Math.PI * 0.72, Math.PI * 1.28);
+      g.stroke();
+    }
+  }
+  // Fumée de l'épave
+  if (vaincu)
+    for (let k = 0; k < 4; k++) {
+      const montee = (t * 40 + k * 18) % 70;
+      g.beginPath();
+      g.arc(20 + 8 * Math.sin(t + k), -36 - montee, 7 + montee / 6, 0, Math.PI * 2);
+      g.fillStyle = hsl(250, 6, 55, (0.4 - montee / 200) * a);
+      g.fill();
+    }
   g.restore();
 }
