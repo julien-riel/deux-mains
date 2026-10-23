@@ -15,6 +15,7 @@ import {
   type Action,
 } from "./etat";
 import { noteDeJam } from "./jam";
+import { dansLAccord, joueLaNote, memeNote } from "./pianiste";
 import { peutAjouter, trace } from "./traces";
 import { estSolo, noterAuSolo } from "./variations";
 
@@ -369,13 +370,14 @@ function lacherSerpent(ev: Note, ns: number) {
   } else if ((ev.beat + ev.dur) * spb() - ns > wg) breakHold(ev);
   else completeHold(ev, false);
 }
-// Un appui pendant un serpent : le passage s'il vient sur le couloir suivant, dans la fenêtre. Renvoie true s'il
-// l'a pris ; sinon le jeu continue (une note qui suit le serpent peut se jouer).
-function appuiSurSerpent(ev: Note, lane: number, ns: number) {
+// Un appui pendant un serpent : le passage s'il vient sur le couloir suivant, dans la fenêtre (et, en mode pianiste,
+// avec sa note). Renvoie true s'il l'a pris ; sinon le jeu continue (une note qui suit le serpent peut se jouer).
+function appuiSurSerpent(ev: Note, lane: number, ns: number, hauteur?: number) {
   // Une touche enfoncée de nouveau : le serpent tient
   ev.lacheAt = undefined;
   const k = ev.troncon + 1;
   if (k >= ev.serpent.length || lane !== ev.serpent[k]) return false;
+  if (hauteur !== undefined && !memeNote(ev.midiSerpent[k], hauteur)) return false;
   const d = ns - tempsDuPassage(ev, k) * spb();
   if (Math.abs(d) > DIFFS[S.diff].win[1]) return false;
   passer(ev, d);
@@ -389,7 +391,9 @@ export const enLair = (ns: number) => S.doubleAt < S.jumpAt && ns >= S.jumpAt &&
  * celui de la marche qui arrive, s'il lui correspond */
 export const gesteDansLEscalier = (lane: number, ev: Note | undefined) =>
   ev && ev.lane === 4 && lane === 1 ? 4 : ev && ev.lane === 5 && lane === 0 ? 5 : lane;
-export function leftPress(lane: number, ns: number) {
+/** Un geste de la main gauche. `hauteur` : en mode pianiste au MIDI (#53, ADR-0011), la note jouée, qui doit être
+ * celle de la note attendue à l'octave près ; sinon le geste la rate, même s'il est le bon. */
+export function leftPress(lane: number, ns: number, hauteur?: number) {
   const near = findNear("L", ns);
   lane = gesteDansLEscalier(lane, near?.ev);
   // Près d'un saut ordinaire, un appui en l'air reste un saut simple : on a juste sauté un peu tôt
@@ -409,15 +413,25 @@ export function leftPress(lane: number, ns: number) {
     S.jumpAt = S.doubleAt = -99;
   }
   if (!near) return;
-  if (near.ev.lane !== lane) return missEv(near.ev);
+  if (near.ev.lane !== lane || (hauteur !== undefined && !memeNote(near.ev.midi, hauteur))) return missEv(near.ev);
   hitEv(near.ev, near.d);
 }
 /** Tire dans un couloir, et renvoie les notes réussies. `accordEntier` : toucher un couloir de l'accord joue
- * toutes ses notes de la main droite, car un pouce ne touche qu'une zone à la fois (ADR-0008). */
-export function rightPress(lane: number, ns: number, accordEntier = false): Note[] {
+ * toutes ses notes de la main droite, car un pouce ne touche qu'une zone à la fois (ADR-0008). `hauteur` : en mode
+ * pianiste au MIDI (#53, ADR-0011), la note jouée. La vraie hauteur prime : seule une note qui attend cette note, à
+ * l'octave près, peut être touchée, et une note hors de l'accord est une erreur, même pendant le solo libre. */
+export function rightPress(lane: number, ns: number, accordEntier = false, hauteur?: number): Note[] {
   const nb = ns / spb(),
-    sec = sectionAtBar(Math.floor(nb / 4));
+    sec = sectionAtBar(Math.floor(nb / 4)),
+    juste = (ev: Note, l: number) => hauteur === undefined || joueLaNote(ev, l, hauteur);
   if (estSolo(sec)) {
+    // En mode pianiste, une note hors de l'accord ne compte pas : le combo casse, comme sur un mauvais couloir
+    if (hauteur !== undefined && !dansLAccord(chordAtBeat(nb), hauteur)) {
+      casser("R");
+      effets.mauvaisCouloir(lane);
+      effets.tir(lane, false);
+      return [];
+    }
     // La note est gardée : la meilleure phrase du solo revient au dernier refrain (#9)
     noterAuSolo(sec, nb, lane);
     effets.solo(lane, nb);
@@ -427,10 +441,14 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   }
   // Pendant un serpent (#16), le couloir suivant est un passage : ni vibrato, ni mauvais couloir
   const serpent = serpentEnCours(ns);
-  if (serpent && appuiSurSerpent(serpent, lane, ns)) return [];
+  if (serpent && appuiSurSerpent(serpent, lane, ns, hauteur)) return [];
   // Une trille (#15) commence sur l'un ou l'autre de ses deux couloirs, et une petite note (#14, ADR-0010) se
   // touche avec l'une ou l'autre des deux touches voisines
-  const near = findNear("R", ns, (ev) => ev.lane === lane || ev.trille === lane || Math.abs(ev.lane - lane) === 0.5);
+  const near = findNear(
+    "R",
+    ns,
+    (ev) => (ev.lane === lane || ev.trille === lane || Math.abs(ev.lane - lane) === 0.5) && juste(ev, lane),
+  );
   if (near && near.ev.trille !== undefined) {
     commencerTrille(near.ev, near.d, lane);
     effets.tir(lane, true);
@@ -458,7 +476,7 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   }
   // Pendant une trille, ses deux couloirs alternent
   const trille = trilleEnCours(ns);
-  if (trille && (lane === trille.lane || lane === trille.trille)) {
+  if (trille && (lane === trille.lane || lane === trille.trille) && juste(trille, lane)) {
     alterner(trille, lane);
     effets.tir(lane, true);
     return [];

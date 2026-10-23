@@ -14,7 +14,16 @@ import { essaiDeLAdresse } from "./ui/essais";
 import { suivreCalibrage } from "./ui/calibrage";
 import { demarrerMidi } from "./ui/midi";
 import { chargerSauvegarde } from "./ui/progression";
-import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
+import {
+  load,
+  setCommandes,
+  setDecalage,
+  setFormes,
+  setPianiste,
+  setPractice,
+  setTheme,
+  setVitesse,
+} from "./ui/reglages";
 import { suivreRemontage } from "./ui/remontage";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
@@ -73,6 +82,7 @@ let savedHands = null,
   savedCommandes = null,
   savedDecalage = null,
   savedFormes = null,
+  savedPianiste = null,
   savedVitesse = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
@@ -81,6 +91,7 @@ try {
   savedCommandes = localStorage.getItem("deux-mains-commandes");
   savedDecalage = localStorage.getItem("deux-mains-decalage");
   savedFormes = localStorage.getItem("deux-mains-formes");
+  savedPianiste = localStorage.getItem("deux-mains-pianiste");
   savedVitesse = Number(localStorage.getItem("deux-mains-vitesse"));
 } catch {
   /* stockage indisponible */
@@ -108,6 +119,8 @@ const boot = (data) => {
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
   setDecalage(Number(savedDecalage) || 0);
   setFormes(savedFormes !== "non");
+  // Le mode pianiste (#53) est désactivé par défaut
+  setPianiste(savedPianiste === "oui");
   demarrerMidi();
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");

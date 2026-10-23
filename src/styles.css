@@ -424,6 +424,10 @@ button kbd {
   align-items: center;
   gap: 10px;
 }
+/* Le réglage du mode pianiste attend que le MIDI soit activé : display: flex l'emporterait sur hidden */
+.field[hidden] {
+  display: none;
+}
 .flabel {
   font-family: var(--mono);
   font-size: 12px;

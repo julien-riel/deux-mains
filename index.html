@@ -112,6 +112,18 @@
         title="Clavier MIDI : les touches sous ce Do jouent la basse, celles à partir de ce Do la mélodie"
       ></select>
     </div>
+    <div class="field" id="champ-pianiste" hidden>
+      <span class="flabel" id="pianiste-label">Mode pianiste</span>
+      <div
+        class="seg"
+        role="radiogroup"
+        aria-labelledby="pianiste-label"
+        title="Clavier MIDI : jouer la vraie note demandée, à l'octave près, au lieu des touches fixes"
+      >
+        <input type="radio" name="pianiste" id="p-oui" value="oui" /><label for="p-oui">Oui</label>
+        <input type="radio" name="pianiste" id="p-non" value="non" /><label for="p-non">Non</label>
+      </div>
+    </div>
     <button id="new" type="button">Nouvelle chanson <kbd>N</kbd></button>
     <p class="song" id="songline"></p>
     <button class="primary seulement-tactile" id="fermer-reglages" type="button">Fermer les réglages</button>
@@ -178,8 +190,9 @@
   <p class="note">
     Clavier MIDI (Chrome ou Edge) : <kbd>Do3</kbd> glisser, <kbd>Mi3</kbd> écraser, <kbd>Sol3</kbd> sauter ;
     <kbd>Do4</kbd> <kbd>Mi4</kbd> <kbd>Sol4</kbd> <kbd>Do5</kbd> pour les quatre couloirs. Les touches suivent le point
-    de séparation choisi. La page d'artefact claude.ai bloque les périphériques : pour jouer au MIDI, ouvre le fichier
-    <code>deux-mains.html</code> ou le serveur de développement.
+    de séparation choisi. En mode pianiste, il faut jouer la vraie note demandée, à l'octave près. La page d'artefact
+    claude.ai bloque les périphériques : pour jouer au MIDI, ouvre le fichier <code>deux-mains.html</code> ou le serveur
+    de développement.
   </p>
 </div>
 

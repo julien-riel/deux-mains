@@ -19,6 +19,9 @@ export interface Appui {
   action: Action;
   /** Une commande tactile : un pouce joue tout l'accord, et glisser écrase la plaque qui arrive (ADR-0008) */
   tactile?: true;
+  /** En mode pianiste au clavier MIDI (#53, ADR-0011) : la note jouée, que le jugement compare à la note attendue.
+   * Pour un écrasement, la fondamentale de l'accord frappé. */
+  hauteur?: number;
   /** La note jugée par l'appui ; absent quand il n'en juge aucune (tir dans le vide, solo, vibrato, trille…) */
   resultat?: Resultat;
 }

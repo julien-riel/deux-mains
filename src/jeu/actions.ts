@@ -19,9 +19,10 @@ export function oublierTouches() {
 const plaqueProche = (ns: number) => findNear("L", ns)?.ev.lane === 3;
 
 /** Une action commence. `tactile` : un seul couloir de l'accord joue tout l'accord, et glisser écrase une plaque.
+ * `hauteur` : en mode pianiste au MIDI (#53, ADR-0011), la note jouée, que le jugement compare à la note attendue.
  * Pendant la réécoute (#23), ce sont les coups enregistrés qui jouent : ceux du joueur sont ignorés. */
-export function presser(a: Action, ns: number, tactile = false) {
-  if (!S.relecture) appuyer(a, ns, tactile);
+export function presser(a: Action, ns: number, tactile = false, hauteur?: number) {
+  if (!S.relecture) appuyer(a, ns, tactile, hauteur);
 }
 
 /** Une action s'arrête : les notes tenues sont lâchées. Ignorée pendant la réécoute, comme `presser`. */
@@ -30,22 +31,25 @@ export function relacher(a: Action, ns: number) {
 }
 
 /** Joue un appui et l'enregistre, avec la note qu'il a jugée : celui du joueur, ou celui que rejoue la réécoute */
-export function appuyer(a: Action, ns: number, tactile = false) {
+export function appuyer(a: Action, ns: number, tactile = false, hauteur?: number) {
   if (S.mode !== "play" || autoFor(main(a)) || S.keys[a]) return;
   S.keys[a] = true;
   // En jam (#24), rien n'est jugé ni enregistré : le geste fait sonner son degré de l'accord en cours
   if (S.jam) return jouerEnJam(a, ns);
+  // Une note jouée en mode pianiste : le score de la partie ne se compare plus à ceux de la position fixe
+  if (hauteur !== undefined) S.pianiste = true;
   const avant = compteurs(S);
-  if (a === "sauter") leftPress(1, ns);
-  else if (a === "ecraser") leftPress(3, ns);
-  else if (a === "glisser") leftPress(tactile && plaqueProche(ns) ? 3 : 0, ns);
+  if (a === "sauter") leftPress(1, ns, hauteur);
+  else if (a === "ecraser") leftPress(3, ns, hauteur);
+  else if (a === "glisser") leftPress(tactile && plaqueProche(ns) ? 3 : 0, ns, hauteur);
   else {
-    const notes = rightPress(couloir(a), ns, tactile);
+    const notes = rightPress(couloir(a), ns, tactile, hauteur);
     joues[a] = [couloir(a), ...notes.map((ev) => ev.lane).filter((l) => l !== couloir(a))];
   }
   const coup: Appui = { temps: ns / spb(), geste: "appui", action: a },
     resultat = resultatEntre(avant, compteurs(S));
   if (tactile) coup.tactile = true;
+  if (hauteur !== undefined) coup.hauteur = hauteur;
   if (resultat) coup.resultat = resultat;
   noter(S.enregistrement, coup);
 }
