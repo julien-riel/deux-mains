@@ -44,6 +44,20 @@ export interface Univers {
     /** Le nom des tours : « 7 tours de clé sur 8 » */
     tours: string;
   };
+  /** L'éditeur de partitions (#28) : une seule mécanique, que chaque univers habille (ADR-0006, ADR-0016) */
+  editeur: {
+    /** Le nom du bouton */
+    nom: string;
+    titre: string;
+    /** Une note posée sur la grille, au singulier et au pluriel */
+    note: string;
+    notes: string;
+    /** Le titre d'une composition qui n'en a pas */
+    sansTitre: string;
+    /** Le nom des compositions rangées */
+    rangees: string;
+    aide: string;
+  };
 }
 
 // Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
@@ -93,6 +107,15 @@ export const THEMES: Record<string, Univers> = {
       depart: "Volume de départ",
       tours: "tours de manivelle",
     },
+    editeur: {
+      nom: "Console",
+      titre: "La console de la radio pirate",
+      note: "touche allumée",
+      notes: "touches allumées",
+      sansTitre: "Émission sans titre",
+      rangees: "Mes émissions",
+      aide: "Allume une touche pour y mettre une note : en haut les quatre couloirs de la mélodie, en bas sauter et glisser. Les notes jouent les degrés de l'accord en cours.",
+    },
   },
   boite: {
     label: "La Boîte à musique",
@@ -138,6 +161,15 @@ export const THEMES: Record<string, Univers> = {
       consigne: "Accompagne chaque tour de la clé : le ressort se tend.",
       depart: "Ressort de départ",
       tours: "tours de clé",
+    },
+    editeur: {
+      nom: "Cylindre",
+      titre: "Le cylindre à perforer",
+      note: "picot",
+      notes: "picots",
+      sansTitre: "Cylindre sans titre",
+      rangees: "Mes cylindres",
+      aide: "Plante un picot pour y mettre une note : en haut les quatre lames de la mélodie, en bas sauter et glisser. Les lames jouent les degrés de l'accord en cours.",
     },
   },
 };

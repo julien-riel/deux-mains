@@ -379,15 +379,16 @@ export function render(nb, dt) {
   g.restore();
   croisement(vue.annonce, bp);
 
-  // HUD
+  // HUD : une composition (#28) montre son titre à la place du lieu
+  const compo = S.song.source?.genre === "partition" ? S.song.source : null;
   txt(
-    `${S.essai ? `ESSAI · ${S.essai.essai.titre.toUpperCase()}` : `${TH().unit.toUpperCase()} N° ${S.seed}`} · ${DIFFS[S.diff].label.toUpperCase()}`,
+    `${S.essai ? `ESSAI · ${S.essai.essai.titre.toUpperCase()}` : compo ? TH().editeur.nom.toUpperCase() : `${TH().unit.toUpperCase()} N° ${S.seed}`} · ${DIFFS[S.diff].label.toUpperCase()}`,
     24,
     36,
     `600 11px ${FONT.mono}`,
     COL.muted,
   );
-  txt(placeName(), 24, 62, `700 17px ${FONT.display}`, COL.fg);
+  txt(compo ? compo.titre.trim() || TH().editeur.sansTitre : placeName(), 24, 62, `700 17px ${FONT.display}`, COL.fg);
   txt(`${song.keyName} · ${song.bpm} BPM`, 24, 84, `500 13px ${FONT.body}`, COL.muted);
   const duo = S.practice === "duo";
   // En jam (#24), il n'y a ni harmonie, ni couches, ni score

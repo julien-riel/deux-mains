@@ -238,32 +238,42 @@ describe("registre des essais", () => {
 });
 
 // La jam n'a pas de fin ni de notes à jouer : son parcours est dans jam.test.ts. Les essais du remontage (#27)
-// commencent par lui : leur parcours est dans remontage.test.ts
-describe.each(ESSAIS.filter((e) => !e.jam && !e.remontage).map((e) => [e.id, e] as const))("essai %s", (id, e) => {
-  it("ouvert par ?essai=, l'auto-play le joue jusqu'au bout sans rater de note", async () => {
-    nav = await Navigateur.ouvrir({ adresse: { search: `?essai=${id}` } });
-    const S = nav.jeu.state;
-    expect([S.mode, S.essai?.essai.id, S.theme, S.diff, S.practice]).toEqual(["title", id, e.univers, e.diff, e.mains]);
-    expect(nav.overlay.innerHTML).toContain(e.titre);
-    nav.presser("KeyA");
-    expect(S.mode).toBe("play");
+// commencent par lui : leur parcours est dans remontage.test.ts. L'essai de l'éditeur (#28) ouvre l'éditeur : son parcours
+// est dans editeur.test.ts
+describe.each(ESSAIS.filter((e) => !e.jam && !e.remontage && !e.partition).map((e) => [e.id, e] as const))(
+  "essai %s",
+  (id, e) => {
+    it("ouvert par ?essai=, l'auto-play le joue jusqu'au bout sans rater de note", async () => {
+      nav = await Navigateur.ouvrir({ adresse: { search: `?essai=${id}` } });
+      const S = nav.jeu.state;
+      expect([S.mode, S.essai?.essai.id, S.theme, S.diff, S.practice]).toEqual([
+        "title",
+        id,
+        e.univers,
+        e.diff,
+        e.mains,
+      ]);
+      expect(nav.overlay.innerHTML).toContain(e.titre);
+      nav.presser("KeyA");
+      expect(S.mode).toBe("play");
 
-    nav.avancerJusqua((s) => s.mode !== "play", (S.song.endBeat * 60) / S.song.bpm + 10);
+      nav.avancerJusqua((s) => s.mode !== "play", (S.song.endBeat * 60) / S.song.bpm + 10);
 
-    expect(S.mode).toBe("done");
-    // Les notes jouées sont celles de la partie, variations comprises (ADR-0012), et chaque passage de serpent
-    // (#16) est un coup en plus
-    expect([S.miss, S.health, S.perfect]).toEqual([0, 100, coupsAttendus(S.ev)]);
-    if (e.variation) {
-      const { solo } = soloEtRefrain(S.song.sections),
-        reperes = S.ev.filter(e.repere);
-      expect(reperes.length).toBeGreaterThanOrEqual(4);
-      expect(reperes[0].bar).toBeLessThan(solo.start + solo.bars + 4);
-    }
-    expect(nav.overlay.innerHTML).toContain("Essai terminé");
-    expect(nav.overlay.innerHTML).toContain('data-act="quitter-essai"');
-  });
-});
+      expect(S.mode).toBe("done");
+      // Les notes jouées sont celles de la partie, variations comprises (ADR-0012), et chaque passage de serpent
+      // (#16) est un coup en plus
+      expect([S.miss, S.health, S.perfect]).toEqual([0, 100, coupsAttendus(S.ev)]);
+      if (e.variation) {
+        const { solo } = soloEtRefrain(S.song.sections),
+          reperes = S.ev.filter(e.repere);
+        expect(reperes.length).toBeGreaterThanOrEqual(4);
+        expect(reperes[0].bar).toBeLessThan(solo.start + solo.bars + 4);
+      }
+      expect(nav.overlay.innerHTML).toContain("Essai terminé");
+      expect(nav.overlay.innerHTML).toContain('data-act="quitter-essai"');
+    });
+  },
+);
 
 describe("accès au mode essai", () => {
   it("le bouton Essais de l'écran titre liste les essais, et en choisir un le lance aussitôt", async () => {

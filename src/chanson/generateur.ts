@@ -633,5 +633,6 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     endBeat: totalBars * 4,
     keyName: `${NOTE_FR[keyPc]} ${prog.mode}`,
     progLabel: names.join(" – "),
+    source: { genre: "graine", graine: seed, diff: diffKey },
   };
 }

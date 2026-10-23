@@ -2,11 +2,12 @@ import { songNow } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { finish, lancerJam, newRun, pause, quitterJam, resumeCP, unpause } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
-import { S, spb } from "../jeu/etat";
+import { S, enComposition, spb } from "../jeu/etat";
 import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./carte";
 import { aRemonter, overlay, show } from "./ecrans";
+import { fermerEditeur, jouerBrouillon, ouvrirEditeur } from "./editeur";
 import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
 import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
 import { basculerBoss, nouvelleChanson, quitterEssai } from "./reglages";
@@ -38,6 +39,7 @@ overlay.addEventListener("click", (e) => {
   else if (act === "copier") copierCode();
   else if (act === "coller") collerCode(document.querySelector<HTMLTextAreaElement>("#code-colle")?.value ?? "");
   else if (act === "boss") basculerBoss();
+  else if (act === "editeur") ouvrirEditeur();
 });
 
 /* ---------- Entrées ---------- */
@@ -76,6 +78,22 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (e.repeat) return;
+  if (S.mode === "editeur") {
+    // L'éditeur (#28) : sur un bouton de la grille, Espace et Entrée le touchent ; ailleurs, ils jouent le brouillon
+    const surBouton = t?.tagName === "BUTTON";
+    if (c === "Escape") {
+      if (S.editeur.vue === "rangement") {
+        S.editeur.vue = "grille";
+        show("editeur");
+      } else fermerEditeur();
+    } else if (surBouton) return;
+    else if (c === "KeyA") jouerBrouillon(true);
+    else if (c === "Space" || c === "Enter") {
+      e.preventDefault();
+      jouerBrouillon(false);
+    }
+    return;
+  }
   if (S.mode === "calib") {
     const fini = S.calib.resultat !== undefined;
     if (c === "Escape") fermerCalibrage();
@@ -120,7 +138,10 @@ addEventListener("keydown", (e) => {
     else if (c === "KeyE") menuEssais();
     else if (c === "KeyC") ouvrirCarte();
     else if (c === "KeyB" && !S.essai) basculerBoss();
+    // L'éditeur (#28) : hors essai, ou dans l'essai de l'éditeur ; une composition y revient aussi par Échap
+    else if (c === "KeyP" && (!S.essai || S.essai.essai.partition)) ouvrirEditeur();
     else if (c === "Escape" && S.essai) quitterEssai();
+    else if (c === "Escape" && enComposition()) ouvrirEditeur();
   } else if (S.mode === "pause" && S.jam) {
     if (c === "Space") {
       e.preventDefault();
@@ -143,11 +164,14 @@ addEventListener("keydown", (e) => {
       e.preventDefault();
       newRun();
     } else if (c === "KeyN") nouvelleChanson();
-    else if (c === "KeyB" && S.mode === "done" && !S.essai) basculerBoss();
+    else if (c === "KeyB" && S.mode === "done" && !S.essai && !enComposition()) basculerBoss();
     else if (c === "KeyE" && S.essai) menuEssais();
+    // Une composition jouée (#28) revient à l'éditeur
+    else if (c === "KeyP" && enComposition()) ouvrirEditeur();
     else if (c === "Escape" && S.essai) quitterEssai();
+    else if (c === "Escape" && enComposition()) ouvrirEditeur();
     else if (c === "KeyC") ouvrirCarte();
-    else if (c === "ArrowRight" && S.mode === "done" && !S.essai) enchainer();
+    else if (c === "ArrowRight" && S.mode === "done" && !S.essai && !enComposition()) enchainer();
   }
 });
 addEventListener("keyup", (e) => {

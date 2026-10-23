@@ -2,22 +2,20 @@
 // Logique pure (ADR-0007). Une chanson d'essai est courte et fait revenir une fonctionnalité dès les premières
 // mesures. On ne touche pas au générateur (ADR-0005) : on part de sa sortie, dont on réassemble des mesures
 // (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés, et au
-// besoin la mélodie.
+// besoin la mélodie. Les mesures réécrites le sont comme celles d'une partition (#28, ADR-0016) : mêmes motifs, mêmes
+// fonctions (`notesDeMelodie`, `finaliser`).
 import { DIFFS } from "../chanson/difficultes";
 import { mulberry32 } from "../chanson/aleatoire";
 import {
   buildSong,
-  couloirsDuSerpent,
   escalier,
   melodieEnPolyrythmie,
   notesDeBasse,
-  noteDeMelodie,
-  petiteNote,
   phraseDuChanteur,
   phraseEnRelais,
-  voisin,
 } from "../chanson/generateur";
-import { memeTemps, relierAccords } from "../chanson/temps";
+import { finaliser, notesDeMelodie } from "../chanson/partition";
+import { memeTemps } from "../chanson/temps";
 import { gammeDe, makeChord } from "../chanson/theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
@@ -48,35 +46,6 @@ export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
  * petite note (#14) entre les couloirs 0 et 1, 1 et 2, 2 et 3, qui mène à la note suivante de la mesure, . silence */
 export type MotifsDeMelodie = Partial<Record<Genre, string[]>>;
 
-// Les notes de mélodie d'une mesure, construites comme celles du générateur (ADR-0003, ADR-0010)
-function mesureDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre, pentatonique: number[]): Note[] {
-  const notes: Note[] = [];
-  for (let k = 0; k < 8; k++) {
-    const petite = "abc".indexOf(motif[k]);
-    if (petite >= 0) {
-      // Elle mène à la note suivante de la mesure : vers le haut si celle-ci est au-dessus
-      const lane = petite + 0.5,
-        suivante = motif.slice(k + 1).match(/[0-3]/),
-        n = petiteNote(lane, !suivante || +suivante[0] > lane, bar * 4 + k / 2, bar, ch, kind, pentatonique);
-      if (n) notes.push(n);
-      continue;
-    }
-    if (!/[0-3]/.test(motif[k])) continue;
-    const lane = +motif[k],
-      suite = motif[k + 1];
-    let n = 1;
-    while (k + n < 8 && "-~_/\\".includes(motif[k + n])) n++;
-    const trille = suite === "~" ? voisin(lane, 1) : suite === "_" ? voisin(lane, -1) : undefined;
-    // Un serpent (#16) : un couloir de plus par / (en montant) ou par \ (en descendant)
-    const passages = [...motif.slice(k + 1, k + n)].filter((c) => c === "/" || c === "\\"),
-      serpent = passages.length
-        ? couloirsDuSerpent(lane, passages[0] === "/" ? 1 : -1, passages.length + 1)
-        : undefined;
-    notes.push(noteDeMelodie(lane, bar * 4 + k / 2, n > 1 ? n / 2 : 0, bar, ch, kind, 1, trille, serpent));
-  }
-  return notes;
-}
-
 /**
  * Assemble une chanson d'essai : les morceaux de la chanson générée par `graine` et `diff`, mis bout à bout.
  * Les accords et la mélodie viennent des mesures recopiées ; la basse est réécrite avec les motifs de la
@@ -106,7 +75,7 @@ export function assembler(
     for (let i = 0; chant && i < m.mesures; i++) {
       const ch = chords[bar + i];
       ev.push(
-        ...mesureDeMelodie(chant[i % chant.length], bar + i, ch, m.genre, gammeDe(source.keyPc, source.prog, ch, true)),
+        ...notesDeMelodie(chant[i % chant.length], bar + i, ch, m.genre, gammeDe(source.keyPc, source.prog, ch, true)),
       );
     }
     for (const e of chant ? [] : source.ev)
@@ -127,8 +96,18 @@ export function assembler(
       ev.push(...notesDeBasse(a[i % a.length], bar + i, chords[bar + i], m.genre, m.genre === "refrain" && i === 0));
     bar += m.mesures;
   }
-  // Les chanteurs de la chanson générée ne sont pas recopiés : `chanter` en pose où l'on veut
-  return finaliser({ ...source, sections, totalBars: bar, chords, ev, chanteurs: [], endBeat: bar * 4 });
+  // Les chanteurs de la chanson générée ne sont pas recopiés : `chanter` en pose où l'on veut. La chanson d'essai
+  // n'est plus celle de sa graine : elle n'a pas de source (ADR-0016)
+  return finaliser({
+    ...source,
+    sections,
+    totalBars: bar,
+    chords,
+    ev,
+    chanteurs: [],
+    endBeat: bar * 4,
+    source: undefined,
+  });
 }
 
 /**
@@ -258,21 +237,4 @@ export function marcher(
     }
   }
   return finaliser(chanson);
-}
-
-/** Les mêmes finitions que le générateur : notes triées, durée des sauts, état neuf et accords reliés */
-export function finaliser(chanson: Chanson): Chanson {
-  const ev = chanson.ev;
-  for (const e of ev) {
-    delete e.grp;
-    e.state = "pending";
-  }
-  ev.sort((a, b) => a.beat - b.beat || (a.hand < b.hand ? -1 : 1));
-  const Ls = ev.filter((e) => e.hand === "L");
-  Ls.forEach((e, i) => {
-    const nx = Ls[i + 1];
-    e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
-  });
-  relierAccords(ev);
-  return chanson;
 }

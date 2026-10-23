@@ -37,6 +37,7 @@ export default defineConfig({
         "src/jeu/croisement.ts",
         "src/jeu/jam.ts",
         "src/jeu/remontage.ts",
+        "src/jeu/editeur.ts",
       ],
       reporter: ["text"],
       thresholds: {
@@ -52,6 +53,7 @@ export default defineConfig({
         "src/jeu/croisement.ts": { lines: 90 },
         "src/jeu/jam.ts": { lines: 90 },
         "src/jeu/remontage.ts": { lines: 90 },
+        "src/jeu/editeur.ts": { lines: 90 },
       },
     },
   },
