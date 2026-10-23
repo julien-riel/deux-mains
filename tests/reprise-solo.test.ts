@@ -19,6 +19,7 @@ import {
   soloEtRefrain,
   type NoteDuSolo,
 } from "../src/jeu/variations";
+import { conseil, noterLeStyle, pointsDeStyle } from "../src/jeu/style";
 import { Navigateur } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : Intro 0–1, Couplet 2–9, Refrain 10–17, Solo libre 18–21, Refrain 22–29, Outro 30–31
@@ -274,6 +275,10 @@ describe("la reprise en jouant", () => {
       expect(S.banner.sub).toBe("Le refrain reprend le solo");
       nav.avancerJusqua((s) => s.mode !== "play", 120);
       expect([S.mode, S.miss]).toEqual(["done", 0]);
+      // L'improvisation du bot est notée (#22) ; l'écran de fin la montre, sans conseil
+      expect(S.reprise.style).toEqual(noterLeStyle(improviser(GRAINE, 32)));
+      expect(nav.overlay.innerHTML).toContain("Style de l'auto-play au solo");
+      expect(nav.overlay.innerHTML).not.toContain(conseil(S.reprise.style));
       const phrase = meilleurePhrase(improviser(GRAINE, 32), DIFFS.normal.mel, 32);
       expect(S.reprise.phrase).toEqual(phrase);
       expect(repris(S.ev).map((e) => e.bar)).toEqual([
@@ -304,8 +309,19 @@ describe("la reprise en jouant", () => {
     taper("KeyL", b0 + 2);
     taper("KeyJ", b0 + 3);
     expect(S.reprise.solo).toEqual([n(0, 0), n(2, 1), n(4, 2), n(6, 0)]);
+    const droiteAvant = S.parMain.R.score;
     nav.avancerJusqua((s) => s.reprise.faite, 30);
     expect(S.banner.sub).toBe("Le refrain reprend ton solo");
+    // La note de style (#22) : trois couloirs, aucun silence, une phrase qui finit sur la fondamentale ; ses points
+    // vont à la main droite, avant le point de reprise du refrain
+    expect(S.reprise.style).toEqual(noterLeStyle(S.reprise.solo));
+    expect(S.reprise.style).toMatchObject({ variete: 3, respiration: 1, resolution: 3, faible: "respiration" });
+    expect(S.parMain.R.score - droiteAvant).toBe(pointsDeStyle(S.reprise.style));
+    expect(S.cp.parMain.R.score).toBe(S.parMain.R.score);
+    nav.image();
+    expect(nav.textes).toEqual(
+      expect.arrayContaining(["STYLE DU SOLO", "VARIÉTÉ", "RESPIRATION", "RÉSOLUTION", conseil(S.reprise.style)]),
+    );
 
     const reprises = repris(S.ev),
       debut = (refrain.start + 2) * 4;
@@ -324,6 +340,13 @@ describe("la reprise en jouant", () => {
     // Les ennemis repris, avec leur étoile, sont dessinés à l'écran avant d'arriver
     nav.avancerJusqua(() => temps() >= debut - 2, 30);
     expect(S.ev.some((e) => e.reprise && e.state === "pending")).toBe(true);
+
+    // L'écran de fin reprend la note de style, critère par critère, avec le conseil (#22)
+    const { show } = await import("../src/ui/ecrans");
+    show("done");
+    for (const t of ["Style du solo", "Variété", "plusieurs couloirs", "3 étoiles sur 3", "1 étoile sur 3"])
+      expect(nav.overlay.innerHTML).toContain(t);
+    expect(nav.overlay.innerHTML).toContain(conseil(S.reprise.style));
   });
 
   it("sans rien jouer au solo, le dernier refrain est celui du générateur", async () => {

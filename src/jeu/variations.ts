@@ -7,6 +7,7 @@ import { mulberry32 } from "../chanson/aleatoire";
 import type { Accord, Note, Section } from "../chanson/types";
 import { clamp } from "../outils";
 import { S } from "./etat";
+import { noterLeStyle, type Style } from "./style";
 
 /** Une note jouée au solo : sa croche depuis le début du solo (ou de la phrase), et son couloir */
 export interface NoteDuSolo {
@@ -14,13 +15,15 @@ export interface NoteDuSolo {
   couloir: number;
 }
 
-/** Ce que la partie garde du solo : les notes jouées, la phrase choisie, et si le choix est fait */
+/** Ce que la partie garde du solo : les notes jouées, la phrase choisie, sa note de style (#22), et si le choix
+ * est fait */
 export interface Reprise {
   solo: NoteDuSolo[];
   phrase: NoteDuSolo[] | null;
+  style: Style | null;
   faite: boolean;
 }
-export const repriseNeuve = (): Reprise => ({ solo: [], phrase: null, faite: false });
+export const repriseNeuve = (): Reprise => ({ solo: [], phrase: null, style: null, faite: false });
 
 /** Les réglages de mélodie de la difficulté qui comptent pour la phrase reprise (voir `DIFFS`) */
 export interface ReglagesPhrase {
@@ -165,13 +168,14 @@ export function noterAuSolo(sec: Section, nb: number, couloir: number) {
 }
 
 /**
- * À la fin du solo, choisit la phrase et la fait revenir dans les notes de la partie. Renvoie la phrase reprise,
- * ou null (pas encore la fin du solo, déjà fait, en boucle, ou solo trop pauvre).
+ * À la fin du solo, le note (#22), choisit la phrase et la fait revenir dans les notes de la partie. Renvoie la
+ * phrase reprise, ou null (pas encore la fin du solo, déjà fait, en boucle, ou solo trop pauvre).
  */
 export function reprendreLeSolo(nb: number, P: ReglagesPhrase): NoteDuSolo[] | null {
   const cible = soloEtRefrain(S.song.sections);
   if (S.bouclePartie || S.reprise.faite || !cible || nb < (cible.solo.start + cible.solo.bars) * 4) return null;
   S.reprise.faite = true;
+  S.reprise.style = noterLeStyle(S.reprise.solo);
   const phrase = meilleurePhrase(S.reprise.solo, P, cible.solo.bars * 8);
   S.reprise.phrase = phrase;
   if (phrase) S.ev = reprendre(S.ev, S.song.chords, cible.refrain, phrase);

@@ -20,6 +20,8 @@ import {
   type Action,
 } from "../jeu/etat";
 import { couloirDe, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
+import { CRITERES, conseil } from "../jeu/style";
+import { soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -458,6 +460,7 @@ export function render(nb, dt) {
       if (S.banner.sub) txt(S.banner.sub, W / 2 + 60, 316, `500 17px ${FONT.body}`, hexA(COL.fg, a * 0.8), "center");
     }
   }
+  if (playing) noteDeStyle(nb);
   // Vignette rouge quand l'harmonie est basse
   if (playing && S.health < 40) {
     const vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.7);
@@ -813,6 +816,54 @@ function dessinerPetite(ev, x, y, a, nb, hsl) {
     );
 }
 /** Une étoile à quatre branches, de rayon r */
+/** Les trois étoiles d'un critère, pleines jusqu'à la note : renvoie leur largeur */
+function etoiles(x, y, n, a) {
+  for (let i = 0; i < 3; i++) etoile(x + 7 + 17 * i, y, 7, i < n ? hexA(COL.good, a) : hexA(COL.muted, 0.35 * a));
+  return 51;
+}
+// Combien de temps la note de style du solo (#22) reste affichée après le solo, en temps
+const DUREE_STYLE = 12;
+/**
+ * La note de style du solo (#22), au début du refrain qui le suit : les trois critères et leurs étoiles, puis le
+ * conseil pour le plus faible. Elle tient entre les deux couloirs du haut, sous les ennemis, comme la bannière.
+ */
+function noteDeStyle(nb: number) {
+  const style = S.reprise.style,
+    cible = style && !S.bouclePartie && soloEtRefrain(S.song.sections);
+  if (!cible) return;
+  const age = nb - (cible.solo.start + cible.solo.bars) * 4;
+  if (age < 0 || age >= DUREE_STYLE) return;
+  const a = Math.min(1, age / 0.5, (DUREE_STYLE - age) / 2),
+    bot = autoFor("R"),
+    titre = bot ? "STYLE DE L'AUTO-PLAY" : "STYLE DU SOLO",
+    fTitre = `600 11px ${FONT.mono}`,
+    fNom = `600 12px ${FONT.mono}`;
+  // Largeur de la ligne des critères, pour la centrer : le titre, puis chaque nom suivi de ses étoiles
+  g.font = fTitre;
+  let w = g.measureText(titre).width;
+  g.font = fNom;
+  for (const c of CRITERES) w += 28 + g.measureText(c.nom.toUpperCase()).width + 8 + 51;
+  const cx = W / 2 + 60,
+    texte = bot ? "" : conseil(style);
+  g.font = `500 14px ${FONT.body}`;
+  const large = Math.max(w, texte ? g.measureText(texte).width : 0);
+  rr(cx - large / 2 - 18, 170, large + 36, texte ? 54 : 32, 12);
+  g.fillStyle = hexA(COL.ink, 0.62 * a);
+  g.fill();
+  let x = cx - w / 2;
+  txt(titre, x, 191, fTitre, hexA(COL.muted, a));
+  g.font = fTitre;
+  x += g.measureText(titre).width;
+  for (const c of CRITERES) {
+    x += 28;
+    const nom = c.nom.toUpperCase();
+    txt(nom, x, 191, fNom, hexA(COL.fg, a));
+    g.font = fNom;
+    x += g.measureText(nom).width + 8;
+    x += etoiles(x, 186, style[c.cle], a);
+  }
+  if (texte) txt(texte, cx, 214, `500 14px ${FONT.body}`, hexA(COL.fg, 0.9 * a), "center");
+}
 function etoile(x, y, r, couleur) {
   g.beginPath();
   for (let i = 0; i < 8; i++) {

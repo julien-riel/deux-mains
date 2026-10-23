@@ -22,7 +22,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
   - `ui/` : écrans, touches, clavier, tactile, clavier MIDI (accès Web MIDI), réglages, menu des essais ;
   - `main.ts` : amorçage et boucle d'images.
 
-  `chanson/`, `essais/`, `jeu/jugement.ts`, `jeu/calibrage.ts`, `jeu/midi.ts` et `jeu/variations.ts` (la reprise du solo, ADR-0012) sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
+  `chanson/`, `essais/`, `jeu/jugement.ts`, `jeu/calibrage.ts`, `jeu/midi.ts`, `jeu/variations.ts` (la reprise du solo, ADR-0012) et `jeu/style.ts` (la note de style du solo, #22) sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
 
 - `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
 - `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.
@@ -55,7 +55,7 @@ Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
 | `npm run lint`   | ESLint                                                                                     |
 
-Les tests unitaires (`generateur`, `jugement`, `autoplay`) importent directement la logique pure, sans faux navigateur : les effets du jugement y sont des espions. La couverture des lignes de `chanson/`, de `jeu/jugement.ts`, de `jeu/midi.ts` et de `jeu/variations.ts` doit rester d'au moins 90 %, sinon `npm test` échoue.
+Les tests unitaires (`generateur`, `jugement`, `autoplay`) importent directement la logique pure, sans faux navigateur : les effets du jugement y sont des espions. La couverture des lignes de `chanson/`, de `jeu/jugement.ts`, de `jeu/midi.ts`, de `jeu/variations.ts` et de `jeu/style.ts` doit rester d'au moins 90 %, sinon `npm test` échoue.
 
 La simulation charge `src/main.ts` dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état en important les modules. L'instantané du générateur (`tests/instantanes/chansons.json`) prouve que les chansons ne changent pas ; ne le régénérer (`npx vitest run -u`) que pour un changement voulu du générateur.
 

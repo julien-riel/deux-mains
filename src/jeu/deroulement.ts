@@ -3,13 +3,14 @@ import { tapeStop } from "../audio/instruments";
 import { AC, B, initAudio, songNow } from "../audio/moteur";
 import { startScheduler, stopScheduler } from "../audio/sequenceur";
 import { DIFFS } from "../chanson/difficultes";
-import { burst, HITX, LANE_HUE, LANE_Y } from "../rendu/outils";
+import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { TH } from "../univers/univers";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
+import { pointsDeStyle } from "./style";
 import { repriseNeuve, reprendreLeSolo } from "./variations";
 
 /* ---------- Partie ---------- */
@@ -203,6 +204,15 @@ export function update(nb) {
     ns = nb * spb(),
     wg = DIFFS[S.diff].win[1];
   const bar = Math.floor(nb / 4);
+  // À la fin du solo, sa meilleure phrase revient dans le refrain qui suit (#9, ADR-0012), et sa note de style
+  // rapporte ses points (#22) avant le point de reprise du refrain : une mort au refrain ne les fait pas perdre
+  const soloEnCours = !S.reprise.faite,
+    phrase = reprendreLeSolo(nb, DIFFS[S.diff].mel);
+  if (soloEnCours && S.reprise.style) {
+    const points = pointsDeStyle(S.reprise.style);
+    gagner(points, "R");
+    popup(`+${points} STYLE`, W / 2 + 60, LANE_Y[1] + 40, COL.good);
+  }
   if (bar >= 0 && mesureDeLaChanson(bar) < song.totalBars) {
     const sec = sectionAtBar(bar);
     if (sec !== S.curSec) {
@@ -221,8 +231,7 @@ export function update(nb) {
         S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };
     }
   }
-  // À la fin du solo, sa meilleure phrase revient dans le refrain qui suit (#9, ADR-0012)
-  if (reprendreLeSolo(nb, DIFFS[S.diff].mel))
+  if (phrase)
     S.banner = {
       text: S.curSec.name,
       sub: autoFor("R") ? "Le refrain reprend le solo" : "Le refrain reprend ton solo",

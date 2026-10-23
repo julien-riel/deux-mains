@@ -237,6 +237,47 @@ button kbd {
   color: var(--fg);
   font-weight: 700;
 }
+/* ---------- Note de style du solo (#22) ---------- */
+.style-solo {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  width: min(560px, 100%);
+}
+.style-solo .criteres {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 18px;
+  width: 100%;
+}
+.style-solo .criteres div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.style-solo b {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: var(--good);
+}
+.style-solo b i {
+  font-style: normal;
+  color: var(--muted);
+  opacity: 0.5;
+}
+.style-solo span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.style-solo small {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 520px) {
+  .style-solo .criteres {
+    grid-template-columns: 1fr;
+  }
+}
 /* ---------- Mode essai ---------- */
 .essais {
   display: grid;
