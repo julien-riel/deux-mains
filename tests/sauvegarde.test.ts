@@ -207,6 +207,8 @@ describe("code de sauvegarde", () => {
 // sa nouvelle empreinte à la liste de la version en cours.
 const EMPREINTES_DE_L_INSTANTANE: Record<number, string[]> = {
   1: ["47a2bad5c0102329ebbe7d53da82aaff945881884faf2d6f747e005ca3b0e2d1"],
+  // La section en 3 contre 2 (#19, ADR-0013) en Difficile
+  2: ["90dc55f2eef50c061df8a1e81b07d8be0d32abfaf22a03f6a62f667b7cbc0dd1"],
 };
 it("VERSION_GENERATEUR change avec l'instantané du générateur", () => {
   const instantane = readFileSync(new URL("./instantanes/chansons.json", import.meta.url), "utf8").replace(

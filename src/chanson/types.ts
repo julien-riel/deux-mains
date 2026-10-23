@@ -10,7 +10,9 @@ export interface Voix {
 }
 
 export type Main = "L" | "R";
-export type Genre = "intro" | "couplet" | "refrain" | "pont" | "outro";
+/** « pont » est le solo libre (ou le pont en mains croisées, #21) ; « polyrythmie » est la section en 3 contre 2
+ * (#19, ADR-0013), où la basse joue en triolets pendant que la mélodie reste en croches. */
+export type Genre = "intro" | "couplet" | "refrain" | "pont" | "polyrythmie" | "outro";
 export type EtatNote = "pending" | "hit" | "holding" | "done" | "miss" | "broken" | "skip";
 
 /** Un accord de la progression, et les notes de ses quatre couloirs (fondamentale, tierce, quinte, octave). */
@@ -38,6 +40,7 @@ export interface Section {
 /** Un événement de note : un obstacle (main gauche) ou un ennemi (main droite). */
 export interface Note {
   hand: Main;
+  /** Le temps de la note et sa durée, en temps : des multiples de 1/12 de temps, comparés par `pas()` (ADR-0013) */
   beat: number;
   dur: number;
   /** Main gauche : 0 glisser, 1 sauter, 2 double saut, 3 écraser (#8), 4 monter une marche et 5 descendre une

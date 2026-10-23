@@ -4,7 +4,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFFS } from "../src/chanson/difficultes";
-import { NOM_CROISEE, buildSong, estPetiteNote } from "../src/chanson/generateur";
+import { NOM_CROISEE, NOM_POLYRYTHMIE, buildSong, estPetiteNote } from "../src/chanson/generateur";
+import { pas } from "../src/chanson/temps";
 import type { Chanson, Note, Section } from "../src/chanson/types";
 import { autoNotes, autoSolo } from "../src/jeu/autoplay";
 import { ANNONCE, BASCULE, retournement } from "../src/jeu/croisement";
@@ -17,7 +18,8 @@ import { Navigateur } from "./support/navigateur";
 const croiseeDe = (c: Chanson) => c.sections.find((s) => s.croisee);
 const dans = (diff: string) => GRAINES.map((graine) => buildSong(graine, diff));
 const AVEC = dans("difficile").filter(croiseeDe);
-const resume = (ev: Note) => [ev.hand, ev.beat, ev.lane, ev.midi, ev.dur];
+// Les temps se comparent par pas (ADR-0013) : un triolet décalé de quatre mesures peut différer d'un arrondi
+const resume = (ev: Note) => [ev.hand, pas(ev.beat), ev.lane, ev.midi, ev.dur];
 const notesDe = (c: Chanson, sec: Section) =>
   c.ev.filter((ev) => ev.beat >= sec.start * 4 && ev.beat < (sec.start + sec.bars) * 4);
 
@@ -45,7 +47,9 @@ describe("le pont en mains croisées dans le générateur", () => {
     expect(AVEC.length).toBeLessThanOrEqual((3 * GRAINES.length) / 4);
     for (const c of AVEC) {
       const sec = croiseeDe(c);
-      expect(c.sections.map((s) => s.name)).toEqual([
+      // La section en 3 contre 2 (#19) peut s'ajouter avant l'outro : elle a son propre tirage
+      const poly = c.sections.some((s) => s.name === NOM_POLYRYTHMIE);
+      expect(c.sections.map((s) => s.name).filter((n) => n !== NOM_POLYRYTHMIE)).toEqual([
         "Intro",
         "Couplet",
         "Refrain",
@@ -54,7 +58,12 @@ describe("le pont en mains croisées dans le générateur", () => {
         "Refrain",
         "Outro",
       ]);
-      expect([sec.kind, sec.bars, sec.start, c.totalBars, c.endBeat]).toEqual(["pont", 4, 18, 36, 144]);
+      expect([sec.kind, sec.bars, sec.start, c.totalBars, c.endBeat]).toEqual([
+        "pont",
+        4,
+        18,
+        ...(poly ? [40, 160] : [36, 144]),
+      ]);
       // Ce pont a une mélodie écrite : le solo libre reste celui d'après, et c'est lui que reprend le refrain (#9)
       expect(estSolo(sec)).toBe(false);
       expect(soloEtRefrain(c.sections).solo.name).toBe("Solo libre");

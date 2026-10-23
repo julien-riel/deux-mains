@@ -1,7 +1,7 @@
 // Les quatre difficultés : fenêtres de jugement, dégâts, motifs de basse et réglages de la mélodie
 
-// Basse : une chaîne de 8 croches par mesure. S = glisser, W = sauter, T = tunnel (tenu sur les « - »),
-// D = double saut (#7), une croche après un W : il finit une phrase de quatre mesures. M et B = pente montante
+// Basse : une chaîne de 8 croches par mesure (12 triolets en polyrythmie, voir plus bas). S = glisser,
+// W = sauter, T = tunnel (tenu sur les « - »), D = double saut (#7), une croche après un W : il finit une phrase de quatre mesures. M et B = pente montante
 // et descendante (#12), tenues sur les « - » : elles finissent une phrase de deux mesures et amènent la
 // note de la mesure suivante, en Normal et en Difficile. La mélodie évite les notes des deux premiers motifs
 // seulement : le double saut ne change pas la main droite. Le générateur remplace la première note de chaque
@@ -22,6 +22,15 @@
 // en relais entre les deux mains (#20), en Normal et en Difficile (voir `phraseEnRelais` dans le générateur).
 // croiseeP : la chance qu'un pont en mains croisées (#21) précède le solo libre, en Difficile seulement. La scène s'y
 // retourne : les obstacles passent en haut, les ennemis en bas ; les touches et le jugement ne changent pas.
+// Polyrythmie (#19, ADR-0013) : en Difficile seulement, une section en 3 contre 2 peut venir entre le dernier
+// refrain et l'outro, avec la chance `p`. Sa basse s'écrit en 12 signes par mesure (`bass.polyrythmie`) : la
+// longueur d'un motif donne sa division, 8 signes pour des croches, 12 pour des triolets (trois notes par temps).
+// Sa mélodie reste en croches : `melodie` donne, mesure par mesure, la place de ses notes (x une note, 8 croches),
+// deux croches sur chaque temps où la basse joue trois triolets, pour entendre le 3 contre 2.
+export interface ReglagesPolyrythmie {
+  p: number;
+  melodie: string[];
+}
 export interface ReglagesChanteur {
   couloirs: number[];
   rythmes: string[];
@@ -36,6 +45,7 @@ export const DIFFS = {
     escalierP: 0,
     relaisP: 0,
     croiseeP: 0,
+    polyrythmie: null as ReglagesPolyrythmie | null,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -70,6 +80,7 @@ export const DIFFS = {
     escalierP: 0,
     relaisP: 0,
     croiseeP: 0,
+    polyrythmie: null as ReglagesPolyrythmie | null,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -103,6 +114,7 @@ export const DIFFS = {
     escalierP: 0,
     relaisP: 0.6,
     croiseeP: 0,
+    polyrythmie: null as ReglagesPolyrythmie | null,
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -136,10 +148,13 @@ export const DIFFS = {
     escalierP: 0.6,
     relaisP: 0.75,
     croiseeP: 0.5,
+    polyrythmie: { p: 0.6, melodie: ["xx..xx..", "xx..xx..", "xx..xx..", "xxxxxx.."] } as ReglagesPolyrythmie | null,
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],
       pont: ["T---S.W."],
+      // En triolets : trois notes sur les temps 1 et 3, une seule sur les temps 2 et 4, puis trois temps de suite
+      polyrythmie: ["SWSS..SWSS..", "SWWS..SWWS..", "SWSS..SWSS..", "SWSSWSSWS..."],
       outro: ["S.......", "........"],
     },
     mel: {

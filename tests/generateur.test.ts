@@ -69,8 +69,10 @@ describe("générateur", () => {
   });
 
   it("la forme est fixe : Intro 2, Couplet 8, Refrain 8, Solo libre 4, Refrain 8, Outro 2 mesures", () => {
-    // Le pont en mains croisées (#21), en Difficile, allonge la forme : il est testé dans croisement.test.ts
-    for (const { chanson } of CHANSONS.filter((c) => !c.chanson.sections.some((s) => s.croisee))) {
+    // Le pont en mains croisées (#21) et la section en 3 contre 2 (#19), en Difficile, allongent la forme : ils sont
+    // testés dans croisement.test.ts et polyrythmie.test.ts
+    const allongee = (c: Chanson) => c.sections.some((s) => s.croisee || s.kind === "polyrythmie");
+    for (const { chanson } of CHANSONS.filter((c) => !allongee(c.chanson))) {
       expect(chanson.sections.map((s) => [s.name, s.bars, s.start])).toEqual([
         ["Intro", 2, 0],
         ["Couplet", 8, 2],

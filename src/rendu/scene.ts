@@ -217,9 +217,17 @@ export function render(nb, dt) {
     g.fillRect(x0, 96, 2, GY - 136);
     txt(c.name, x0 + 10, 122, `700 20px ${FONT.display}`, hsl(c.hue, 75, 72, 0.95));
   }
+  // Les repères rythmiques propres à chaque main (#19) : en 3 contre 2, la mélodie a une ligne par croche ici, et
+  // la basse un repère par triolet sur le sol, plus bas
+  const enPolyrythmie = (b: number) =>
+    b >= 0 && b < fin * 4 && sectionAtBar(mesureDeLaChanson(Math.floor(b / 4))).kind === "polyrythmie";
   for (let b = Math.ceil(nb - 2); b < nb + 7; b++) {
+    if (enPolyrythmie(b)) {
+      g.fillStyle = hexA(COL.mel, 0.16);
+      g.fillRect(HITX + (b + 0.5 - nb) * PPB, 134, 1, 286);
+    }
     if (b % 4 === 0) continue;
-    g.fillStyle = "rgba(239,234,248,.05)";
+    g.fillStyle = enPolyrythmie(b) ? hexA(COL.mel, 0.22) : "rgba(239,234,248,.05)";
     g.fillRect(HITX + (b - nb) * PPB, 134, 1, 286);
   }
   // Couloirs et ligne de tir
@@ -254,6 +262,11 @@ export function render(nb, dt) {
   for (let b = Math.ceil(nb - 2); b < nb + 8; b++) {
     g.fillStyle = b % 4 === 0 ? hexA(COL.bass, 0.5) : "rgba(239,234,248,.12)";
     g.fillRect(PX + PW / 2 + (b - nb) * PPB, GY + 4, 2, b % 4 === 0 ? 14 : 7);
+    if (!enPolyrythmie(b)) continue;
+    // Les triolets de la basse (#19) : deux repères de plus dans le temps, et un « 3 » au-dessus du groupe
+    g.fillStyle = hexA(COL.bass, 0.45);
+    for (const k of [1, 2]) g.fillRect(PX + PW / 2 + (b + k / 3 - nb) * PPB, GY + 4, 2, 10);
+    txt("3", PX + PW / 2 + (b + 1 / 3 - nb) * PPB, GY + 30, `700 11px ${FONT.mono}`, hexA(COL.bass, 0.7), "center");
   }
   g.fillStyle = hexA(COL.bass, 0.65);
   g.fillRect(-12, GY, W + 24, 2);
@@ -411,7 +424,7 @@ export function render(nb, dt) {
     // En jam (#24), toutes les sections du corps de la chanson tournent
     rejouee = (s) =>
       s === enBoucle || (playing && S.jam && s.start >= S.jam.start && s.start < S.jam.start + S.jam.bars);
-  const secHue = { intro: null, couplet: HUE_BASS, refrain: HUE_MEL, pont: 320, outro: null };
+  const secHue = { intro: null, couplet: HUE_BASS, refrain: HUE_MEL, pont: 320, polyrythmie: 45, outro: null };
   for (const s of song.sections) {
     const x = fx0 + s.start * perBar,
       w = s.bars * perBar - 3;

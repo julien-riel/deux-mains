@@ -12,6 +12,8 @@ export interface Univers {
   solo: string;
   /** Sous le nom du pont en mains croisées (#21), quand la scène se retourne */
   croisee: string;
+  /** Sous le nom de la section en 3 contre 2 (#19) : ce que joue chaque main */
+  polyrythmie: string;
   deadTag: string;
   deadTitle: string;
   rail: string;
@@ -49,6 +51,7 @@ export const THEMES: Record<string, Univers> = {
     },
     solo: "En ondes : la radio pirate est à toi",
     croisee: "La ville à l'envers : tes touches ne changent pas",
+    polyrythmie: "Trois pas par temps, deux tirs : la grosse caisse garde le temps",
     deadTag: "Coupure de courant",
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
@@ -78,6 +81,7 @@ export const THEMES: Record<string, Univers> = {
     },
     solo: "La figurine se souvient : joue ce que tu veux",
     croisee: "La boîte se renverse : tes touches ne changent pas",
+    polyrythmie: "Le cylindre en trois, le carillon en deux : la grosse caisse garde le temps",
     deadTag: "Ressort détendu",
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",
