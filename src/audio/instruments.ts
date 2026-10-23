@@ -360,3 +360,51 @@ export function playHit(ev, t, lane = ev.lane) {
     if (layers().choir && ev.harm) harmV(t, ev.harm);
   }
 }
+/**
+ * Le chanteur (#18) chante une note de sa phrase pendant `dur` secondes. Ville : une voix, voyelle « a » filtrée
+ * par deux formants, avec un vibrato qui arrive après l'attaque. Boîte : un oiseau mécanique qui siffle, une
+ * octave au-dessus comme les lames, et attaque chaque note par un petit glissé.
+ */
+export function chantV(t, m, dur) {
+  const f = mtof(m),
+    end = t + dur,
+    stop = end + 0.6;
+  const gn = AC.createGain();
+  gn.gain.setValueAtTime(0, t);
+  gn.gain.linearRampToValueAtTime(0.22, t + 0.04);
+  gn.gain.setTargetAtTime(0.16, t + 0.05, 0.12);
+  gn.gain.setTargetAtTime(0, end, 0.06);
+  const vib = AC.createGain();
+  vib.gain.setValueAtTime(0, t);
+  vib.gain.linearRampToValueAtTime(boite() ? 25 : 40, t + Math.min(0.25, dur));
+  osc("sine", boite() ? 8 : VIBRATO_HZ, t, stop).connect(vib);
+  if (boite()) {
+    const o = osc("sine", f * 2, t, stop);
+    o.frequency.setValueAtTime(f * 2 * 0.94, t);
+    o.frequency.exponentialRampToValueAtTime(f * 2, t + 0.05);
+    vib.connect(o.detune);
+    o.connect(gn);
+  } else {
+    const voix = [osc("sawtooth", f, t, stop, -4), osc("triangle", f, t, stop, 4)];
+    for (const o of voix) vib.connect(o.detune);
+    const corps = AC.createGain();
+    corps.gain.value = 0.45;
+    voix[1].connect(corps);
+    corps.connect(gn);
+    for (const [fr, q, v] of [
+      [750, 5, 1.6],
+      [1200, 7, 0.9],
+    ]) {
+      const bp = AC.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = fr;
+      bp.Q.value = q;
+      const fg = AC.createGain();
+      fg.gain.value = v;
+      voix[0].connect(bp);
+      bp.connect(fg);
+      fg.connect(gn);
+    }
+  }
+  send(gn, 0.3, 0.35);
+}

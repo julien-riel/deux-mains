@@ -29,6 +29,8 @@ export interface Effets {
   glisser(ev: Note, k: number, beat: number | null): void;
   /** Un passage du serpent vers son couloir `k` : « Parfait » (true), « Bien » (false) ou raté (null) */
   passage(ev: Note, k: number, parfait: boolean | null): void;
+  /** Une réponse au chanteur (#18) entièrement juste : ses quatre notes, et le bonus gagné */
+  phrase(notes: Note[], points: number): void;
   /** Le rayon tiré dans un couloir : réussi, dans le mauvais couloir, ou dans le vide (`null`). */
   tir(lane: number, ok: boolean | null): void;
   mourir(): void;
@@ -109,6 +111,18 @@ function jugerAccord(ev: Note) {
   }
   suivreAccordDuo(ev);
 }
+/** Le chanteur (#18) : une réponse dont les quatre notes sont réussies rapporte `bonus` points, multipliés par le combo */
+export const CHANTEUR = { bonus: 500 };
+// La réponse au chanteur dont cette note vient d'être réussie : le bonus quand c'est la dernière et que toutes
+// le sont. Les notes d'une réponse sont celles de sa mesure, dans la partie : en boucle, chaque passage a la sienne.
+function jugerReponse(ev: Note) {
+  if (!ev.reponse) return;
+  const phrase = S.ev.filter((e) => e.reponse && e.bar === ev.bar);
+  if (!phrase.every(reussie)) return;
+  const points = Math.round(CHANTEUR.bonus * mult(ev.hand));
+  gagner(points, ev.hand);
+  effets.phrase(phrase, points);
+}
 export function hitEv(ev: Note, d: number) {
   if (ev.trille !== undefined) return commencerTrille(ev, d, ev.lane);
   ev.state = ev.dur > 0 ? "holding" : "hit";
@@ -119,6 +133,7 @@ export function hitEv(ev: Note, d: number) {
   if (!ev.auto) effets.jouer(ev, d < 0 ? ev.beat : null);
   effets.reussite(ev, perfect);
   jugerAccord(ev);
+  jugerReponse(ev);
 }
 export function missEv(ev: Note) {
   const D = DIFFS[S.diff];
@@ -352,6 +367,13 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
       effets.tir(ev.lane, true);
     }
     return [near.ev, ...autres];
+  }
+  // Une silhouette de la réponse au chanteur (#18) tirée dans le mauvais couloir est ratée : on ne la retente pas
+  const silhouette = findNear("R", ns, (ev) => !!ev.reponse);
+  if (silhouette) {
+    missEv(silhouette.ev);
+    effets.tir(lane, false);
+    return [];
   }
   // Pendant une trille, ses deux couloirs alternent
   const trille = trilleEnCours(ns);

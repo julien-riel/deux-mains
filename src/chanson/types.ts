@@ -79,6 +79,23 @@ export interface Note {
   passage?: number;
   /** Une note de la phrase du solo reprise au dernier refrain (#9, ADR-0012) : elle n'existe que dans la partie */
   reprise?: boolean;
+  /** Une note de la réponse au chanteur (#18) : une silhouette dont le couloir ne se révèle qu'au coup. Les quatre
+   * notes d'une réponse sont celles de la même mesure. */
+  reponse?: true;
+}
+
+/** Une note chantée par le chanteur (#18) : on l'entend, on ne la joue pas */
+export interface NoteChantee {
+  beat: number;
+  /** Le degré chanté (le couloir de la réponse), et sa note dans l'accord de la mesure chantée (ADR-0003) */
+  lane: number;
+  midi: number;
+}
+
+/** L'ennemi chanteur (#18) : il chante une phrase sur sa mesure, que le joueur répète sur la mesure suivante */
+export interface Chanteur {
+  bar: number;
+  notes: NoteChantee[];
 }
 
 export interface Progression {
@@ -97,6 +114,8 @@ export interface Chanson {
   totalBars: number;
   chords: Accord[];
   ev: Note[];
+  /** Les chanteurs (#18) : leur phrase n'est pas dans `ev`, elle ne se joue pas et n'est pas jugée */
+  chanteurs: Chanteur[];
   endBeat: number;
   keyName: string;
   progLabel: string;

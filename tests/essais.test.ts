@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildSong } from "../src/chanson/generateur";
 import type { Chanson } from "../src/chanson/types";
-import { accorder, assembler } from "../src/essais/fabrique";
+import { accorder, assembler, chanter } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
 import { soloEtRefrain } from "../src/jeu/variations";
 import { coupsAttendus } from "./support/appuis";
@@ -168,6 +168,25 @@ describe("registre des essais", () => {
       { beat: 4, lane: 3, dur: 3, serpent: [3, 2, 1] },
       { beat: 7, lane: 1, dur: 0, serpent: undefined },
     ]);
+  });
+  it("la fabrique ne recopie pas le chanteur de la chanson générée ; chanter en pose où l'on veut (#18)", () => {
+    const sans = assembler(4242, "facile", [{ nom: "Couplet", genre: "couplet", de: 2, mesures: 8 }]);
+    verifierChanson(sans);
+    expect([sans.chanteurs, sans.ev.filter((e) => e.reponse)]).toEqual([[], []]);
+
+    const c = chanter(sans, "facile", [0, 4]);
+    verifierChanson(c);
+    expect(c.chanteurs.map((ch) => ch.bar)).toEqual([0, 4]);
+    for (const ch of c.chanteurs) {
+      // Le chanteur chante seul, et la mélodie de la mesure suivante est sa réponse
+      expect(c.ev.filter((e) => e.hand === "R" && e.bar === ch.bar)).toEqual([]);
+      const reponse = c.ev.filter((e) => e.hand === "R" && e.bar === ch.bar + 1);
+      expect(reponse.map((e) => [e.reponse, e.beat - 4, e.lane])).toEqual(ch.notes.map((n) => [true, n.beat, n.lane]));
+      expect(new Set(ch.notes.map((n) => n.lane))).toEqual(new Set([0, 2]));
+    }
+    // Les autres mesures gardent leur mélodie et la basse ne change pas
+    expect(c.ev.filter((e) => e.hand === "R" && e.bar === 2).length).toBeGreaterThan(0);
+    expect(c.ev.filter((e) => e.hand === "L").length).toBe(8);
   });
 
   it("accorder ajoute un accord à deux mains par mesure de couplet, sans toucher à l'intro", () => {

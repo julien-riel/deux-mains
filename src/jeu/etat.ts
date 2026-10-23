@@ -229,6 +229,12 @@ export const sectionAtBar = (bar: number) => {
   );
 };
 export const chordAtBar = (bar: number) => S.song.chords[mesureDeLaChanson(bar)];
+/** Le chanteur (#18) qui chante sur cette mesure de la partie, ou undefined. Ses notes sont aux temps de la
+ * chanson : en boucle, on les décale de `4 * (bar - chanteur.bar)` (ADR-0009). */
+export const chanteurAtBar = (bar: number) => {
+  const b = mesureDeLaChanson(bar);
+  return (S.song.chanteurs ?? []).find((c) => c.bar === b);
+};
 export const chordAtBeat = (b: number) =>
   S.song.chords[clamp(mesureDeLaChanson(Math.floor(b / 4)), 0, S.song.totalBars - 1)];
 // La précision affichée en fin de partie et pour chaque passage : un « Bien » compte pour 60 %

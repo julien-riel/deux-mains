@@ -7,6 +7,7 @@ import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Main, Note } from "../src/chanson/types";
 import { COULOIRS, S, mult } from "../src/jeu/etat";
 import {
+  CHANTEUR,
   TRILLE,
   VIBRATO,
   brancherEffets,
@@ -43,6 +44,7 @@ beforeEach(() => {
     glisser: vi.fn(),
     passage: vi.fn(),
     tir: vi.fn(),
+    phrase: vi.fn(),
     mourir: vi.fn(),
   };
   brancherEffets(effets);
@@ -685,6 +687,79 @@ describe("serpent (#16)", () => {
     effets.mourir.mockImplementation(() => (S.mode = "dying"));
     suivreSerpent(ev, 6);
     expect([S.health, ev.troncon, S.miss]).toEqual([0, 1, 1]);
+  });
+});
+
+describe("réponse au chanteur (#18)", () => {
+  // Une réponse sur la mesure 1 (temps 4 à 7), après le chanteur de la mesure 0 dont les notes ne sont pas dans S.ev
+  const reponse = (lanes = [0, 2, 1, 2]) =>
+    lanes.map((lane, i) => Object.assign(note("R", 4 + i, lane), { reponse: true as const }));
+
+  it("le bon couloir au bon moment réussit la silhouette, comme une note", () => {
+    const [a] = partie(reponse());
+    expect(rightPress(0, 4.02)).toEqual([a]);
+    expect(a.state).toBe("hit");
+    expect(effets.reussite).toHaveBeenCalledWith(a, true);
+  });
+
+  it("le mauvais couloir rate la silhouette : dégâts, combo cassé, et on ne peut plus la rejouer", () => {
+    const [a] = partie(reponse());
+    S.combo = 5;
+    rightPress(3, 4.02);
+    expect([a.state, S.combo, S.miss, S.health]).toEqual(["miss", 0, 1, 100 - DIFFS.normal.dmgR]);
+    expect(effets.rate).toHaveBeenCalledWith(a);
+    expect(effets.tir).toHaveBeenCalledWith(3, false);
+    expect(effets.mauvaisCouloir).not.toHaveBeenCalled();
+    rightPress(0, 4.05);
+    expect(a.state).toBe("miss");
+  });
+
+  it("une note ordinaire dans le mauvais couloir reste à jouer : seule la silhouette est ratée", () => {
+    const [a] = partie([note("R", 4, 0)]);
+    rightPress(3, 4.02);
+    expect([a.state, S.health]).toEqual(["pending", 100]);
+    expect(effets.mauvaisCouloir).toHaveBeenCalledWith(3);
+  });
+
+  it("une phrase entièrement juste donne le bonus, une seule fois, à la dernière note", () => {
+    const notes = partie(reponse());
+    rightPress(0, 4);
+    rightPress(2, 5.08);
+    rightPress(1, 6);
+    expect(effets.phrase).not.toHaveBeenCalled();
+    const avant = S.score,
+      m = mult("R");
+    rightPress(2, 7);
+    expect(effets.phrase).toHaveBeenCalledOnce();
+    expect(effets.phrase).toHaveBeenCalledWith(notes, Math.round(CHANTEUR.bonus * m));
+    expect(S.score - avant).toBe(Math.round(300 * m) + Math.round(CHANTEUR.bonus * m));
+    expect(S.parMain.R.score).toBe(S.score);
+  });
+
+  it("une silhouette ratée ou manquée retire le bonus", () => {
+    partie(reponse());
+    rightPress(0, 4);
+    rightPress(3, 5);
+    rightPress(1, 6);
+    rightPress(2, 7);
+    expect(effets.phrase).not.toHaveBeenCalled();
+    const [, b] = partie(reponse());
+    rightPress(0, 4);
+    missEv(b);
+    rightPress(1, 6);
+    rightPress(2, 7);
+    expect(effets.phrase).not.toHaveBeenCalled();
+  });
+
+  it("chaque réponse a son bonus : les notes d'une réponse sont celles de sa mesure", () => {
+    const deux = [...reponse(), ...reponse([3, 1, 0, 2]).map((ev) => ({ ...ev, beat: ev.beat + 8, bar: 3 }))];
+    partie(deux);
+    for (const ev of [...deux]) rightPress(ev.lane, ev.beat);
+    expect(effets.phrase).toHaveBeenCalledTimes(2);
+    expect(effets.phrase.mock.calls.map(([n]) => n.map((ev: Note) => ev.bar))).toEqual([
+      [1, 1, 1, 1],
+      [3, 3, 3, 3],
+    ]);
   });
 });
 

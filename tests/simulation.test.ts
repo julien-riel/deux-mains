@@ -55,6 +55,14 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       const serpents = etat.ev.filter((ev) => ev.serpent);
       expect(serpents.length > 0).toBe(difficulte === "difficile");
       expect(serpents.every((ev) => ev.state === "done" && ev.troncon === ev.serpent.length - 1)).toBe(true);
+      // Le chanteur (#18), sauf en Débutant : l'auto-play rejoue sa phrase, les mêmes degrés au même rythme, et la
+      // reprise du solo (#9) ne la touche pas
+      const [ch] = etat.song.chanteurs,
+        reponse = etat.ev.filter((ev) => ev.reponse);
+      expect(etat.song.chanteurs.length).toBe(difficulte === "debutant" ? 0 : 1);
+      expect(reponse.map((ev) => [ev.state, ev.beat - 4, ev.lane])).toEqual(
+        (ch?.notes ?? []).map((n) => ["hit", n.beat, n.lane]),
+      );
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

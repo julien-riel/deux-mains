@@ -286,3 +286,52 @@ export function villeSerpent(troncons: { lane: number; pts: [number, number][] }
     });
   g.restore();
 }
+// Le chanteur (#18) : un drone haut-parleur du Bureau du Silence, qui rejoue une voix capturée par son pavillon.
+// `ouvert` : de 0 à 1, la note chantée en ce moment ; le pavillon s'éclaire et lâche des ondes.
+export function villeChanteur(x, y, ouvert, a, nb, hsl) {
+  // Hélices
+  rr(x - 26, y - 22, 52, 6, 3);
+  g.fillStyle = hsl(250, 10, 62, a);
+  g.fill();
+  const spin = Math.abs(Math.sin(nb * 12));
+  g.fillStyle = hsl(250, 10, 82, 0.6 * a);
+  g.fillRect(x - 22 - 12 * spin, y - 25, 24 * spin + 2, 2);
+  g.fillRect(x + 22 - 12 * spin, y - 25, 24 * spin + 2, 2);
+  // Caisson
+  rr(x - 16, y - 16, 32, 28, 6);
+  g.fillStyle = hsl(250, 18, 34, a);
+  g.fill();
+  g.strokeStyle = hsl(250, 20, 80, 0.7 * a);
+  g.lineWidth = 1.5;
+  g.stroke();
+  for (let k = 0; k < 3; k++) {
+    g.fillStyle = hsl(250, 20, 75, 0.5 * a);
+    g.fillRect(x - 10, y - 9 + 7 * k, 20, 2);
+  }
+  // Pavillon tourné vers le joueur, qui s'ouvre sur la note
+  const r = 13 + 4 * ouvert;
+  g.beginPath();
+  g.moveTo(x - 14, y - 4);
+  g.lineTo(x - 30, y - r);
+  g.lineTo(x - 30, y + r - 6);
+  g.lineTo(x - 14, y + 4);
+  g.closePath();
+  g.fillStyle = hsl(45, 70, 50 + 20 * ouvert, a);
+  g.fill();
+  g.strokeStyle = hsl(45, 80, 80, a);
+  g.stroke();
+  if (ouvert > 0) {
+    g.strokeStyle = hsl(45, 90, 80, ouvert * a);
+    g.lineWidth = 2;
+    for (let k = 1; k <= 3; k++) {
+      g.beginPath();
+      g.arc(x - 30, y - 3, 6 + 7 * k * ouvert, Math.PI * 0.75, Math.PI * 1.25);
+      g.stroke();
+    }
+  }
+  // Témoin d'enregistrement
+  g.beginPath();
+  g.arc(x + 9, y - 11, 2.5, 0, Math.PI * 2);
+  g.fillStyle = hexA(COL.bad, (0.5 + 0.5 * ouvert) * a);
+  g.fill();
+}

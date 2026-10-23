@@ -10,12 +10,21 @@
 // qu'une note longue devienne une trille (#15), en Normal et en Difficile. serpentP : la chance qu'une suite de
 // notes régulières qui montent ou descendent couloir par couloir devienne un serpent (#16), espacées d'un des
 // serpentPas (en croches) : une croche ou un temps en Difficile, un temps seulement en Normal.
+// Chanteur (#18) : l'avant-dernière phrase de chaque couplet devient un chanteur, qui chante quatre notes sur une
+// mesure, puis sa réponse, que le joueur répète de mémoire sur la mesure suivante. `couloirs` : les degrés
+// chantés, tous présents dans la phrase ; `rythmes` : la place des quatre notes dans la mesure, en croches
+// (x une note). Pas de chanteur en Débutant.
+export interface ReglagesChanteur {
+  couloirs: number[];
+  rythmes: string[];
+}
 export const DIFFS = {
   debutant: {
     label: "Débutant",
     win: [0.09, 0.19],
     dmgL: 10,
     dmgR: 4,
+    chanteur: null as ReglagesChanteur | null,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -45,6 +54,7 @@ export const DIFFS = {
     win: [0.075, 0.16],
     dmgL: 14,
     dmgR: 6,
+    chanteur: { couloirs: [0, 2], rythmes: ["x.x.x.x."] },
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -73,6 +83,7 @@ export const DIFFS = {
     win: [0.055, 0.125],
     dmgL: 18,
     dmgR: 8,
+    chanteur: { couloirs: [0, 1, 2], rythmes: ["x.x.x.x.", "x.x.xx..", "xx..x.x."] },
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -101,6 +112,7 @@ export const DIFFS = {
     win: [0.045, 0.105],
     dmgL: 20,
     dmgR: 9,
+    chanteur: { couloirs: [0, 1, 2, 3], rythmes: ["x.x.x.x.", "x.xx..x.", "xx.x..x.", "x..x.xx."] },
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],

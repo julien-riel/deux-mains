@@ -1,9 +1,9 @@
 /* ---------- Générateur de chanson ---------- */
 import { clamp } from "../outils";
 import { mulberry32 } from "./aleatoire";
-import { DIFFS } from "./difficultes";
+import { DIFFS, type ReglagesChanteur } from "./difficultes";
 import { NOTE_FR, PROGS, makeChord } from "./theorie";
-import type { Accord, Chanson, Genre, Note, Section } from "./types";
+import type { Accord, Chanson, Chanteur, Genre, Note, Section } from "./types";
 
 // Un motif de 2 mesures (16 croches) : rythme, puis contour en degrés voisins
 export function genMotif(rng, P, occ, refrain) {
@@ -211,8 +211,41 @@ export function noteDeMelodie(
   return note;
 }
 
+/**
+ * Le chanteur (#18) de la mesure `bar` et la réponse du joueur sur la mesure suivante. Le chanteur chante quatre
+ * notes, des degrés de l'accord de sa mesure (ADR-0003), sur un des rythmes de la difficulté ; chaque degré de
+ * `couloirs` y revient au moins une fois. La réponse rejoue les mêmes degrés au même rythme, dans l'accord de
+ * sa mesure : la mélodie se transpose comme partout ailleurs. Ses notes sont des silhouettes (`reponse`).
+ */
+export function phraseDuChanteur(
+  rng: () => number,
+  R: ReglagesChanteur,
+  bar: number,
+  chords: Accord[],
+  kind: Genre,
+): { chanteur: Chanteur; reponse: Note[] } {
+  const rythme = R.rythmes[Math.floor(rng() * R.rythmes.length)],
+    croches = [...rythme].flatMap((c, k) => (c === "x" ? [k] : [])),
+    lanes = [...R.couloirs];
+  while (lanes.length < croches.length) lanes.push(R.couloirs[Math.floor(rng() * R.couloirs.length)]);
+  // Mélange de Fisher-Yates, tiré de la graine (ADR-0005)
+  for (let i = lanes.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
+  }
+  const notes = croches.map((k, i) => ({ beat: bar * 4 + k / 2, lane: lanes[i], midi: chords[bar].lanes[lanes[i]] }));
+  const reponse = notes.map((n) => {
+    const note = noteDeMelodie(n.lane, n.beat + 4, 0, bar + 1, chords[bar + 1], kind);
+    note.reponse = true;
+    return note;
+  });
+  return { chanteur: { bar, notes }, reponse };
+}
+
 export function buildSong(seed: number, diffKey: string): Chanson {
   const rng = mulberry32(seed * 9301 + 49297);
+  // Les chanteurs (#18) ont leur propre tirage : le reste de la chanson ne change pas avec eux
+  const rngChant = mulberry32(seed * 6151 + 811);
   const D = DIFFS[diffKey];
   const prog = PROGS[Math.floor(rng() * PROGS.length)];
   const keyPc = Math.floor(rng() * 12);
@@ -266,7 +299,8 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       });
   }
 
-  const ev = [];
+  const ev = [],
+    chanteurs: Chanteur[] = [];
   for (const s of sections) {
     for (let i = 0; i < s.bars; i++) {
       const p = bassPat(s.kind, i);
@@ -276,6 +310,15 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     const ph = phrases[s.kind];
     if (!ph) continue;
     for (let k = 0; k < s.bars / 2; k++) {
+      // L'avant-dernière phrase du couplet laisse la place au chanteur et à sa réponse (#18) : la dernière garde
+      // sa cadence, et la réponse ne tombe pas dans le silence d'avant le refrain. Jamais au refrain : la reprise
+      // du solo (#9) remplace des phrases du dernier refrain, elle ne croise pas le chanteur.
+      if (D.chanteur && s.kind === "couplet" && k === s.bars / 2 - 2) {
+        const { chanteur, reponse } = phraseDuChanteur(rngChant, D.chanteur, s.start + 2 * k, chords, s.kind);
+        chanteurs.push(chanteur);
+        ev.push(...reponse);
+        continue;
+      }
       for (const n of ph[k % 4]) {
         const barIdx = s.start + 2 * k + Math.floor(n.s / 8),
           ch = chords[barIdx];
@@ -321,6 +364,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     totalBars,
     chords,
     ev,
+    chanteurs,
     endBeat: totalBars * 4,
     keyName: `${NOTE_FR[keyPc]} ${prog.mode}`,
     progLabel: names.join(" – "),

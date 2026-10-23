@@ -32,6 +32,7 @@ describe("temps à vitesse réduite", () => {
         "solo",
         "vibrato",
         "tir",
+        "phrase",
         "mourir",
       ].map((k) => [k, vi.fn()]),
     ) as unknown as { [K in keyof Effets]: ReturnType<typeof vi.fn> };

@@ -7,6 +7,7 @@ import {
   S,
   autoFor,
   auRepos,
+  chanteurAtBar,
   chordAtBar,
   layers,
   mesureDeLaChanson,
@@ -25,6 +26,7 @@ import {
   boiteBack,
   boiteBlock,
   boiteBeam,
+  boiteChanteur,
   boiteHaut,
   boiteEnemy,
   boiteSerpent,
@@ -62,6 +64,7 @@ import {
   villeBack,
   villeBeam,
   villeBlock,
+  villeChanteur,
   villeEnemy,
   villeGround,
   villeHaut,
@@ -193,6 +196,7 @@ export function render(nb, dt) {
     if (ev.hand === "L") drawObstacle(ev, nb, hsl);
     else drawEnemy(ev, nb, pnow, hsl);
   }
+  dessinerChanteurs(nb, hsl);
 
   drawPlayer(nb, ns, pnow, hsl, dt);
 
@@ -473,6 +477,13 @@ export function keycap(x, y, label, color, down) {
   );
 }
 
+/** La hauteur des silhouettes de la réponse au chanteur (#18) : entre deux couloirs, elle n'en indique aucun */
+export const Y_SILHOUETTE = (LANE_Y[1] + LANE_Y[2]) / 2;
+/** La hauteur du chanteur (#18) et de ses notes, au-dessus des couloirs */
+export const Y_CHANTEUR = LANE_Y[3] - 50;
+// La hauteur où l'on voit un ennemi encore à jouer : une silhouette ne montre pas son couloir
+const yVisible = (ev) => (ev.reponse ? Y_SILHOUETTE : LANE_Y[ev.lane]);
+
 // Accords : une barre relie les ennemis à tirer ensemble, un pointillé descend vers l'obstacle du même temps
 export function drawChordLinks(grp, nb) {
   const live = grp.filter((e) => e.state === "pending");
@@ -486,7 +497,7 @@ export function drawChordLinks(grp, nb) {
   g.save();
   g.lineCap = "round";
   if (rs.length > 1) {
-    const ys = rs.map((e) => LANE_Y[e.lane]);
+    const ys = rs.map(yVisible);
     g.strokeStyle = hexA(COL.fg, 0.6);
     g.lineWidth = 4;
     g.beginPath();
@@ -495,7 +506,7 @@ export function drawChordLinks(grp, nb) {
     g.stroke();
   }
   if (l && rs.length) {
-    const yLow = Math.max(...rs.map((e) => LANE_Y[e.lane]));
+    const yLow = Math.max(...rs.map(yVisible));
     g.setLineDash([5, 6]);
     g.strokeStyle = hexA(COL.fg, 0.45);
     g.lineWidth = 2;
@@ -617,6 +628,7 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   let x = HITX + (ev.beat - nb) * PPB;
   const x2 = HITX + (ev.beat + ev.dur - nb) * PPB;
   if (x2 < 0 || x > W + 40) return;
+  if (ev.reponse && ev.state === "pending") return dessinerSilhouette(ev, x, nb, hsl);
   const y = LANE_Y[ev.lane] + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
@@ -657,6 +669,81 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   else villeEnemy(x, yh, ev, col, a, nb, hsl);
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
   if (ev.reprise) etoile(x, yh - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, a));
+}
+/**
+ * Une silhouette de la réponse au chanteur (#18) : l'ennemi de l'univers en gris, entre deux couloirs, sans la
+ * forme de son couloir. Son couloir ne se révèle qu'au coup : réussie, elle éclate dans son couloir ; ratée, elle
+ * y apparaît en rouge.
+ */
+function dessinerSilhouette(ev, x, nb, hsl) {
+  const y = Y_SILHOUETTE + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3,
+    gris = (h, s, l, a = 1) => hsl(h, s * 0.15, l, a);
+  g.beginPath();
+  g.arc(x, y, 22, 0, Math.PI * 2);
+  g.setLineDash([4, 5]);
+  g.strokeStyle = hexA(COL.muted, 0.7);
+  g.lineWidth = 1.5;
+  g.stroke();
+  g.setLineDash([]);
+  (S.theme === "boite" ? boiteEnemy : villeEnemy)(x, y, ev, gris(250, 10, 78), 0.85, nb, gris);
+  txt("?", x, y - 26, `700 16px ${FONT.display}`, COL.muted, "center");
+}
+/** Une croche dessinée, sans couleur de couloir : une note chantée (#18) */
+function croche(x, y, couleur) {
+  g.fillStyle = g.strokeStyle = couleur;
+  g.beginPath();
+  g.ellipse(x, y + 5, 5, 3.6, -0.4, 0, Math.PI * 2);
+  g.fill();
+  g.fillRect(x + 3.4, y - 9, 1.6, 14);
+  g.lineWidth = 1.6;
+  g.beginPath();
+  g.moveTo(x + 5, y - 9);
+  g.quadraticCurveTo(x + 12, y - 4, x + 9, y + 2);
+  g.stroke();
+}
+/**
+ * Les chanteurs (#18) : chacun arrive avant sa phrase, se pose au-dessus de la ligne de tir pendant qu'il chante
+ * et que le joueur répond, puis s'envole. Ses notes approchent sur sa ligne, en croches neutres : on les entend,
+ * sans couloir. À côté de lui, ce qu'il faut faire (écouter, puis répéter) et les coups de la réponse. Les mesures
+ * sont celles de la partie : en boucle, chaque passage a son chanteur (ADR-0009).
+ */
+function dessinerChanteurs(nb, hsl) {
+  const ici = Math.floor(nb / 4);
+  for (let bar = Math.max(0, ici - 3); bar <= ici + 2; bar++) {
+    const c = chanteurAtBar(bar);
+    if (!c) continue;
+    const decale = 4 * (bar - c.bar),
+      debut = bar * 4,
+      fin = debut + 8;
+    for (const n of c.notes) {
+      const xn = HITX + (n.beat + decale - nb) * PPB;
+      if (n.beat + decale >= nb && xn < W + 20) croche(xn, Y_CHANTEUR, hexA(COL.fg, 0.55));
+    }
+    let x = HITX,
+      y = Y_CHANTEUR,
+      a = 1;
+    if (nb < debut - 0.5) x = HITX + (debut - 0.5 - nb) * PPB;
+    else if (nb > fin) {
+      const e = nb - fin;
+      [x, y, a] = [HITX - e * PPB, y - 40 * e, clamp(1 - e / 1.5, 0, 1)];
+    }
+    if (x > W + 40 || a <= 0) continue;
+    // La bouche s'ouvre sur chaque note chantée, puis se referme
+    const age = c.notes.map((n) => nb - n.beat - decale).find((d) => d >= 0 && d < 0.4),
+      ouvert = age === undefined ? 0 : 1 - age / 0.4;
+    if (!reduced) y += 3 * Math.sin(nb * Math.PI);
+    (S.theme === "boite" ? boiteChanteur : villeChanteur)(x, y, ouvert, a, nb, hsl);
+    txt(nb < debut + 4 ? "ÉCOUTE" : "RÉPÈTE", x + 38, y - 18, `600 12px ${FONT.mono}`, hexA(COL.fg, a));
+    S.ev
+      .filter((e) => e.reponse && e.bar === bar + 1)
+      .forEach((e, i) => {
+        g.beginPath();
+        g.arc(x + 96 + 11 * i, y - 22, 4, 0, Math.PI * 2);
+        const coup = e.state === "pending" ? COL.muted : e.state === "miss" ? COL.bad : COL.good;
+        g.fillStyle = hexA(coup, a * (e.state === "pending" ? 0.5 : 1));
+        g.fill();
+      });
+  }
 }
 /** Une étoile à quatre branches, de rayon r */
 function etoile(x, y, r, couleur) {
