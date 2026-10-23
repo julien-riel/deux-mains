@@ -56,6 +56,11 @@ export const effets: Effets = {
     if (layers().choir) harmV(AC.currentTime, lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
     burst(HITX + 40, LANE_Y[lane], LANE_HUE[lane], 10);
   },
+  vibrato(ev, points) {
+    ev.voice?.vibrer?.(AC.currentTime);
+    ev.vibreAt = performance.now();
+    if (points) popup(`Vibrato +${points}`, HITX + 30, LANE_Y[ev.lane] - 26, COL.good);
+  },
   tir(lane, ok) {
     const at = performance.now();
     S.laneFlash[lane] = at;

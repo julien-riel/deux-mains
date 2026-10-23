@@ -41,6 +41,7 @@ export function resetRun() {
     ev.state = "pending";
     ev.voice = null;
     ev.auto = false;
+    ev.vibrato = ev.vibreAt = undefined;
   }
 }
 export function startAt(beat) {
@@ -93,6 +94,8 @@ function passage(k: number): Note[] {
         auto: false,
         voice: null,
         missAt: undefined,
+        vibrato: undefined,
+        vibreAt: undefined,
         passage: k,
       });
   for (const c of copies.values()) if (c.grp) c.grp = c.grp.map((ev) => copies.get(ev));
@@ -140,6 +143,7 @@ export function resumeCP() {
   for (const ev of S.song.ev) {
     ev.voice = null;
     ev.auto = false;
+    ev.vibrato = ev.vibreAt = undefined;
     ev.state = ev.beat >= b0 - 0.01 ? "pending" : "skip";
   }
   S.autoQ = [];

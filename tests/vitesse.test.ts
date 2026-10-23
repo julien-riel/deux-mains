@@ -20,10 +20,19 @@ describe("temps à vitesse réduite", () => {
   const ETAT_NEUF = { ...S };
   const effets = () =>
     Object.fromEntries(
-      ["jouer", "couper", "reussite", "accord", "rate", "lache", "mauvaisCouloir", "solo", "tir", "mourir"].map((k) => [
-        k,
-        vi.fn(),
-      ]),
+      [
+        "jouer",
+        "couper",
+        "reussite",
+        "accord",
+        "rate",
+        "lache",
+        "mauvaisCouloir",
+        "solo",
+        "vibrato",
+        "tir",
+        "mourir",
+      ].map((k) => [k, vi.fn()]),
     ) as unknown as { [K in keyof Effets]: ReturnType<typeof vi.fn> };
   const note = (beat: number, lane: number): Note => ({
     hand: "R",

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Main, Note } from "../src/chanson/types";
 import { S } from "../src/jeu/etat";
-import { brancherEffets, leftPress, missEv, release, rightPress, type Effets } from "../src/jeu/jugement";
+import { VIBRATO, brancherEffets, leftPress, missEv, release, rightPress, type Effets } from "../src/jeu/jugement";
 
 const DIFFICULTES = ["debutant", "facile", "normal", "difficile"] as const;
 const ETAT_NEUF = { ...S };
@@ -22,6 +22,7 @@ beforeEach(() => {
     lache: vi.fn(),
     mauvaisCouloir: vi.fn(),
     solo: vi.fn(),
+    vibrato: vi.fn(),
     tir: vi.fn(),
     mourir: vi.fn(),
   };
@@ -232,6 +233,97 @@ describe("notes tenues", () => {
     rightPress(1, 4);
     release("R", 2, 4.5);
     expect(ev.state).toBe("holding");
+  });
+});
+
+describe("vibrato (#17)", () => {
+  it("pendant une note tenue, tapoter un autre couloir fait vibrer la note, sans erreur ni coupure", () => {
+    const [ev] = partie([note("R", 4, 0, 2)]);
+    rightPress(0, 4);
+    const [score, combo] = [S.score, S.combo];
+    expect(rightPress(2, 4.5)).toEqual([]);
+    expect(ev.state).toBe("holding");
+    expect(effets.vibrato).toHaveBeenCalledWith(ev, VIBRATO.points);
+    expect([S.score - score, S.combo, S.miss, S.health]).toEqual([VIBRATO.points, combo, 0, 100]);
+    expect(effets.mauvaisCouloir).not.toHaveBeenCalled();
+    expect(effets.couper).not.toHaveBeenCalled();
+    expect(effets.tir).toHaveBeenCalledTimes(1);
+    release("R", 2, 4.6);
+    expect(ev.state).toBe("holding");
+    release("R", 0, 6);
+    expect(ev.state).toBe("done");
+  });
+
+  it("une note tenue sans vibrato reste réussie ; avec, elle rapporte en plus ses points de style", () => {
+    const [a, b] = partie([note("R", 4, 0, 2), note("R", 8, 0, 2)]);
+    rightPress(0, 4);
+    release("R", 0, 6);
+    const sans = S.score;
+    rightPress(0, 8);
+    rightPress(1, 9);
+    release("R", 0, 10);
+    expect([a.state, b.state]).toEqual(["done", "done"]);
+    expect(S.score - sans).toBe(sans + VIBRATO.points);
+  });
+
+  it("les points de style sont plafonnés pour chaque note, le vibrato continue de sonner", () => {
+    const [a, b] = partie([note("R", 4, 0, 3), note("R", 8, 1, 3)]);
+    rightPress(0, 4);
+    let score = S.score;
+    for (let i = 0; i < VIBRATO.max + 3; i++) rightPress(2 + (i % 2), 4.2 + i * 0.3);
+    expect(S.score - score).toBe(VIBRATO.points * VIBRATO.max);
+    expect(effets.vibrato).toHaveBeenCalledTimes(VIBRATO.max + 3);
+    expect(effets.vibrato).toHaveBeenLastCalledWith(a, 0);
+    expect(a.vibrato).toBe(VIBRATO.max + 3);
+    release("R", 0, 7);
+    // La note suivante a son propre plafond
+    rightPress(1, 8);
+    score = S.score;
+    rightPress(3, 8.5);
+    expect(S.score - score).toBe(VIBRATO.points);
+    expect(effets.vibrato).toHaveBeenLastCalledWith(b, VIBRATO.points);
+  });
+
+  it("pendant une note tenue, la note suivante d'un autre couloir se joue normalement", () => {
+    const [tenue, suivante] = partie([note("R", 4, 0, 2), note("R", 6, 2)]);
+    rightPress(0, 4);
+    rightPress(2, 6 - DIFFS.normal.win[1] * 0.5);
+    expect([tenue.state, suivante.state]).toEqual(["holding", "hit"]);
+    expect(effets.vibrato).not.toHaveBeenCalled();
+  });
+
+  it("hors note tenue, tapoter garde son comportement : mauvais couloir près d'une note, tir dans le vide sinon", () => {
+    const [ev] = partie([note("R", 4, 0, 2), note("R", 12, 1)]);
+    rightPress(2, 4);
+    expect(effets.mauvaisCouloir).toHaveBeenCalledWith(2);
+    expect(S.combo).toBe(0);
+    rightPress(0, 4);
+    release("R", 0, 6);
+    expect(ev.state).toBe("done");
+    rightPress(1, 7);
+    expect(effets.tir).toHaveBeenLastCalledWith(1, null);
+    rightPress(3, 12);
+    expect(effets.mauvaisCouloir).toHaveBeenCalledWith(3);
+    expect(effets.vibrato).not.toHaveBeenCalled();
+  });
+
+  it("une note tenue cassée, ou de la main gauche, ne vibre pas", () => {
+    const [basse, melodie] = partie([note("L", 4, 0, 2), note("R", 8, 0, 2)]);
+    leftPress(0, 4);
+    rightPress(1, 4.5);
+    expect(basse.state).toBe("holding");
+    rightPress(0, 8);
+    release("R", 0, 8.5);
+    expect(melodie.state).toBe("broken");
+    rightPress(1, 9);
+    expect(effets.vibrato).not.toHaveBeenCalled();
+  });
+
+  it("pendant le solo libre, tapoter joue le solo", () => {
+    partie([note("R", 12, 0, 2)]);
+    rightPress(1, 17);
+    expect(effets.solo).toHaveBeenCalled();
+    expect(effets.vibrato).not.toHaveBeenCalled();
   });
 });
 

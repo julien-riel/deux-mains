@@ -3,6 +3,8 @@
 /** Une voix qui sonne, qu'on peut arrêter (note tenue lâchée, pause). Fournie par l'audio. */
 export interface Voix {
   stop(at: number): void;
+  /** Fait osciller la hauteur de la voix autour de sa note, un instant (vibrato, #17) */
+  vibrer?(at: number): void;
 }
 
 export type Main = "L" | "R";
@@ -48,6 +50,9 @@ export interface Note {
   auto?: boolean;
   voice?: Voix;
   missAt?: number;
+  /** Les tapotements de vibrato donnés pendant cette note tenue (#17), et l'heure du dernier pour l'image */
+  vibrato?: number;
+  vibreAt?: number;
   /** Le passage de la boucle auquel appartient cette copie de la note (ADR-0009) */
   passage?: number;
 }

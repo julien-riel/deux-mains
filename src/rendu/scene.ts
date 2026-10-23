@@ -51,6 +51,7 @@ import {
   formeCouloir,
   g,
   hexA,
+  reduced,
   rr,
   txt,
 } from "./outils";
@@ -188,11 +189,13 @@ export function render(nb, dt) {
   for (const ev of S.ev) {
     if (ev.beat > nb) break;
     if (ev.state !== "holding" || ev.hand !== "R") continue;
+    // Le vibrato (#17) fait trembler le rayon plus fort
+    const v = ondulation(ev, pnow);
     g.strokeStyle = hsl(LANE_HUE[ev.lane], 85, 75, 0.7 + 0.3 * Math.random());
-    g.lineWidth = 4;
+    g.lineWidth = 4 + 2 * v;
     g.beginPath();
     g.moveTo(S.gun[0], S.gun[1]);
-    g.lineTo(HITX, LANE_Y[ev.lane] + (Math.random() * 2 - 1) * 2);
+    g.lineTo(HITX, LANE_Y[ev.lane] + (Math.random() * 2 - 1) * (2 + (reduced ? 0 : 5 * v)));
     g.stroke();
   }
 
@@ -518,6 +521,17 @@ export function drawObstacle(ev, nb, hsl) {
   }
 }
 
+/** La force du vibrato à l'image (#17) : 1 au tapotement, puis s'éteint en 0,6 s ; 0 hors note tenue */
+const ondulation = (ev, pnow) =>
+  ev.state === "holding" && ev.vibreAt !== undefined ? clamp(1 - (pnow - ev.vibreAt) / 600, 0, 1) : 0;
+/** Le tracé d'une bande de 16 px de haut entre x1 et x2, dont les bords ondulent d'une amplitude `amp` */
+function bandeOndulee(x1, x2, y, amp, pnow) {
+  const onde = (x) => amp * Math.sin((x - HITX) / 12 - pnow / 55);
+  g.beginPath();
+  for (let x = x1; x < x2 + 4; x += 4) g.lineTo(Math.min(x, x2), y - 8 + onde(Math.min(x, x2)));
+  for (let x = x2; x > x1 - 4; x -= 4) g.lineTo(Math.max(x, x1), y + 8 + onde(Math.max(x, x1)));
+  g.closePath();
+}
 export function drawEnemy(ev, nb, pnow, hsl) {
   if (ev.state === "hit" || ev.state === "done") return;
   let x = HITX + (ev.beat - nb) * PPB;
@@ -531,10 +545,13 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   if (a <= 0) return;
   const col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
   if (ev.dur > 0) {
-    const sx = ev.state === "holding" ? HITX : x;
+    const sx = ev.state === "holding" ? HITX : x,
+      v = ondulation(ev, pnow);
     if (x2 > sx) {
-      rr(sx, y - 8, x2 - sx, 16, 8);
-      g.fillStyle = hsl(hue, 80, 68, 0.3 * a);
+      // Pendant le vibrato (#17), l'ennemi allongé ondule et s'éclaire
+      if (v > 0 && !reduced) bandeOndulee(sx, x2, y, 6 * v, pnow);
+      else rr(sx, y - 8, x2 - sx, 16, 8);
+      g.fillStyle = hsl(hue, 80, 68, (0.3 + 0.35 * v) * a);
       g.fill();
       g.strokeStyle = col;
       g.lineWidth = 1.5;

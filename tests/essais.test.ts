@@ -3,6 +3,7 @@
 // au joueur ses réglages. Le registre est de la logique pure ; les parcours passent par le faux navigateur.
 
 import { afterEach, describe, expect, it } from "vitest";
+import { buildSong } from "../src/chanson/generateur";
 import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
@@ -83,6 +84,30 @@ describe("registre des essais", () => {
       droite.filter((e) => e.bar >= 2).map((e) => e.lane),
     );
     expect(c.ev.filter((e) => e.hand === "L" && e.lane === 3).map((e) => e.beat)).toEqual([0, 8]);
+  });
+
+  it("la fabrique réécrit la mélodie des genres demandés : couloirs, notes tenues et silences", () => {
+    const c = assembler(
+      4242,
+      "normal",
+      [
+        { nom: "Couplet", genre: "couplet", de: 2, mesures: 2 },
+        { nom: "Refrain", genre: "refrain", de: 10, mesures: 2 },
+      ],
+      {},
+      { couplet: ["0-----.3"] },
+    );
+    verifierChanson(c);
+    const couplet = c.ev.filter((e) => e.hand === "R" && e.bar < 2);
+    expect(couplet.map(({ beat, lane, dur }) => ({ beat, lane, dur }))).toEqual([
+      { beat: 0, lane: 0, dur: 3 },
+      { beat: 3.5, lane: 3, dur: 0 },
+      { beat: 4, lane: 0, dur: 3 },
+      { beat: 7.5, lane: 3, dur: 0 },
+    ]);
+    // Le refrain garde la mélodie de la chanson générée
+    const source = buildSong(4242, "normal").ev.filter((e) => e.hand === "R" && e.bar >= 10 && e.bar < 12);
+    expect(c.ev.filter((e) => e.hand === "R" && e.bar >= 2).map((e) => e.lane)).toEqual(source.map((e) => e.lane));
   });
 
   it("accorder ajoute un accord à deux mains par mesure de couplet, sans toucher à l'intro", () => {
