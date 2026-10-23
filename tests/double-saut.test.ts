@@ -68,12 +68,13 @@ describe("double saut", () => {
     nav.jeu.load(GRAINE, diff);
     nav.presser("KeyA");
     const S = nav.jeu.state,
-      hauts: Note[] = S.ev.filter((ev) => ev.lane === 2 && ev.hand === "L"),
       doubles = new Set<number>();
     while (S.mode === "play") {
       nav.image();
       doubles.add(S.doubleAt);
     }
+    // Les notes de la partie, lues à la fin : la reprise du solo copie celles des phrases reprises (ADR-0012)
+    const hauts: Note[] = S.ev.filter((ev) => ev.lane === 2 && ev.hand === "L");
     expect(hauts.length).toBeGreaterThan(0);
     expect(hauts.every((ev) => ev.state === "hit")).toBe(true);
     // Le personnage a fait un double saut pour chacun

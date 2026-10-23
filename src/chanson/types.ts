@@ -66,6 +66,8 @@ export interface Note {
   trilleAt?: number;
   /** Le passage de la boucle auquel appartient cette copie de la note (ADR-0009) */
   passage?: number;
+  /** Une note de la phrase du solo reprise au dernier refrain (#9, ADR-0012) : elle n'existe que dans la partie */
+  reprise?: boolean;
 }
 
 export interface Progression {

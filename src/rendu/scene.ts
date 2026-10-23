@@ -649,6 +649,20 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   }
   if (S.theme === "boite") boiteEnemy(x, yh, ev, col, a, nb, hsl);
   else villeEnemy(x, yh, ev, col, a, nb, hsl);
+  // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
+  if (ev.reprise) etoile(x, yh - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, a));
+}
+/** Une étoile à quatre branches, de rayon r */
+function etoile(x, y, r, couleur) {
+  g.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const ang = (i * Math.PI) / 4 - Math.PI / 2,
+      d = i % 2 ? r * 0.32 : r;
+    g.lineTo(x + d * Math.cos(ang), y + d * Math.sin(ang));
+  }
+  g.closePath();
+  g.fillStyle = couleur;
+  g.fill();
 }
 /**
  * La trille (#15) : une bande qui couvre ses deux couloirs, traversée d'un zigzag en double-croches de l'un à
