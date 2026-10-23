@@ -100,11 +100,11 @@ describe("générateur", () => {
       }
   });
 
-  it("chaque note de la main gauche est la fondamentale (glisser), l'octave (sauter) ou la quinte au-dessus (double saut)", () => {
+  it("chaque note de la main gauche est la fondamentale (glisser, écraser), l'octave (sauter) ou la quinte au-dessus (double saut)", () => {
     for (const { chanson } of CHANSONS)
       for (const ev of gauche(chanson)) {
         const { bass, ints } = chanson.chords[ev.bar];
-        expect(ev.midi).toBe([bass, bass + 12, bass + 12 + ints[2]][ev.lane]);
+        expect(ev.midi).toBe([bass, bass + 12, bass + 12 + ints[2], bass][ev.lane]);
       }
   });
 

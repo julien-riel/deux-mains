@@ -16,7 +16,12 @@ export const effets: Effets = {
   reussite(ev, perfect) {
     const label = perfect ? "Parfait" : "Bien",
       color = perfect ? COL.good : COL.fg;
-    if (ev.hand === "L") {
+    if (ev.hand === "L" && ev.lane === 3) {
+      // L'écrasement (#8) secoue la scène et projette des éclats au ras du sol
+      popup(label, PX + 20, GY - 140, color);
+      burst(PX + PW / 2, GY - 4, HUE_BASS, 26);
+      S.shake = reduced ? 0 : 7;
+    } else if (ev.hand === "L") {
       popup(label, PX + 20, GY - 140, color);
       burst(PX + PW / 2, ev.lane ? GY - 20 : GY - 55, HUE_BASS, 8);
     } else {

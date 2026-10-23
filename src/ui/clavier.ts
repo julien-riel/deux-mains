@@ -94,7 +94,8 @@ try {
     .then((m) => {
       for (const c of Object.keys(CLAVIER)) {
         const v = m.get(c);
-        if (v) CLAVIER[c] = v.toUpperCase();
+        // La barre d'espace n'a pas d'étiquette dans la disposition : on garde « Espace »
+        if (v && v.trim()) CLAVIER[c] = v.toUpperCase();
       }
       etiquettes();
       document

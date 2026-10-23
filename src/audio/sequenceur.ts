@@ -26,16 +26,25 @@ export function schedule() {
   }
 }
 export const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
+// La mesure qui précède un refrain (#8), en mesures de la partie : en boucle, elle précède chaque passage (ADR-0009)
+export function avantRefrain(bar: number) {
+  const suivante = sectionAtBar(bar + 1);
+  return suivante.kind === "refrain" && mesureDeLaChanson(bar + 1) === suivante.start;
+}
 export function playStep(step, t) {
   const bar = mesureDeLaChanson(Math.floor(step / 16)),
     s = step % 16,
     sec = sectionAtBar(bar),
     ch = S.song.chords[bar],
-    beat = spb();
+    beat = spb(),
+    avant = avantRefrain(Math.floor(step / 16));
   if (s === 0) {
-    if (sec.kind !== "outro") padV(t, ch, 4 * beat);
+    // La nappe s'éteint avant le dernier temps, sa queue comprise
+    if (sec.kind !== "outro") padV(t, ch, avant ? 3 * beat - 0.5 : 4 * beat);
     else if (bar === sec.start) padV(t, ch, 8 * beat);
   }
+  // Le « drop » : l'accompagnement se tait pendant le dernier temps avant le refrain, que l'écrasement relance
+  if (avant && s >= 12) return autoStep(step, t, sec, ch);
   switch (sec.kind) {
     case "intro":
       if (s === 0) kick(t, 0.7);
@@ -48,7 +57,7 @@ export function playStep(step, t) {
       if (s % 2 === 0) hat(t, s % 4 === 2 ? 0.13 : 0.08, false);
       break;
     case "refrain":
-      if (s === 0 && bar === sec.start) crash(t);
+      // La cymbale du premier temps vient de l'écrasement (#8) : ratée, elle ne sonne pas
       if (s % 4 === 0) kick(t);
       if (s === 4 || s === 12) snare(t, 0.34);
       if (s % 4 === 2) hat(t, 0.12, true);
@@ -68,8 +77,12 @@ export function playStep(step, t) {
   if (sec.kind !== "intro" && sec.kind !== "outro") {
     const L = layers();
     if (L.arp && s % 2 === 0) arpV(t, ch.lanes[ARP[(s / 2) % 8]] + 12);
-    if (L.strings && s === 0) stringsV(t, ch, 4 * beat);
+    if (L.strings && s === 0) stringsV(t, ch, avant ? 3 * beat - 0.8 : 4 * beat);
   }
+  autoStep(step, t, sec, ch);
+}
+// Ce que l'auto-play joue à ce pas : les notes de la chanson, et l'improvisation du solo
+function autoStep(step, t, sec, ch) {
   if (S.auto || S.practice !== "both") {
     for (const ev of autoNotes(step)) playHit(ev, t);
     const lane = autoSolo(step, sec);

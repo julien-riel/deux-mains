@@ -150,6 +150,20 @@ export function boiteHaut(x, fill) {
     g.fill();
   }
 }
+// Gros picot à enfoncer (#8) : large et bas, il rentre dans le cylindre une fois écrasé
+export function boitePlaque(x, fill, enfoncee) {
+  const h = enfoncee ? 3 : 12;
+  rr(x - 16, GY - h, 32, h, 3);
+  g.fillStyle = fill;
+  g.fill();
+  g.beginPath();
+  g.ellipse(x, GY - h, 24, 7, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = hexA(COL.fg, 0.35);
+  g.beginPath();
+  g.ellipse(x - 7, GY - h - 2, 7, 2.5, 0, 0, Math.PI * 2);
+  g.fill();
+}
 // Levier du mécanisme
 export function boiteBeam(x, fill) {
   g.fillStyle = hexA(COL.bass, 0.35);

@@ -20,7 +20,17 @@ import {
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
-import { boiteBack, boiteBlock, boiteBeam, boiteHaut, boiteEnemy, boiteGround, boiteTunnel, drawComb } from "./boite";
+import {
+  boiteBack,
+  boiteBlock,
+  boiteBeam,
+  boiteHaut,
+  boiteEnemy,
+  boiteGround,
+  boitePlaque,
+  boiteTunnel,
+  drawComb,
+} from "./boite";
 import {
   COL,
   DEG,
@@ -44,7 +54,16 @@ import {
   rr,
   txt,
 } from "./outils";
-import { villeBack, villeBeam, villeBlock, villeEnemy, villeGround, villeHaut, villeTunnel } from "./ville";
+import {
+  villeBack,
+  villeBeam,
+  villeBlock,
+  villeEnemy,
+  villeGround,
+  villeHaut,
+  villePlaque,
+  villeTunnel,
+} from "./ville";
 
 export function visualBeat() {
   if (!AC || auRepos()) return S.titleBeat;
@@ -430,10 +449,11 @@ export function drawChordLinks(grp, nb) {
 }
 
 // L'obstacle est dessiné légèrement en avance sur le temps : on appuie quand il est encore devant,
-// et il passe sous le personnage au sommet du saut (ou pendant la glissade)
+// et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) ne l'est pas :
+// on retombe dessus pile sur le temps.
 export function drawObstacle(ev, nb, hsl) {
   const x0 = PX + PW / 2 + (ev.beat - nb) * PPB;
-  const x = x0 + (ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
+  const x = x0 + (ev.lane === 3 ? 0 : ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
   if (x < -80 || x0 > W + 80 + ev.dur * PPB) return;
   if (ev.state === "pending") {
     g.beginPath();
@@ -449,7 +469,17 @@ export function drawObstacle(ev, nb, hsl) {
   const fill = missed ? hexA(COL.bad, 0.85) : hsl(HUE_BASS, 90, 62, passed ? 0.4 : 1);
   const ink = hexA(COL.ink, 0.85),
     boite = S.theme === "boite";
-  if (ev.lane >= 1) {
+  if (ev.lane === 3) {
+    (boite ? boitePlaque : villePlaque)(x, fill, passed);
+    g.beginPath();
+    g.moveTo(x - 7, GY - 42);
+    g.lineTo(x, GY - 34);
+    g.lineTo(x + 7, GY - 42);
+    g.strokeStyle = fill;
+    g.lineWidth = 2.5;
+    g.stroke();
+    txt(KEYLABEL.Space, x, GY - 50, `600 13px ${FONT.mono}`, fill, "center");
+  } else if (ev.lane >= 1) {
     // Le haut obstacle (#7) passe sous le personnage au sommet du double saut ; un saut simple le heurte
     const haut = ev.lane === 2 ? (boite ? 48 : 68) : 0;
     if (ev.lane === 2) (boite ? boiteHaut : villeHaut)(x, fill);
@@ -529,7 +559,11 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
   const cx = PX + PW / 2;
   let yOff = 0,
     sliding = false,
-    jumping = false;
+    jumping = false,
+    ecrase = 0;
+  // L'écrasement (#8) : le personnage s'aplatit sur la plaque, puis rebondit un peu
+  const e = (ns - S.ecraseAt) / (0.5 * spb()),
+    impact = !auRepos() && e >= 0 && e < 1;
   if (!auRepos()) {
     // Le double saut (#7) part de la hauteur atteinte au second appui, monte plus haut et redescend au sol
     const haut = (p: number) => Math.sin(Math.PI * Math.pow(p, 0.6)),
@@ -540,18 +574,30 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
       yOff = double
         ? -(122 * haut(clamp((S.doubleAt - S.jumpAt) / S.jumpAir, 0, 1)) * (1 - p) + 110 * haut(p))
         : -122 * haut(p);
+    } else if (impact && e < 0.3) ecrase = 1 - e / 0.3;
+    else if (impact) {
+      jumping = true;
+      yOff = -16 * Math.sin((Math.PI * (e - 0.3)) / 0.7);
     } else if (S.keys.glisser || ns < S.slideUntil) sliding = true;
   }
-  const run = S.mode === "play" && !jumping && !sliding,
+  const run = S.mode === "play" && !jumping && !sliding && !ecrase,
     ph = nb * Math.PI;
-  const w = sliding ? 60 : PW,
-    h = sliding ? 30 : PH - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
+  const w = sliding ? 60 : PW * (1 + 0.35 * ecrase),
+    h = sliding ? 30 : PH * (1 - 0.35 * ecrase) - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
   const x = cx - w / 2,
     y = GY + yOff - h,
     hurt = pnow - S.hurtAt < 260;
   const s = run ? Math.sin(ph) : jumping ? 0.6 : 0,
     hipY = y + h - 14;
   const gy = sliding ? y + 14 : y + 32;
+  if (impact) {
+    // L'onde de choc s'élargit au sol
+    g.strokeStyle = hsl(HUE_BASS, 90, 70, 0.6 * (1 - e));
+    g.lineWidth = 3;
+    g.beginPath();
+    g.ellipse(cx, GY, 24 + 90 * e, 5 + 10 * e, 0, 0, Math.PI * 2);
+    g.stroke();
+  }
   g.fillStyle = "rgba(0,0,0,.35)";
   g.beginPath();
   g.ellipse(cx, GY + 3, Math.max(6, w * 0.6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2);

@@ -136,15 +136,18 @@ export function buildSong(seed: number, diffKey: string): Chanson {
         ch = chords[barIdx];
       for (let k = 0; k < 8; k++) {
         const c = p[k];
-        if (c === "." || c === "-") continue;
+        // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
+        const plaque = s.kind === "refrain" && i === 0 && k === 0;
+        if (!plaque && (c === "." || c === "-")) continue;
         let dur = 0;
-        if (c === "T") {
+        if (c === "T" && !plaque) {
           let n = 1;
           while (k + n < 8 && p[k + n] === "-") n++;
           dur = n / 2;
         }
-        // Glisser joue la fondamentale, sauter l'octave, le double saut la quinte au-dessus de l'octave (ADR-0003)
-        const lane = c === "W" ? 1 : c === "D" ? 2 : 0;
+        // Glisser joue la fondamentale, sauter l'octave, le double saut la quinte au-dessus de l'octave, et
+        // l'écrasement la fondamentale accentuée (ADR-0003)
+        const lane = plaque ? 3 : c === "W" ? 1 : c === "D" ? 2 : 0;
         ev.push({
           hand: "L",
           beat: barIdx * 4 + k / 2,
@@ -152,7 +155,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
           lane,
           bar: barIdx,
           kind: s.kind,
-          midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2]][lane],
+          midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
         });
       }
     }

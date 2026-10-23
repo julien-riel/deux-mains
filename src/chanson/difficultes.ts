@@ -2,7 +2,8 @@
 
 // Basse : une chaîne de 8 croches par mesure. S = glisser, W = sauter, T = tunnel (tenu sur les « - »),
 // D = double saut (#7), une croche après un W : il finit une phrase de quatre mesures. La mélodie évite les
-// notes des deux premiers motifs seulement : le double saut ne change pas la main droite.
+// notes des deux premiers motifs seulement : le double saut ne change pas la main droite. Le générateur remplace
+// la première note de chaque refrain par une plaque à écraser (#8).
 // Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant)
 export const DIFFS = {
   debutant: {

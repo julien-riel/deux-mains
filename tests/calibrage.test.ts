@@ -8,8 +8,11 @@ import { Navigateur } from "./support/navigateur";
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
 const GRAINE = 4242;
 const RETARD = 0.08;
-// Le double saut (#7) est un second appui sur sauter, en l'air
-const TOUCHE: Record<string, string[]> = { L: ["KeyS", "KeyW", "KeyW"], R: ["KeyJ", "KeyK", "KeyL", "Semicolon"] };
+// Le double saut (#7) est un second appui sur sauter, en l'air ; l'écrasement (#8) se fait sur Espace
+const TOUCHE: Record<string, string[]> = {
+  L: ["KeyS", "KeyW", "KeyW", "Space"],
+  R: ["KeyJ", "KeyK", "KeyL", "Semicolon"],
+};
 
 describe("mesure du décalage", () => {
   const clics = Array.from({ length: 16 }, (_, k) => 10 + k * 0.6);

@@ -27,6 +27,7 @@ export function resetRun() {
     jumpAt: -99,
     doubleAt: -99,
     slideUntil: -99,
+    ecraseAt: -99,
     keys: {},
     beams: [],
     parts: [],
@@ -131,6 +132,7 @@ export function resumeCP() {
     jumpAt: -99,
     doubleAt: -99,
     slideUntil: -99,
+    ecraseAt: -99,
   });
   // En boucle, une mort fait reprendre la boucle au début de la section
   if (S.bouclePartie) return armerBoucle();

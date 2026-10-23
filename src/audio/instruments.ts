@@ -113,7 +113,7 @@ export function padV(t, ch, dur) {
   for (const m of notes)
     for (const det of [-7, 7]) osc(boite() ? "triangle" : "sawtooth", mtof(m), t, t + dur + 0.6, det).connect(lp);
 }
-export function bassV(t, m, dur) {
+export function bassV(t, m, dur, accent = 1) {
   const f = mtof(m),
     end = t + dur;
   const lp = AC.createBiquadFilter();
@@ -125,8 +125,8 @@ export function bassV(t, m, dur) {
   lp.frequency.setTargetAtTime(boite() ? 320 : 450, t + 0.015, 0.09);
   const gn = AC.createGain();
   gn.gain.setValueAtTime(0, t);
-  gn.gain.linearRampToValueAtTime(0.5, t + 0.006);
-  gn.gain.setTargetAtTime(0.36, t + 0.02, 0.12);
+  gn.gain.linearRampToValueAtTime(0.5 * accent, t + 0.006);
+  gn.gain.setTargetAtTime(0.36 * accent, t + 0.02, 0.12);
   gn.gain.setTargetAtTime(0, end, 0.03);
   osc(boite() ? "triangle" : "sawtooth", f, t, end + 0.4).connect(lp);
   lp.connect(gn);
@@ -282,8 +282,24 @@ export function tapeStop() {
   B.filt.frequency.exponentialRampToValueAtTime(220, t + 1.5);
 }
 
+// L'impact de l'écrasement (#8) : la cymbale (le carillon dans la Boîte) et un grave appuyé, qui tombe de l'octave
+// sur la fondamentale de la basse
+export function impact(t, m) {
+  crash(t, 0.3);
+  kick(t, 1);
+  const o = osc("sine", mtof(m + 12), t, t + 1);
+  o.frequency.setValueAtTime(mtof(m + 12), t);
+  o.frequency.exponentialRampToValueAtTime(mtof(m), t + 0.25);
+  const gn = decayGain(t, boite() ? 0.3 : 0.45, 0.5);
+  o.connect(gn);
+  gn.connect(B.dry);
+}
+
 export function playHit(ev, t) {
-  if (ev.hand === "L") ev.voice = bassV(t, ev.midi, ev.dur > 0 ? ev.dur * spb() : 0.42 * spb());
+  if (ev.hand === "L" && ev.lane === 3) {
+    ev.voice = bassV(t, ev.midi, 0.9 * spb(), 1.5);
+    impact(t, ev.midi);
+  } else if (ev.hand === "L") ev.voice = bassV(t, ev.midi, ev.dur > 0 ? ev.dur * spb() : 0.42 * spb());
   else {
     ev.voice = leadV(t, ev.midi, ev.dur * spb(), leadTimbre(ev.kind), ev.vel || 1);
     if (layers().choir && ev.harm) harmV(t, ev.harm);

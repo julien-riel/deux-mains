@@ -123,6 +123,27 @@ export function villeHaut(x, fill) {
     g.restore();
   }
 }
+// Plaque d'égout à écraser (#8) : vue de biais, elle s'enfonce une fois écrasée
+export function villePlaque(x, fill, enfoncee) {
+  const y = GY - (enfoncee ? 1 : 5);
+  g.fillStyle = hexA(COL.ink, 0.7);
+  g.beginPath();
+  g.ellipse(x, GY, 30, 7, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = fill;
+  g.beginPath();
+  g.ellipse(x, y, 26, 6, 0, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = hexA(COL.ink, 0.55);
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.ellipse(x, y, 18, 4, 0, 0, Math.PI * 2);
+  for (const d of [-9, 0, 9]) {
+    g.moveTo(x + d - 3, y - 3);
+    g.lineTo(x + d + 3, y + 3);
+  }
+  g.stroke();
+}
 // Rideau de fer suspendu
 export function villeBeam(x, fill) {
   g.strokeStyle = hexA(COL.fg, 0.18);
