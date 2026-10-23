@@ -23,6 +23,7 @@ export default defineConfig([
       "src/jeu/style.ts",
       "src/jeu/enregistrement.ts",
       "src/jeu/croisement.ts",
+      "src/jeu/jam.ts",
     ],
     rules: {
       "no-restricted-imports": [

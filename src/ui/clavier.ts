@@ -1,6 +1,6 @@
 import { songNow } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
-import { finish, newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
+import { finish, lancerJam, newRun, pause, quitterJam, resumeCP, unpause } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
 import { S, spb } from "../jeu/etat";
 import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
@@ -16,6 +16,8 @@ overlay.addEventListener("click", (e) => {
   const act = b.dataset.act;
   if (act === "start" || act === "restart") newRun();
   else if (act === "listen") newRun(true);
+  else if (act === "jam") lancerJam();
+  else if (act === "quitter-jam") quitterJam();
   else if (act === "resume") resumeCP();
   else if (act === "continue") unpause();
   else if (act === "quitter-boucle") finish();
@@ -37,10 +39,11 @@ addEventListener("keydown", (e) => {
   if (S.mode === "play") {
     if (c in KEYLABEL || c === "Space" || c === "Escape") e.preventDefault();
     if (e.repeat) return;
-    if (c === "Escape") return pause();
+    // Échap quitte la jam (#24) ; dans une partie, il la met en pause
+    if (c === "Escape") return S.jam ? quitterJam() : pause();
     // Pendant la réécoute (#23), la partie se rejoue toute seule : seule la pause répond
     if (S.relecture) return;
-    if (c === "KeyA") {
+    if (c === "KeyA" && !S.jam) {
       S.auto = !S.auto;
       if (S.auto) S.autoUsed = true;
       noter(S.enregistrement, { temps: songNow() / spb(), geste: "auto", auto: S.auto });
@@ -73,13 +76,22 @@ addEventListener("keydown", (e) => {
     if (id) ouvrirEssai(id, true);
     else if (c === "Escape") fermerMenuEssais();
   } else if (S.mode === "title") {
+    // L'essai de la jam (#24) n'a qu'un départ : la jam
+    const jam = !!S.essai?.essai.jam;
     if (c === "Space" || c === "Enter") {
       e.preventDefault();
-      newRun();
-    } else if (c === "KeyA") newRun(true);
+      if (jam) lancerJam();
+      else newRun();
+    } else if (c === "KeyJ") lancerJam();
+    else if (c === "KeyA" && !jam) newRun(true);
     else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyE") menuEssais();
     else if (c === "Escape" && S.essai) quitterEssai();
+  } else if (S.mode === "pause" && S.jam) {
+    if (c === "Space") {
+      e.preventDefault();
+      unpause();
+    } else if (c === "Escape") quitterJam();
   } else if (S.mode === "pause") {
     if (c === "Escape" || c === "Space") {
       e.preventDefault();

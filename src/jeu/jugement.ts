@@ -3,7 +3,8 @@
 // de la chanson (en secondes) en paramètre, et passe par les effets qu'on lui branche pour le son et l'image.
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
-import { COULOIRS, S, compterPassage, mult, sectionAtBar, spb } from "./etat";
+import { COULOIRS, S, chordAtBeat, compterPassage, mult, sectionAtBar, spb, type Action } from "./etat";
+import { noteDeJam } from "./jam";
 import { estSolo, noterAuSolo } from "./variations";
 
 export interface Effets {
@@ -425,4 +426,26 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   }
   effets.tir(lane, null);
   return [];
+}
+
+/* ---------- Jam (#24) ---------- */
+/**
+ * En jam, un geste fait sonner le degré de l'accord en cours (ADR-0003), sans rien juger ni compter : ni score, ni
+ * combo, ni harmonie. Le personnage saute, glisse et écrase comme dans la partie ; un second saut en l'air joue la
+ * quinte au-dessus de l'octave (#7).
+ */
+export function jouerEnJam(a: Action, ns: number) {
+  const nb = ns / spb(),
+    ch = chordAtBeat(nb),
+    kind = sectionAtBar(Math.floor(nb / 4)).kind;
+  if (a === "sauter" || a === "glisser" || a === "ecraser") {
+    const geste = a === "glisser" ? 0 : a === "ecraser" ? 3 : enLair(ns) ? 2 : 1;
+    // Sans note à l'écran, leftPress ne fait que l'animation du geste
+    leftPress(geste === 2 ? 1 : geste, ns);
+    effets.jouer(noteDeJam("L", geste, ch, nb, kind), null);
+    return;
+  }
+  const lane = COULOIRS.indexOf(a);
+  effets.jouer(noteDeJam("R", lane, ch, nb, kind), null);
+  effets.tir(lane, true);
 }

@@ -14,7 +14,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 - `index.html` : la structure de la page, qui charge `src/styles.css` et `src/main.ts`.
 - `src/` : le code TypeScript, organisé par domaine (ADR-0007) :
   - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire et générateur ;
-  - `jeu/` : état de la partie, couche d'actions, jugement des coups, table des touches MIDI, auto-play, variations de la partie (reprise du solo), enregistrement des coups et réécoute de fin de partie (#23), déroulement (départ, pause, mort, reprise), et les effets du jugement sur le son et l'image ;
+  - `jeu/` : état de la partie, couche d'actions, jugement des coups, table des touches MIDI, auto-play, variations de la partie (reprise du solo), enregistrement des coups et réécoute de fin de partie (#23), jam sans obstacles ni ennemis (#24), déroulement (départ, pause, mort, reprise), et les effets du jugement sur le son et l'image ;
   - `audio/` : moteur Web Audio, instruments, séquenceur ;
   - `rendu/` : outils de dessin, scène et HUD, décors de la Ville et de la Boîte ;
   - `univers/` : définitions des univers (textes, couleurs) ;
@@ -22,7 +22,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
   - `ui/` : écrans, touches, clavier, tactile, clavier MIDI (accès Web MIDI), réglages, menu des essais ;
   - `main.ts` : amorçage et boucle d'images.
 
-  `chanson/`, `essais/`, `jeu/jugement.ts`, `jeu/calibrage.ts`, `jeu/midi.ts`, `jeu/variations.ts` (la reprise du solo, ADR-0012) `jeu/style.ts` (la note de style du solo, #22), `jeu/enregistrement.ts` (le format des coups enregistrés, #23) et `jeu/croisement.ts` (le retournement de la scène en mains croisées, #21) sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
+  `chanson/`, `essais/`, `jeu/jugement.ts`, `jeu/calibrage.ts`, `jeu/midi.ts`, `jeu/variations.ts` (la reprise du solo, ADR-0012) `jeu/style.ts` (la note de style du solo, #22), `jeu/enregistrement.ts` (le format des coups enregistrés, #23), `jeu/croisement.ts` (le retournement de la scène en mains croisées, #21) et `jeu/jam.ts` (les mesures et les notes de la jam, #24) sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
 
 - `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
 - `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.
@@ -40,7 +40,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 Un essai fait tomber directement sur une fonctionnalité : une chanson courte (une douzaine de mesures) où elle revient dès les premières mesures, dans l'univers et la difficulté choisis, l'autre main en auto-play si besoin. La phrase « à vérifier » reste affichée sur la scène.
 
 - **Où** : le registre `ESSAIS` dans `src/essais/registre.ts`. La fabrique `src/essais/fabrique.ts` assemble des mesures d'une chanson générée (`assembler`), réécrit la basse avec des motifs (même notation que `DIFFS`), peut changer les accords d'un morceau (`accords`), faire marcher la basse en escaliers (`marcher`), poser des phrases en relais entre les deux mains (`relayer`) et ajouter des événements (`accorder`, puis `finaliser`). Le générateur n'est jamais modifié pour un essai.
-- **Ajouter un essai** : une entrée dans `ESSAIS` avec `id` (minuscules et tirets), `titre`, `verifier` (ce qu'on doit voir ou entendre), `issue`, `univers`, `diff`, `mains` (`both`, `L`, `R` ou `duo`, un joueur par main), `chanson()` et `repere(ev)` (les notes qui portent la fonctionnalité). `tests/essais.test.ts` vérifie automatiquement que la chanson est valide, que le repère apparaît dans les quatre premières mesures et au moins quatre fois, et que l'auto-play la joue sans faute.
+- **Ajouter un essai** : une entrée dans `ESSAIS` avec `id` (minuscules et tirets), `titre`, `verifier` (ce qu'on doit voir ou entendre), `issue`, `univers`, `diff`, `mains` (`both`, `L`, `R` ou `duo`, un joueur par main), `chanson()` et `repere(ev)` (les notes qui portent la fonctionnalité) ; `jam: true` ouvre la jam (#24) sur la chanson de l'essai, sans notes à jouer. `tests/essais.test.ts` vérifie automatiquement que la chanson est valide, que le repère apparaît dans les quatre premières mesures et au moins quatre fois, et que l'auto-play la joue sans faute.
 - **Ouvrir un essai** : `npm run dev` puis `http://localhost:5173/?essai=<id>` (ou `#essai=<id>`) ; dans `dist/deux-mains.html` ou l'artefact publié, le bouton « Essais » de l'écran titre (touche `E`), puis le numéro de l'essai. Échap quitte les essais et rend les réglages du joueur.
 
 ## Outillage
@@ -55,7 +55,7 @@ Décidé par ADR-0007 : TypeScript, Vite (avec `vite-plugin-singlefile`), Vitest
 | `npm run format` | Prettier en écriture sur tout le projet (`npm run format:check` pour vérifier sans écrire) |
 | `npm run lint`   | ESLint                                                                                     |
 
-Les tests unitaires (`generateur`, `jugement`, `autoplay`) importent directement la logique pure, sans faux navigateur : les effets du jugement y sont des espions. La couverture des lignes de `chanson/`, de `jeu/jugement.ts`, de `jeu/midi.ts`, de `jeu/variations.ts`, de `jeu/style.ts`, de `jeu/enregistrement.ts` et de `jeu/croisement.ts` doit rester d'au moins 90 %, sinon `npm test` échoue.
+Les tests unitaires (`generateur`, `jugement`, `autoplay`) importent directement la logique pure, sans faux navigateur : les effets du jugement y sont des espions. La couverture des lignes de `chanson/`, de `jeu/jugement.ts`, de `jeu/midi.ts`, de `jeu/variations.ts`, de `jeu/style.ts`, de `jeu/enregistrement.ts`, de `jeu/croisement.ts` et de `jeu/jam.ts` doit rester d'au moins 90 %, sinon `npm test` échoue.
 
 La simulation charge `src/main.ts` dans un faux navigateur (`tests/support/navigateur.ts`) et lit l'état en important les modules. L'instantané du générateur (`tests/instantanes/chansons.json`) prouve que les chansons ne changent pas ; ne le régénérer (`npx vitest run -u`) que pour un changement voulu du générateur.
 

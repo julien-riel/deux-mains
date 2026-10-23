@@ -3,6 +3,7 @@ import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
 import type { Enregistrement } from "./enregistrement";
+import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
 import type { Reprise } from "./variations";
 
@@ -157,6 +158,8 @@ export interface Etat {
   enregistrement: Enregistrement | null;
   /** La réécoute en cours (#23) : la partie rejoue les coups enregistrés, et ceux du joueur sont ignorés */
   relecture: Relecture | null;
+  /** La jam en cours (#24) : les mesures qu'elle rejoue sans fin, sans notes à jouer ; null hors jam */
+  jam: Jam | null;
 }
 
 export const S: Etat = {
@@ -217,6 +220,7 @@ export const S: Etat = {
   essai: null,
   enregistrement: null,
   relecture: null,
+  jam: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
@@ -227,10 +231,14 @@ export const auRepos = () => S.mode === "title" || S.mode === "essais" || S.mode
 // Le combo qui fait le multiplicateur d'une main : en duo, celui de son joueur (#6) ; sinon le combo commun
 export const comboDe = (hand?: Main) => (hand && S.practice === "duo" ? S.parMain[hand].combo : S.combo);
 export const mult = (hand?: Main) => 1 + Math.min(3, Math.floor(comboDe(hand) / 10)) * 0.5;
-// Le temps de la partie ne recule jamais : en boucle, ses mesures continuent après la fin de la section, et
-// cette conversion seule les ramène dans la chanson (ADR-0009). Hors boucle, c'est la même mesure.
+// Les mesures que la partie rejoue sans fin : la section de la boucle (#5), ou le corps de la chanson en jam (#24)
+const rejouees = () => (S.bouclePartie && S.bouclePartie.sec) || S.jam;
+/** La partie n'a pas de fin : en boucle ou en jam (ADR-0009) */
+export const sansFin = () => !!rejouees();
+// Le temps de la partie ne recule jamais : en boucle (et en jam), ses mesures continuent après la fin des mesures
+// rejouées, et cette conversion seule les ramène dans la chanson (ADR-0009). Hors boucle, c'est la même mesure.
 export function mesureDeLaChanson(bar: number) {
-  const sec = S.bouclePartie && S.bouclePartie.sec;
+  const sec = rejouees();
   return sec && bar >= sec.start + sec.bars ? sec.start + ((bar - sec.start) % sec.bars) : bar;
 }
 /** Le passage de la boucle en cours à ce temps de la partie, à partir de 0 (le décompte fait partie du premier) */
@@ -266,5 +274,6 @@ export const layers = () => {
 };
 // Une seule main jouée par le joueur : c'est un entraînement. En duo, chaque main a son joueur (#6).
 export const uneMain = () => S.practice === "L" || S.practice === "R";
-// La main qui joue toute seule : les deux en auto-play, ou l'autre main en entraînement ; jamais en duo
-export const autoFor = (hand: Main) => S.auto || (uneMain() && S.practice !== hand);
+// La main qui joue toute seule : les deux en auto-play, ou l'autre main en entraînement ; jamais en duo, ni en jam
+// (#24), où les deux mains jouent librement
+export const autoFor = (hand: Main) => !S.jam && (S.auto || (uneMain() && S.practice !== hand));

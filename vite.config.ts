@@ -33,6 +33,7 @@ export default defineConfig({
         "src/jeu/style.ts",
         "src/jeu/enregistrement.ts",
         "src/jeu/croisement.ts",
+        "src/jeu/jam.ts",
       ],
       reporter: ["text"],
       thresholds: {
@@ -44,6 +45,7 @@ export default defineConfig({
         "src/jeu/style.ts": { lines: 90 },
         "src/jeu/enregistrement.ts": { lines: 90 },
         "src/jeu/croisement.ts": { lines: 90 },
+        "src/jeu/jam.ts": { lines: 90 },
       },
     },
   },

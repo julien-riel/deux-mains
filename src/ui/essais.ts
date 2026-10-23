@@ -1,6 +1,6 @@
 // Mode essai : la liste des essais, l'ouverture d'un essai, et l'accès direct par l'adresse (?essai=<id> ou #essai=<id>)
 import { ESSAIS, essaiDemande, trouverEssai } from "../essais/registre";
-import { newRun } from "../jeu/deroulement";
+import { lancerJam, newRun } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { show } from "./ecrans";
 import { chargerEssai } from "./reglages";
@@ -10,7 +10,7 @@ export function ouvrirEssai(id: string, demarrer = false) {
   const e = trouverEssai(id);
   if (!e) return false;
   chargerEssai(e);
-  if (demarrer) newRun();
+  if (demarrer) (e.jam ? lancerJam : newRun)();
   return true;
 }
 /** Le n-ième essai de la liste, à partir de 1 : les chiffres du clavier */

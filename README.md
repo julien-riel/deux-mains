@@ -39,6 +39,7 @@ Le MIDI ne marche que dans Chrome ou Edge (Safari et Firefox sans module n'ont p
 - **Harmonie.** C'est la barre de vie. Quand elle baisse, la musique s'étouffe, perd ses couches, puis se désaccorde. À zéro, un effet « tape stop » arrête la chanson, et on peut reprendre au début de la section.
 - **Combo.** Le combo ajoute des couches : arpèges à 8, chœurs à 20, cordes à 35.
 - **Entraînement.** On peut jouer une seule main pendant que l'autre est en auto-play.
+- **Jam.** Le bouton « Jam » (touche `J`) de l'écran de départ fait tourner la chanson sans fin, sans obstacles ni ennemis : on joue librement des deux mains, chaque touche sur son degré de l'accord en cours, sans score, ni harmonie, ni mort. `Échap` quitte la jam.
 
 ## Générateur
 
