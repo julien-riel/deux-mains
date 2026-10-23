@@ -15,6 +15,7 @@ import { suivreCalibrage } from "./ui/calibrage";
 import { demarrerMidi } from "./ui/midi";
 import { chargerSauvegarde } from "./ui/progression";
 import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
+import { suivreRemontage } from "./ui/remontage";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
 
@@ -56,6 +57,7 @@ function frame(now) {
   if (!S.song) return;
   if (S.mode === "play") update(visualBeat());
   suivreCalibrage();
+  suivreRemontage();
   if (S.mode === "dying" && AC.currentTime - S.deathAt > 1.7) {
     S.mode = "dead";
     show("dead");

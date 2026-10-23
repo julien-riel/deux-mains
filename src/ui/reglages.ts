@@ -41,6 +41,9 @@ function installer(song: Chanson, diff: string) {
   }
   S.diff = diff;
   S.song = song;
+  // Le remontage (#27) ne vaut que pour la chanson qui le suit
+  S.remontage = null;
+  S.depart = null;
   resetRun();
   S.mode = "title";
   const r = document.getElementById("d-" + diff) as HTMLInputElement;

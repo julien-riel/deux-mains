@@ -8,6 +8,7 @@ import { COULOIRS, S, type Action } from "../jeu/etat";
 import { H, LANE_Y, cv, yDeLaScene } from "../rendu/outils";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
+import { taperRemontage } from "./remontage";
 import { COMMANDES } from "./touches";
 
 const scene = document.querySelector<HTMLElement>(".stage");
@@ -34,6 +35,11 @@ scene.addEventListener("pointerdown", (e) => {
   if ((e.target as HTMLElement).closest("button")) return;
   // Pendant le calibrage, toucher n'importe où compte comme un coup, même au clavier
   if (S.mode === "calib") return taper(retard(e));
+  // Pendant le remontage (#27), un doigt sur la moitié d'une main fait le tour de cette main
+  if (S.mode === "remontage") {
+    e.preventDefault();
+    return taperRemontage(zone(e.clientX, e.clientY), retard(e));
+  }
   if (!COMMANDES.tactile || S.mode !== "play") return;
   e.preventDefault();
   const a = zone(e.clientX, e.clientY);

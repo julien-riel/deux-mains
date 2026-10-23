@@ -5,6 +5,7 @@ import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
 import { touchesMidi } from "../jeu/midi";
 import { peutReecouter } from "../jeu/reecoute";
+import { resultatRemontage } from "../jeu/remontage";
 import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
 import { CRITERES, conseil } from "../jeu/style";
 import { clamp } from "../outils";
@@ -83,6 +84,15 @@ const boutonCarte = () =>
 // L'enchaînement (#25) : le prochain lieu à faire sur la carte, après celui de la chanson
 const boutonSuivant = () =>
   `<button type="button" data-act="suivant">Suivant : ${TH().places[prochainLieu()]} <kbd>→</kbd></button>`;
+// Le remontage (#27) : l'essai du remontage le propose tant qu'il n'est pas fait ; l'écran de départ du lieu qui le
+// suit annonce l'harmonie de départ gagnée
+export const aRemonter = () => !!S.essai?.essai.remontage && S.depart === null;
+function ligneDepart() {
+  if (S.depart === null || !S.remontage) return "";
+  const { reussis, total } = resultatRemontage(S.remontage),
+    R = TH().remontage;
+  return `<p class="meta depart">${R.depart} : ${S.depart} · ${reussis} ${R.tours} sur ${total}</p>`;
+}
 export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff],
@@ -103,11 +113,19 @@ export function show(kind) {
       <p class="meta">À vérifier : ${essai.verifier}</p>
       <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s</p>
       ${essai.midi ? pianoMidi() + etatMidi() : ""}
+      ${ligneDepart()}
       <div class="actions">${
         essai.jam
           ? `<button class="primary" type="button" data-act="jam">Jammer <kbd>Espace</kbd></button>`
-          : `<button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
-      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>`
+          : aRemonter()
+            ? `<button class="primary" type="button" data-act="remonter">${TH().remontage.titre} <kbd>Espace</kbd></button>
+      <button type="button" data-act="remonter-auto">En auto-play ${k("KeyA")}</button>`
+            : `<button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>${
+        essai.remontage
+          ? `<button type="button" data-act="remonter">Recommencer le remontage <kbd>R</kbd></button>`
+          : ""
+      }`
       }
       ${boutonCarte()}${sortiesEssai()}</div>`;
   } else if (kind === "carte") {
@@ -126,6 +144,7 @@ export function show(kind) {
     h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
+      ${ligneDepart()}
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
       <button type="button" data-act="jam">Jam ${kc("KeyJ")}</button>

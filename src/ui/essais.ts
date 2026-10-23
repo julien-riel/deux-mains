@@ -4,13 +4,16 @@ import { lancerJam, newRun } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { show } from "./ecrans";
 import { chargerEssai } from "./reglages";
+import { lancerRemontage } from "./remontage";
 
 /** Ouvre un essai sur son écran de départ, ou le lance tout de suite (`demarrer`, après un geste du joueur) */
 export function ouvrirEssai(id: string, demarrer = false) {
   const e = trouverEssai(id);
   if (!e) return false;
   chargerEssai(e);
-  if (demarrer) (e.jam ? lancerJam : newRun)();
+  // L'essai du remontage (#27) commence par le remontage, joué par le joueur
+  if (demarrer && e.remontage) lancerRemontage(false);
+  else if (demarrer) (e.jam ? lancerJam : newRun)();
   return true;
 }
 /** Le n-ième essai de la liste, à partir de 1 : les chiffres du clavier */

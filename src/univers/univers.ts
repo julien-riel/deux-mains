@@ -32,6 +32,16 @@ export interface Univers {
     /** Ce que la progression change dans les niveaux */
     effet: string;
   };
+  /** Le remontage entre deux lieux (#27, ADR-0015) : la même mécanique, dans les mots de l'univers */
+  remontage: {
+    /** Le titre sur la scène, et le bouton qui le lance dans son essai */
+    titre: string;
+    consigne: string;
+    /** Ce que l'écran de départ du lieu annonce : « Ressort de départ : 95 » */
+    depart: string;
+    /** Le nom des tours : « 7 tours de clé sur 8 » */
+    tours: string;
+  };
 }
 
 // Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
@@ -65,6 +75,12 @@ export const THEMES: Record<string, Univers> = {
       gagne: "Le quartier se rallume : ses habitants resteront aux fenêtres.",
       effet: "Chaque quartier rallumé garde des fenêtres allumées au départ des niveaux suivants.",
     },
+    remontage: {
+      titre: "Relancer le groupe électrogène",
+      consigne: "Tourne la manivelle en rythme : chaque tour réussi rallume une rangée de fenêtres.",
+      depart: "Volume de départ",
+      tours: "tours de manivelle",
+    },
   },
   boite: {
     label: "La Boîte à musique",
@@ -94,6 +110,12 @@ export const THEMES: Record<string, Univers> = {
       reussis: "retrouvés",
       gagne: "Le souvenir revient : son illustration rejoint l'album.",
       effet: "Chaque souvenir retrouvé révèle son illustration, et sa photographie reste accrochée au mur du grenier.",
+    },
+    remontage: {
+      titre: "Remonter la clé",
+      consigne: "Accompagne chaque tour de la clé : le ressort se tend.",
+      depart: "Ressort de départ",
+      tours: "tours de clé",
     },
   },
 };

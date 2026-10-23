@@ -237,8 +237,9 @@ describe("registre des essais", () => {
   });
 });
 
-// La jam n'a pas de fin ni de notes à jouer : son parcours est dans jam.test.ts
-describe.each(ESSAIS.filter((e) => !e.jam).map((e) => [e.id, e] as const))("essai %s", (id, e) => {
+// La jam n'a pas de fin ni de notes à jouer : son parcours est dans jam.test.ts. Les essais du remontage (#27)
+// commencent par lui : leur parcours est dans remontage.test.ts
+describe.each(ESSAIS.filter((e) => !e.jam && !e.remontage).map((e) => [e.id, e] as const))("essai %s", (id, e) => {
   it("ouvert par ?essai=, l'auto-play le joue jusqu'au bout sans rater de note", async () => {
     nav = await Navigateur.ouvrir({ adresse: { search: `?essai=${id}` } });
     const S = nav.jeu.state;
