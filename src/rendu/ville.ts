@@ -1,6 +1,24 @@
 import { S, layers, progression } from "../jeu/etat";
+import { COULEUR_BASSE } from "../jeu/traces";
+import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
-import { COL, GY, PPB, PW, PX, W, energy, g, hexA, hh, rr, type PoseDuBoss } from "./outils";
+import {
+  COL,
+  GY,
+  PPB,
+  PW,
+  PX,
+  W,
+  energy,
+  formeCouloir,
+  g,
+  hexA,
+  hh,
+  rr,
+  teinteDeTrace,
+  tracesVisibles,
+  type PoseDuBoss,
+} from "./outils";
 
 /* La Ville Muette */
 export function villeBack(nb, hsl, bp) {
@@ -68,6 +86,7 @@ export function villeBack(nb, hsl, bp) {
       }
     }
   }
+  villeTags(nb, hsl, bp);
   // Lampadaires, un toutes les deux mesures
   for (let b = Math.floor((nb - 4) / 8) * 8; b < nb + 12; b += 8) {
     const x = PX + PW / 2 + (b - nb) * PPB + 60;
@@ -87,6 +106,51 @@ export function villeBack(nb, hsl, bp) {
       g.fillRect(x - 20, GY - 146, 10, 4);
     }
   }
+}
+// Les graffitis lumineux des notes parfaites (#29, ADR-0015) : sur le mur de l'immeuble du premier plan qui passait
+// derrière la note, la forme de son couloir (#31) bombée à la peinture fluo, avec sa coulure ; un éclair pour la
+// basse. Plus la note est haute, plus le tag est haut sur le mur. Un tag qu'on vient de bomber est plus grand et
+// plus vif pendant un temps. Les immeubles sont ceux de villeBack : même pas, même hachage.
+const PLAN_TAGS = { vitesse: 0.28, slot: 110, minH: 90, maxH: 220, plan: 1 };
+function villeTags(nb, hsl, bp) {
+  const { vitesse, slot, minH, maxH, plan } = PLAN_TAGS,
+    off = nb * PPB * vitesse;
+  g.save();
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  for (const { t, couleur, x, frais } of tracesVisibles(nb, vitesse)) {
+    // L'immeuble sous la note, et le tag ramené sur son mur s'il tombait dans la ruelle
+    const X = x + off,
+      k = Math.floor(X / slot),
+      bw = slot - 8 - hh(k, plan) * 20,
+      bh = minH + hh(k, plan + 7) * (maxH - minH),
+      cx = clamp(X, k * slot + 12, k * slot + bw - 12) - off,
+      rang = couleur === COULEUR_BASSE ? 0 : couleur + 1,
+      cy = GY - 26 - ((rang + 0.15 + 0.7 * hh(t, 61)) / 5) * (bh - 46),
+      r = 6 * (1 + 0.7 * frais),
+      teinte = teinteDeTrace(couleur),
+      tracer = () => {
+        if (couleur === COULEUR_BASSE) {
+          g.beginPath();
+          g.moveTo(cx - r, cy - r * 0.6);
+          g.lineTo(cx + r * 0.2, cy - r * 0.1);
+          g.lineTo(cx - r * 0.3, cy + r * 0.2);
+          g.lineTo(cx + r, cy + r * 0.8);
+        } else formeCouloir(couleur, cx, cy, r);
+      };
+    // Le halo de la peinture, puis le trait vif, puis la coulure
+    tracer();
+    g.strokeStyle = hsl(teinte, 95, 62, 0.18 + 0.1 * bp + 0.3 * frais);
+    g.lineWidth = 7;
+    g.stroke();
+    tracer();
+    g.strokeStyle = hsl(teinte, 95, 70 + 15 * frais, 0.9);
+    g.lineWidth = 2;
+    g.stroke();
+    g.fillStyle = hsl(teinte, 95, 66, 0.7);
+    g.fillRect(cx + (hh(t, 62) - 0.5) * r, cy + r, 1.5, 4 + hh(t, 63) * 8);
+  }
+  g.restore();
 }
 export function villeGround(nb, hsl) {
   g.fillStyle = hsl(250, 14, 12);

@@ -4,15 +4,20 @@
 // migre le document, et y note ce que le joueur gagne. Il ne touche jamais au stockage lui-même.
 import { VERSION_GENERATEUR } from "../chanson/generateur";
 import { empreinteDe, lirePartition, type Partition } from "../chanson/partition";
+import { estTrace, reunir } from "../jeu/traces";
 
 /** La version du format. Tout changement du format l'augmente et ajoute une migration à MIGRATIONS.
- * 2 : les compositions (#28, ADR-0016). */
-export const VERSION = 2;
+ * 2 : les compositions (#28, ADR-0016).
+ * 3 : les traces des notes parfaites d'une chanson (#29). */
+export const VERSION = 3;
 
 /** Ce que la sauvegarde garde d'une chanson précise, sous sa clé (voir cleChanson) */
 export interface SuiviChanson {
-  /** Le meilleur score classé : ni auto-play, ni une seule main, ni ralenti, ni boucle */
-  meilleur: number;
+  /** Le meilleur score classé : ni auto-play, ni une seule main, ni ralenti, ni boucle. Absent dans la progression
+   * fictive d'un essai, qui ne garde pas de score mais peut garder des traces */
+  meilleur?: number;
+  /** Les traces des notes parfaites (#29, `jeu/traces.ts`), triées et plafonnées ; absent tant qu'il n'y en a pas */
+  traces?: number[];
 }
 
 export interface Sauvegarde {
@@ -44,6 +49,12 @@ export const cleChanson = (graine: number, diff: string, version = VERSION_GENER
  */
 export const clePartition = (empreinte: string) => `p:${empreinte}`;
 
+/**
+ * La clé de la chanson d'un essai, « e:id » : elle ne sert que dans la progression fictive de l'essai (#25), en
+ * mémoire, pour y garder ses traces (#29). Une chanson d'essai n'est pas celle de sa graine.
+ */
+export const cleEssai = (id: string) => `e:${id}`;
+
 /* ---------- Lecture ---------- */
 /** Une migration fait passer un document brut de la version v à la version v + 1 */
 export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
@@ -51,6 +62,8 @@ export type Migration = (doc: Record<string, unknown>) => Record<string, unknown
 export const MIGRATIONS: Record<number, Migration> = {
   // 1 → 2 : les compositions (#28) arrivent, facultatives ; un document de la version 1 n'en a pas
   1: (doc) => doc,
+  // 2 → 3 : les traces des notes parfaites (#29) arrivent, facultatives, dans l'entrée de chaque chanson
+  2: (doc) => doc,
 };
 
 /**
@@ -103,9 +116,15 @@ function reparer(brut: Record<string, unknown>, version: number): Sauvegarde {
     for (const [univers, lieux] of Object.entries(brut.carte))
       if (Array.isArray(lieux)) doc.carte[univers] = [...new Set(lieux.filter((l) => typeof l === "string"))];
   if (estObjet(brut.chansons))
-    for (const [cle, suivi] of Object.entries(brut.chansons))
-      if (estObjet(suivi) && Number.isFinite(suivi.meilleur) && (suivi.meilleur as number) >= 0)
-        doc.chansons[cle] = { meilleur: suivi.meilleur as number };
+    for (const [cle, suivi] of Object.entries(brut.chansons)) {
+      if (!estObjet(suivi)) continue;
+      const lu: SuiviChanson = {};
+      if (Number.isFinite(suivi.meilleur) && (suivi.meilleur as number) >= 0) lu.meilleur = suivi.meilleur as number;
+      // Une trace abîmée est laissée de côté ; le plafond s'applique à celles qui restent
+      const traces = Array.isArray(suivi.traces) ? reunir(suivi.traces.filter(estTrace)) : [];
+      if (traces.length) lu.traces = traces;
+      if (lu.meilleur !== undefined || lu.traces) doc.chansons[cle] = lu;
+    }
   // Une composition illisible est laissée de côté ; les autres sont rangées sous leur empreinte, recalculée
   if (estObjet(brut.compositions))
     for (const brute of Object.values(brut.compositions)) {
@@ -154,9 +173,25 @@ export function noterReussite(
   if (cle !== undefined && r.score !== undefined) {
     const ancien = doc.chansons[cle]?.meilleur;
     record = ancien === undefined || r.score > ancien;
-    if (record) suivant.chansons[cle] = { meilleur: r.score };
+    if (record) suivant.chansons[cle] = { ...doc.chansons[cle], meilleur: r.score };
   }
   return { doc: suivant, progres: { lieu: nouveau ? r.lieu : null, record } };
+}
+
+/* ---------- Traces (#29) ---------- */
+/** Les traces gardées pour la chanson de cette clé */
+export const tracesGardees = (doc: Sauvegarde, cle: string): number[] => doc.chansons[cle]?.traces ?? [];
+
+/**
+ * Ajoute aux traces d'une chanson celles de la partie qui vient de finir : les anciennes gardent leur place, les
+ * nouvelles s'ajoutent tant que le plafond le permet (`TRACES`, `jeu/traces.ts`). Renvoie un nouveau document, ou le
+ * même s'il n'y a rien de nouveau ; l'ancien n'est jamais touché.
+ */
+export function noterTraces(doc: Sauvegarde, cle: string, nouvelles: readonly number[]): Sauvegarde {
+  const avant = tracesGardees(doc, cle),
+    traces = reunir(avant, nouvelles);
+  if (traces.length === avant.length) return doc;
+  return { ...doc, chansons: { ...doc.chansons, [cle]: { ...doc.chansons[cle], traces } } };
 }
 
 /* ---------- Compositions (#28, ADR-0016) ---------- */
@@ -184,15 +219,23 @@ export function retirerComposition(doc: Sauvegarde, empreinte: string): Sauvegar
 
 /**
  * Réunit deux sauvegardes, par exemple celle du navigateur et un code collé : rien n'est perdu. Les lieux réussis
- * s'additionnent, chaque chanson garde le meilleur des deux scores, et les compositions s'ajoutent les unes aux
- * autres (la même partition, de même empreinte, n'est gardée qu'une fois).
+ * s'additionnent, chaque chanson garde le meilleur des deux scores et les traces des deux (celles d'ici d'abord, dans
+ * la limite du plafond), et les compositions s'ajoutent les unes aux autres (la même partition, de même empreinte,
+ * n'est gardée qu'une fois).
  */
 export function fusionner(ici: Sauvegarde, autre: Sauvegarde): Sauvegarde {
   const doc: Sauvegarde = { v: VERSION, carte: {}, chansons: { ...ici.chansons } };
   for (const univers of new Set([...Object.keys(ici.carte), ...Object.keys(autre.carte)]))
     doc.carte[univers] = [...new Set([...lieuxReussis(ici, univers), ...lieuxReussis(autre, univers)])];
-  for (const [cle, suivi] of Object.entries(autre.chansons))
-    if (!(cle in doc.chansons) || suivi.meilleur > doc.chansons[cle].meilleur) doc.chansons[cle] = { ...suivi };
+  for (const [cle, suivi] of Object.entries(autre.chansons)) {
+    const a = doc.chansons[cle] ?? {},
+      meilleur = Math.max(a.meilleur ?? -1, suivi.meilleur ?? -1),
+      traces = reunir(a.traces ?? [], suivi.traces ?? []),
+      reuni: SuiviChanson = {};
+    if (meilleur >= 0) reuni.meilleur = meilleur;
+    if (traces.length) reuni.traces = traces;
+    doc.chansons[cle] = reuni;
+  }
   if (ici.compositions || autre.compositions) doc.compositions = { ...ici.compositions, ...autre.compositions };
   return doc;
 }

@@ -16,6 +16,7 @@ import {
   S,
   autoFor,
   bossNeuf,
+  cleDesTraces,
   mesureDeLaChanson,
   passageAt,
   sectionAtBar,
@@ -64,6 +65,8 @@ export function resetRun() {
     reprise: repriseNeuve(),
     // Le boss de fin (#26) repart avec toute sa vie
     boss: bossNeuf(S.song),
+    // Les traces des notes parfaites (#29) : celles de la sauvegarde restent sur le décor, la partie en peint d'autres
+    traces: { cle: cleDesTraces(), nouvelles: [] },
   });
   oublierTouches();
   for (const ev of S.song.ev) {

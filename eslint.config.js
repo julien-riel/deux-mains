@@ -28,6 +28,7 @@ export default defineConfig([
       "src/jeu/jam.ts",
       "src/jeu/remontage.ts",
       "src/jeu/editeur.ts",
+      "src/jeu/traces.ts",
     ],
     rules: {
       "no-restricted-imports": [
