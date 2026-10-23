@@ -6,10 +6,10 @@ import { DIFFS } from "../chanson/difficultes";
 import { burst, HITX, LANE_HUE, LANE_Y } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { TH } from "../univers/univers";
-import { autoHit } from "./autoplay";
+import { autoAlterner, autoHit } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
-import { completeHold, gagner, missEv } from "./jugement";
+import { completeHold, finirTrille, gagner, missEv } from "./jugement";
 
 /* ---------- Partie ---------- */
 export function resetRun() {
@@ -43,7 +43,7 @@ export function resetRun() {
     ev.state = "pending";
     ev.voice = null;
     ev.auto = false;
-    ev.vibrato = ev.vibreAt = undefined;
+    ev.vibrato = ev.vibreAt = ev.ecart = ev.dernier = ev.alternances = ev.trilleAt = undefined;
   }
 }
 export function startAt(beat) {
@@ -98,6 +98,10 @@ function passage(k: number): Note[] {
         missAt: undefined,
         vibrato: undefined,
         vibreAt: undefined,
+        ecart: undefined,
+        dernier: undefined,
+        alternances: undefined,
+        trilleAt: undefined,
         passage: k,
       });
   for (const c of copies.values()) if (c.grp) c.grp = c.grp.map((ev) => copies.get(ev));
@@ -148,7 +152,7 @@ export function resumeCP() {
   for (const ev of S.song.ev) {
     ev.voice = null;
     ev.auto = false;
-    ev.vibrato = ev.vibreAt = undefined;
+    ev.vibrato = ev.vibreAt = ev.ecart = ev.dernier = ev.alternances = ev.trilleAt = undefined;
     ev.state = ev.beat >= b0 - 0.01 ? "pending" : "skip";
   }
   S.autoQ = [];
@@ -156,7 +160,10 @@ export function resumeCP() {
 }
 export function pause() {
   if (S.mode !== "play") return;
-  for (const ev of S.ev) if (ev.state === "holding") completeHold(ev, true);
+  // Les notes tenues et les trilles (#15) en cours sont réussies : la pause ne doit pas faire perdre
+  for (const ev of S.ev)
+    if (ev.state === "holding" && ev.trille !== undefined) finirTrille(ev, true);
+    else if (ev.state === "holding") completeHold(ev, true);
   S.mode = "pause";
   S.keys = {};
   AC.suspend();
@@ -208,6 +215,10 @@ export function update(nb) {
     const due = S.autoQ.filter((q) => q.at <= ns);
     S.autoQ = S.autoQ.filter((q) => q.at > ns);
     for (const q of due) {
+      if (q.ev && q.trille !== undefined) {
+        autoAlterner(q.ev, q.trille);
+        continue;
+      }
       if (q.ev) {
         if (q.ev.state === "pending") autoHit(q.ev);
         continue;
@@ -227,7 +238,12 @@ export function update(nb) {
     if (ev.state === "pending" && ns - ev.beat * spb() > wg) {
       missEv(ev);
       if (S.mode !== "play") return;
-    } else if (ev.state === "holding" && ns >= (ev.beat + ev.dur) * spb()) completeHold(ev, false);
+    } else if (ev.state === "holding" && ns >= (ev.beat + ev.dur) * spb()) {
+      // La trille (#15) se juge à sa fin, sur ses alternances : ratée, elle fait des dégâts
+      if (ev.trille === undefined) completeHold(ev, false);
+      else finirTrille(ev);
+      if (S.mode !== "play") return;
+    }
   }
   if (!S.bouclePartie && nb >= song.endBeat) return finish();
   const h = S.health,

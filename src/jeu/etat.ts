@@ -126,7 +126,8 @@ export interface Etat {
   // Auto-play et réglages
   auto: boolean;
   autoUsed: boolean;
-  autoQ: { at: number; ev?: Note; solo?: number }[];
+  /** Ce que l'auto-play anime au moment où on l'entend : une note, un appui de trille (#15) sur un couloir, ou le solo */
+  autoQ: { at: number; ev?: Note; trille?: number; solo?: number }[];
   autoLane: number;
   keyFlash: Partial<Record<Action, number>>;
   practice: Mains;

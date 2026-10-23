@@ -3,6 +3,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { mesurerDecalage } from "../src/jeu/calibrage";
+import { evenementsClavier, faire } from "./support/appuis";
 import { Navigateur } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
@@ -81,20 +82,14 @@ function calibrer(retard: number) {
 function jouerEnRetard(retard: number) {
   const S = nav.jeu.state,
     spb = 60 / S.song.bpm;
-  const evenements = S.song.ev.flatMap((ev) => {
-    const code = TOUCHE[ev.hand][ev.lane],
-      at = ev.beat * spb + retard;
-    return [
-      { at, code, presse: true },
-      { at: at + (ev.dur > 0 ? ev.dur * spb : 0.05), code, presse: false },
-    ];
-  });
-  // À heure égale, on relâche avant de presser
-  evenements.sort((a, b) => a.at - b.at || Number(a.presse) - Number(b.presse));
+  const evenements = evenementsClavier(
+    S.song.ev,
+    (beat) => beat * spb + retard,
+    (ev, lane) => TOUCHE[ev.hand][lane],
+  );
   for (const e of evenements) {
     jusquaChanson(e.at);
-    if (e.presse) nav.presser(e.code);
-    else nav.relacher(e.code);
+    faire(nav, e);
   }
   return nav.avancerJusqua((e) => e.mode !== "play", 10);
 }

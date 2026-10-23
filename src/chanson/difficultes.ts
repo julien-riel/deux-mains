@@ -6,7 +6,8 @@
 // note de la mesure suivante, en Normal et en Difficile. La mélodie évite les notes des deux premiers motifs
 // seulement : le double saut ne change pas la main droite. Le générateur remplace la première note de chaque
 // refrain par une plaque à écraser (#8).
-// Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant)
+// Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant). trilleP : la chance
+// qu'une note longue devienne une trille (#15), en Normal et en Difficile.
 export const DIFFS = {
   debutant: {
     label: "Débutant",
@@ -26,6 +27,7 @@ export const DIFFS = {
       gap: 2,
       avoid: "all",
       holdP: 0,
+      trilleP: 0,
       max: 5,
       dyadP: 0,
       dyadStrong: true,
@@ -51,6 +53,7 @@ export const DIFFS = {
       gap: 2,
       avoid: "all",
       holdP: 0,
+      trilleP: 0,
       max: 6,
       dyadP: 0.12,
       dyadStrong: true,
@@ -76,6 +79,7 @@ export const DIFFS = {
       gap: 1,
       avoid: "mostly",
       holdP: 0.12,
+      trilleP: 0.5,
       max: 9,
       dyadP: 0.16,
       dyadStrong: false,
@@ -101,6 +105,7 @@ export const DIFFS = {
       gap: 1,
       avoid: "none",
       holdP: 0.15,
+      trilleP: 0.7,
       max: 11,
       dyadP: 0.22,
       dyadStrong: false,

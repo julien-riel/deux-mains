@@ -2,6 +2,7 @@
 // dans un faux navigateur (tests/support/navigateur.ts) qui charge les modules de src/.
 
 import { afterEach, describe, expect, it } from "vitest";
+import { seuilTrille } from "../src/jeu/jugement";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
@@ -41,6 +42,11 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       const pentes = etat.ev.filter((ev) => ev.fin !== undefined);
       expect(pentes.length > 0).toBe(difficulte === "normal" || difficulte === "difficile");
       expect(pentes.every((ev) => ev.state === "done")).toBe(true);
+      // Les trilles (#15) n'existent qu'en Normal et en Difficile, et l'auto-play les réussit toutes ; cette
+      // chanson-ci n'a pas de note longue en Difficile (le générateur est testé sur d'autres graines)
+      const trilles = etat.ev.filter((ev) => ev.trille !== undefined);
+      expect(trilles.length > 0).toBe(difficulte === "normal");
+      expect(trilles.every((ev) => ev.state === "done" && ev.alternances >= seuilTrille(ev))).toBe(true);
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

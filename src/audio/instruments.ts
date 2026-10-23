@@ -326,8 +326,12 @@ export function impact(t, m) {
   gn.connect(B.dry);
 }
 
-export function playHit(ev, t) {
-  if (ev.hand === "L" && ev.lane === 3) {
+// `lane` : pour une trille (#15), le couloir appuyé
+export function playHit(ev, t, lane = ev.lane) {
+  if (ev.trille !== undefined) {
+    // Chaque appui de la trille fait sonner brièvement la note de son couloir, un peu moins fort que la mélodie
+    leadV(t, lane === ev.lane ? ev.midi : ev.midiTrille, 0, leadTimbre(ev.kind), 0.85 * (ev.vel || 1));
+  } else if (ev.hand === "L" && ev.lane === 3) {
     ev.voice = bassV(t, ev.midi, 0.9 * spb(), 1.5);
     impact(t, ev.midi);
   } else if (ev.hand === "L" && ev.fin !== undefined) {

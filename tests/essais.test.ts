@@ -37,6 +37,11 @@ function verifierChanson(c: Chanson) {
       expect(ev.midi).toBe([ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][ev.lane]);
       expect(ev.air).toBeGreaterThan(0);
     } else expect(ev.midi).toBe(ch.lanes[ev.lane]);
+    if (ev.trille !== undefined) {
+      // Une trille (#15) alterne deux degrés voisins de l'accord, sur une note longue
+      expect(Math.abs(ev.trille - ev.lane)).toBe(1);
+      expect([ev.hand, ev.midiTrille, ev.dur > 0]).toEqual(["R", ch.lanes[ev.trille], true]);
+    }
     const memeTemps = c.ev.filter((e) => e.beat === ev.beat);
     expect(ev.grp ?? [ev]).toEqual(memeTemps);
   });
@@ -112,6 +117,23 @@ describe("registre des essais", () => {
     // Le refrain garde la mélodie de la chanson générée
     const source = buildSong(4242, "normal").ev.filter((e) => e.hand === "R" && e.bar >= 10 && e.bar < 12);
     expect(c.ev.filter((e) => e.hand === "R" && e.bar >= 2).map((e) => e.lane)).toEqual(source.map((e) => e.lane));
+  });
+
+  it("la fabrique écrit des trilles : ~ avec le couloir au-dessus, _ avec celui au-dessous, retournés au bord", () => {
+    const c = assembler(
+      4242,
+      "normal",
+      [{ nom: "Couplet", genre: "couplet", de: 2, mesures: 1 }],
+      {},
+      { couplet: ["1~~3~0_-"] },
+    );
+    verifierChanson(c);
+    const droite = c.ev.filter((e) => e.hand === "R");
+    expect(droite.map(({ beat, lane, dur, trille }) => ({ beat, lane, dur, trille }))).toEqual([
+      { beat: 0, lane: 1, dur: 1.5, trille: 2 },
+      { beat: 1.5, lane: 3, dur: 1, trille: 2 },
+      { beat: 2.5, lane: 0, dur: 1.5, trille: 1 },
+    ]);
   });
 
   it("accorder ajoute un accord à deux mains par mesure de couplet, sans toucher à l'intro", () => {

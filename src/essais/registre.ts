@@ -173,6 +173,28 @@ export const ESSAIS: Essai[] = [
       ),
     repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.some((e) => e.hand === "R"),
   },
+  {
+    id: "trilles",
+    titre: "Trilles",
+    verifier:
+      "Un ennemi vibre entre deux couloirs voisins à chaque mesure : dès qu'il arrive, alterne vite ses deux touches jusqu'au bout de la bande. Chaque appui joue la note de son couloir ; le compte passe au vert à trois alternances par temps (trille réussie), et chaque alternance en plus rapporte des points. Une autre touche ne la casse pas.",
+    issue: 15,
+    univers: "boite",
+    diff: "normal",
+    mains: "R",
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "normal",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        {
+          couplet: ["1~~~..2.", "2_____.."],
+          refrain: ["3~..0~..", "1~~~~~.."],
+        },
+      ),
+    repere: (ev) => ev.hand === "R" && ev.trille !== undefined,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

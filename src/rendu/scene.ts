@@ -17,6 +17,7 @@ import {
   spb,
   type Action,
 } from "../jeu/etat";
+import { seuilTrille } from "../jeu/jugement";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -208,7 +209,8 @@ export function render(nb, dt) {
   }
   for (const ev of S.ev) {
     if (ev.beat > nb) break;
-    if (ev.state !== "holding" || ev.hand !== "R") continue;
+    // Pas de rayon tenu pour une trille (#15) : chaque appui tire le sien
+    if (ev.state !== "holding" || ev.hand !== "R" || ev.trille !== undefined) continue;
     // Le vibrato (#17) fait trembler le rayon plus fort
     const v = ondulation(ev, pnow);
     g.strokeStyle = hsl(LANE_HUE[ev.lane], 85, 75, 0.7 + 0.3 * Math.random());
@@ -619,7 +621,9 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
   if (a <= 0) return;
   const col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
-  if (ev.dur > 0) {
+  let yh = y;
+  if (ev.trille !== undefined) [x, yh] = dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a);
+  else if (ev.dur > 0) {
     const sx = ev.state === "holding" ? HITX : x,
       v = ondulation(ev, pnow);
     if (x2 > sx) {
@@ -635,7 +639,7 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     if (ev.state === "holding") x = HITX;
   }
   // Halo à la forme du couloir, autour de l'ennemi de l'univers
-  formeCouloir(ev.lane, x, y, 24);
+  formeCouloir(ev.lane, x, yh, 24);
   g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
   g.fill();
   if (S.formes) {
@@ -643,8 +647,41 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     g.lineWidth = 2;
     g.stroke();
   }
-  if (S.theme === "boite") boiteEnemy(x, y, ev, col, a, nb, hsl);
-  else villeEnemy(x, y, ev, col, a, nb, hsl);
+  if (S.theme === "boite") boiteEnemy(x, yh, ev, col, a, nb, hsl);
+  else villeEnemy(x, yh, ev, col, a, nb, hsl);
+}
+/**
+ * La trille (#15) : une bande qui couvre ses deux couloirs, traversée d'un zigzag en double-croches de l'un à
+ * l'autre. L'ennemi vibre entre les deux couloirs ; pendant la trille, il suit le dernier couloir appuyé et le
+ * compte des alternances s'affiche. Renvoie la place de l'ennemi.
+ */
+function dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
+  const y2 = y - LANE_Y[ev.lane] + LANE_Y[ev.trille],
+    haut = Math.min(y, y2),
+    tenue = ev.state === "holding",
+    sx = tenue ? HITX : x,
+    v = tenue && ev.trilleAt !== undefined ? clamp(1 - (pnow - ev.trilleAt) / 250, 0, 1) : 0,
+    hue = LANE_HUE[ev.lane];
+  if (x2 > sx) {
+    rr(sx, haut - 8, x2 - sx, Math.abs(y2 - y) + 16, 8);
+    g.fillStyle = hsl(hue, 80, 68, (0.12 + 0.2 * v) * a);
+    g.fill();
+    g.save();
+    g.beginPath();
+    g.rect(sx, 0, x2 - sx, H);
+    g.clip();
+    g.beginPath();
+    for (let k = 0; k <= 4 * ev.dur; k++) g.lineTo(HITX + (ev.beat + k / 4 - nb) * PPB, k % 2 ? y2 : y);
+    g.strokeStyle = hsl(hue, 80, 68, (0.55 + 0.45 * v) * a);
+    g.lineWidth = 2 + 2 * v;
+    g.stroke();
+    g.restore();
+  }
+  if (!tenue) return [x, reduced ? y : (y + y2) / 2 + ((y - y2) / 2) * Math.sin(pnow / 45)];
+  const n = ev.alternances ?? 0,
+    seuil = seuilTrille(ev);
+  txt(`${n}/${seuil}`, HITX + 26, haut - 14, `600 12px ${FONT.mono}`, n >= seuil ? COL.good : COL.fg);
+  return [HITX, ev.dernier === ev.trille ? y2 : y];
 }
 
 export function drawPlayer(nb, ns, pnow, hsl, dt) {

@@ -7,15 +7,22 @@ import { S, chordAtBeat, layers } from "./etat";
 import type { Effets } from "./jugement";
 
 export const effets: Effets = {
-  jouer(ev, beat) {
-    playHit(ev, beat === null ? AC.currentTime : timeOfBeat(beat));
+  jouer(ev, beat, lane) {
+    playHit(ev, beat === null ? AC.currentTime : timeOfBeat(beat), lane);
   },
   couper(ev) {
     if (ev.voice) ev.voice.stop(AC.currentTime);
   },
-  reussite(ev, perfect) {
+  reussite(ev, perfect, bonus) {
     const label = perfect ? "Parfait" : "Bien",
       color = perfect ? COL.good : COL.fg;
+    // La trille réussie (#15) annonce ses points en plus, entre ses deux couloirs
+    if (ev.trille !== undefined) {
+      const y = (LANE_Y[ev.lane] + LANE_Y[ev.trille]) / 2;
+      popup(bonus ? `Trille +${bonus}` : "Trille", HITX + 30, y - 26, COL.good);
+      burst(HITX, y, LANE_HUE[ev.lane], 22);
+      return;
+    }
     if (ev.hand === "L" && ev.lane === 3) {
       // L'écrasement (#8) secoue la scène et projette des éclats au ras du sol
       popup(label, PX + 20, GY - 140, color);
@@ -60,6 +67,10 @@ export const effets: Effets = {
     ev.voice?.vibrer?.(AC.currentTime);
     ev.vibreAt = performance.now();
     if (points) popup(`Vibrato +${points}`, HITX + 30, LANE_Y[ev.lane] - 26, COL.good);
+  },
+  trille(ev, lane) {
+    ev.trilleAt = performance.now();
+    burst(HITX, LANE_Y[lane], LANE_HUE[lane], 4);
   },
   tir(lane, ok) {
     const at = performance.now();
