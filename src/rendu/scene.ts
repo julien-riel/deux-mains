@@ -239,7 +239,7 @@ export function render(nb, dt) {
 
   // HUD
   txt(
-    `${TH().unit.toUpperCase()} N° ${S.seed} · ${DIFFS[S.diff].label.toUpperCase()}`,
+    `${S.essai ? `ESSAI · ${S.essai.essai.titre.toUpperCase()}` : `${TH().unit.toUpperCase()} N° ${S.seed}`} · ${DIFFS[S.diff].label.toUpperCase()}`,
     24,
     36,
     `600 11px ${FONT.mono}`,

@@ -10,6 +10,7 @@ import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
 import { show } from "./ui/ecrans";
+import { essaiDeLAdresse } from "./ui/essais";
 import { suivreCalibrage } from "./ui/calibrage";
 import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
 import "./ui/tactile";
@@ -81,8 +82,12 @@ try {
 const HANDS = ["both", "L", "R"],
   COMMANDES = ["auto", "clavier", "tactile"];
 const hot = window.claude && window.claude.hot;
+// Pendant un essai, on garde les réglages du joueur, pas ceux de l'essai
 if (hot && hot.snapshot)
-  hot.snapshot(() => ({ seed: S.seed, diff: S.diff, practice: S.practice, vitesse: S.vitesse, theme: S.theme }));
+  hot.snapshot(() => {
+    const r = S.essai ? S.essai.avant : S;
+    return { seed: S.seed, diff: r.diff, practice: r.practice, vitesse: r.vitesse, theme: r.theme };
+  });
 const boot = (data) => {
   data = data || {};
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
@@ -92,6 +97,7 @@ const boot = (data) => {
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   setVitesse(VITESSES.includes(data.vitesse) ? data.vitesse : VITESSES.includes(savedVitesse) ? savedVitesse : 1);
   load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");
+  essaiDeLAdresse();
   requestAnimationFrame(frame);
 };
 if (hot && hot.ready) hot.ready(boot);

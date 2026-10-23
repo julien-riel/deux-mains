@@ -18,10 +18,11 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
   - `audio/` : moteur Web Audio, instruments, séquenceur ;
   - `rendu/` : outils de dessin, scène et HUD, décors de la Ville et de la Boîte ;
   - `univers/` : définitions des univers (textes, couleurs) ;
-  - `ui/` : écrans, touches, clavier, réglages ;
+  - `essais/` : les scénarios du mode essai et la fabrique de leurs chansons courtes ;
+  - `ui/` : écrans, touches, clavier, réglages, menu des essais ;
   - `main.ts` : amorçage et boucle d'images.
 
-  `chanson/`, `jeu/jugement.ts` et `jeu/calibrage.ts` sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
+  `chanson/`, `essais/`, `jeu/jugement.ts` et `jeu/calibrage.ts` sont de la logique pure : ils n'importent rien de `rendu/`, `audio/` ou `ui/`, et n'utilisent ni `document`, ni `window`, ni `AudioContext`. ESLint le vérifie. Le jugement agit sur le son et l'image par les effets qu'on lui branche (`brancherEffets`).
 
 - `tests/` : les tests Vitest, dont la simulation qui joue une chanson entière dans chaque univers.
 - `dist/deux-mains.html` : le jeu construit, en un seul fichier. C'est lui qu'on publie. Non versionné.
@@ -33,6 +34,14 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 - **Implémentation** : skill `implementer-issue` (pertinence, ADR, tests, formatage, pull request).
 - **Décisions** : skill `decision-adr`. Quand une décision d'architecture doit être prise, publier d'abord une page de décision (artefact) avec contexte, diagrammes, exemples, options et recommandation, puis écrire l'ADR une fois le choix fait.
 - Un ADR accepté ne se contourne pas : on le remplace par un nouvel ADR.
+
+## Mode essai
+
+Un essai fait tomber directement sur une fonctionnalité : une chanson courte (une douzaine de mesures) où elle revient dès les premières mesures, dans l'univers et la difficulté choisis, l'autre main en auto-play si besoin. La phrase « à vérifier » reste affichée sur la scène.
+
+- **Où** : le registre `ESSAIS` dans `src/essais/registre.ts`. La fabrique `src/essais/fabrique.ts` assemble des mesures d'une chanson générée (`assembler`), réécrit la basse avec des motifs (même notation que `DIFFS`) et peut ajouter des événements (`accorder`, puis `finaliser`). Le générateur n'est jamais modifié pour un essai.
+- **Ajouter un essai** : une entrée dans `ESSAIS` avec `id` (minuscules et tirets), `titre`, `verifier` (ce qu'on doit voir ou entendre), `issue`, `univers`, `diff`, `mains`, `chanson()` et `repere(ev)` (les notes qui portent la fonctionnalité). `tests/essais.test.ts` vérifie automatiquement que la chanson est valide, que le repère apparaît dans les quatre premières mesures et au moins quatre fois, et que l'auto-play la joue sans faute.
+- **Ouvrir un essai** : `npm run dev` puis `http://localhost:5173/?essai=<id>` (ou `#essai=<id>`) ; dans `dist/deux-mains.html` ou l'artefact publié, le bouton « Essais » de l'écran titre (touche `E`), puis le numéro de l'essai. Échap quitte les essais et rend les réglages du joueur.
 
 ## Outillage
 

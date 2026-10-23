@@ -1,10 +1,12 @@
-// Réglages : chanson (graine, difficulté), univers, mains jouées, vitesse, boucle, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
 import { B, AC } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
 import { buildSong } from "../chanson/generateur";
+import type { Chanson } from "../chanson/types";
+import type { Essai } from "../essais/registre";
 import { resetRun } from "../jeu/deroulement";
-import { S } from "../jeu/etat";
+import { S, type EssaiEnCours } from "../jeu/etat";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
@@ -15,28 +17,75 @@ const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 
 export function load(seed: number, diff: string) {
   seed = clamp(Math.round(seed) || 1, 1, 99999);
-  stopScheduler();
-  if (AC && B) {
-    const t = AC.currentTime;
-    B.master.gain.cancelScheduledValues(t);
-    B.master.gain.setTargetAtTime(0, t, 0.05);
-  }
+  if (S.essai) rendreReglages();
   S.seed = seed;
-  S.diff = diff;
-  S.song = buildSong(seed, diff);
-  resetRun();
-  S.mode = "title";
+  installer(buildSong(seed, diff), diff);
   $<HTMLInputElement>("#seed").value = String(seed);
-  const r = document.getElementById("d-" + diff) as HTMLInputElement;
-  if (r) r.checked = true;
-  $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
-  listerSections();
   try {
     localStorage.setItem("deux-mains-diff", diff);
   } catch {
     /* stockage indisponible */
   }
   show("title");
+}
+// Met une chanson en place, partie neuve, sur l'écran de départ
+function installer(song: Chanson, diff: string) {
+  stopScheduler();
+  if (AC && B) {
+    const t = AC.currentTime;
+    B.master.gain.cancelScheduledValues(t);
+    B.master.gain.setTargetAtTime(0, t, 0.05);
+  }
+  S.diff = diff;
+  S.song = song;
+  resetRun();
+  S.mode = "title";
+  const r = document.getElementById("d-" + diff) as HTMLInputElement;
+  if (r) r.checked = true;
+  $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
+  listerSections();
+}
+/** La difficulté choisie par le joueur : pendant un essai, celle qu'il retrouvera en le quittant */
+export const diffDuJoueur = () => (S.essai ? S.essai.avant.diff : S.diff);
+/** Une nouvelle chanson générée, dans la difficulté du joueur : quitte l'essai en cours */
+export const nouvelleChanson = () => load(randomSeed(), diffDuJoueur());
+
+/* ---------- Mode essai ---------- */
+// Un essai impose son univers, sa difficulté et ses mains sans les enregistrer : en le quittant, le joueur
+// retrouve ses réglages, sa graine et sa boucle. Pendant l'essai, la boucle peut reprendre une de ses sections.
+export function chargerEssai(e: Essai) {
+  S.essai ??= {
+    essai: e,
+    avant: { diff: S.diff, theme: S.theme, practice: S.practice, vitesse: S.vitesse, boucle: S.boucle },
+  };
+  S.essai.essai = e;
+  S.boucle = -1;
+  setTheme(e.univers, false);
+  setPractice(e.mains, false);
+  setVitesse(1, false);
+  installer(e.chanson(), e.diff);
+  show("title");
+}
+function rendreReglages() {
+  const a = S.essai.avant;
+  S.essai = null;
+  S.boucle = a.boucle;
+  setTheme(a.theme, false);
+  setPractice(a.practice, false);
+  setVitesse(a.vitesse, false);
+}
+/** Quitte les essais : la chanson du joueur, avec ses réglages */
+export const quitterEssai = () => load(S.seed, diffDuJoueur());
+
+// Enregistre un choix du joueur ; pendant un essai, c'est aussi celui qu'il retrouvera en le quittant
+const CLES = { theme: "deux-mains-theme", practice: "deux-mains-hands", vitesse: "deux-mains-vitesse" } as const;
+function retenir<K extends keyof typeof CLES>(k: K, v: EssaiEnCours["avant"][K]) {
+  if (S.essai) S.essai.avant[k] = v;
+  try {
+    localStorage.setItem(CLES[k], String(v));
+  } catch {
+    /* stockage indisponible */
+  }
 }
 
 document
@@ -48,44 +97,33 @@ document
 document
   .querySelectorAll<HTMLInputElement>('input[name="theme"]')
   .forEach((r) => r.addEventListener("change", () => setTheme(r.value)));
-export function setTheme(v: string) {
+// `choix` : le joueur l'a choisi, on l'enregistre ; sinon c'est celui d'un essai, qui ne dure que l'essai
+export function setTheme(v: string, choix = true) {
   S.theme = v;
   const r = document.getElementById("t-" + v) as HTMLInputElement;
   if (r) r.checked = true;
-  try {
-    localStorage.setItem("deux-mains-theme", v);
-  } catch {
-    /* stockage indisponible */
-  }
+  if (choix) retenir("theme", v);
   if (S.song)
     $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
   if (S.mode === "title" && S.song) show("title");
 }
-export function setPractice(v: string) {
+export function setPractice(v: string, choix = true) {
   S.practice = v;
   const r = document.getElementById("h-" + v) as HTMLInputElement;
   if (r) r.checked = true;
   if (S.mode === "play" && v !== "both") S.autoUsed = true;
-  try {
-    localStorage.setItem("deux-mains-hands", v);
-  } catch {
-    /* stockage indisponible */
-  }
+  if (choix) retenir("practice", v);
   if (S.mode === "title" && S.song) show("title");
 }
 document
   .querySelectorAll<HTMLInputElement>('input[name="vitesse"]')
   .forEach((r) => r.addEventListener("change", () => setVitesse(+r.value / 100)));
 // Vitesse de lecture, pour s'entraîner au ralenti (#4) : elle s'applique au prochain départ ou à la prochaine reprise
-export function setVitesse(v: number) {
+export function setVitesse(v: number, choix = true) {
   S.vitesse = v;
   const r = document.getElementById("v-" + Math.round(v * 100)) as HTMLInputElement;
   if (r) r.checked = true;
-  try {
-    localStorage.setItem("deux-mains-vitesse", String(v));
-  } catch {
-    /* stockage indisponible */
-  }
+  if (choix) retenir("vitesse", v);
   if (S.mode === "title" && S.song) show("title");
 }
 // Boucle (#5) : une section de la chanson à rejouer sans fin, ou aucune. Elle s'applique au prochain départ.
@@ -152,5 +190,5 @@ export function setFormes(oui: boolean) {
   }
 }
 $("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));
-$("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, S.diff));
-$("#new").addEventListener("click", () => load(randomSeed(), S.diff));
+$("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, diffDuJoueur()));
+$("#new").addEventListener("click", nouvelleChanson);

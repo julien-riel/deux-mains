@@ -32,6 +32,8 @@ export interface Options {
   tactile?: boolean;
   /** Ce que le navigateur a gardé d'une visite précédente */
   stockage?: Record<string, string>;
+  /** L'adresse de la page : la requête (« ?essai=… ») et l'ancre (« #essai=… ») */
+  adresse?: { search?: string; hash?: string };
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
@@ -186,6 +188,8 @@ export class Navigateur {
   textes: string[] = [];
   /** Le localStorage du navigateur */
   readonly stockage = new Map<string, string>();
+  /** L'adresse de la page */
+  readonly location = { search: "", hash: "" };
   private elements: Record<string, ReturnType<typeof element>> = {};
   private medias = new Map<string, ReturnType<typeof requeteMedia>>();
   private ecouteurs = new Map<string, Ecouteur[]>();
@@ -197,6 +201,7 @@ export class Navigateur {
   static async ouvrir(options: Options = {}) {
     const nav = new Navigateur();
     for (const [k, v] of Object.entries(options.stockage ?? {})) nav.stockage.set(k, v);
+    Object.assign(nav.location, options.adresse);
     nav.installer();
     nav.media("(hover: none) and (pointer: coarse)").matches = !!options.tactile;
     vi.resetModules();
@@ -263,6 +268,7 @@ export class Navigateur {
         addEventListener: page.addEventListener,
       },
       navigator: {},
+      location: this.location,
       performance: { now: ms },
       localStorage: {
         getItem: (k: string) => stockage.get(k) ?? null,
@@ -318,6 +324,11 @@ export class Navigateur {
     this.elements[selecteur].emettre("click", {});
   }
 
+  /** Un élément de la page, repéré par son sélecteur, comme document.querySelector */
+  trouver(selecteur: string) {
+    return (this.elements[selecteur] ??= element());
+  }
+
   /** Change la valeur d'un champ des réglages */
   saisir(selecteur: string, valeur: string) {
     const champ = this.elements[selecteur];
@@ -325,9 +336,15 @@ export class Navigateur {
     champ.emettre("change", { target: champ });
   }
 
-  /** Touche un bouton de l'écran affiché (départ, pause, mort, fin), repéré par son action */
-  toucherBouton(act: string) {
-    this.overlay.emettre("click", { target: { closest: () => ({ dataset: { act } }) } });
+  /** Touche un bouton de l'écran affiché (départ, pause, mort, fin), repéré par son action et ses autres données */
+  toucherBouton(act: string, donnees: Record<string, string> = {}) {
+    this.overlay.emettre("click", { target: { closest: () => ({ dataset: { act, ...donnees } }) } });
+  }
+
+  /** Change l'ancre de l'adresse, comme un lien « #essai=… » */
+  changerAncre(hash: string) {
+    this.location.hash = hash;
+    this.emettre("hashchange", {});
   }
 
   /** Passe dans une autre application, ou en revient */
