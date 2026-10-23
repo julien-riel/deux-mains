@@ -40,6 +40,8 @@ export interface Note {
   bar: number;
   kind: Genre;
   midi: number;
+  /** Une pente (#12) : glisser tenu, la note glisse de `midi` jusqu'à cette note d'arrivée */
+  fin?: number;
   harm?: number;
   vel?: number;
   air?: number;

@@ -4,7 +4,7 @@
 // (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés, et au
 // besoin la mélodie.
 import { DIFFS } from "../chanson/difficultes";
-import { buildSong } from "../chanson/generateur";
+import { buildSong, notesDeBasse } from "../chanson/generateur";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
 /** Des mesures de la chanson générée, recopiées dans la chanson d'essai comme une section */
@@ -16,42 +16,13 @@ export interface Morceau {
   mesures: number;
 }
 
-/** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel */
+/** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel,
+ * M pente montante, B pente descendante. La plaque remplace la première note de la mesure qui ouvre un refrain (#8). */
 export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
 
 /** Les motifs de mélodie par genre de section, une mesure en huit croches : 0 à 3 le couloir, - prolonge la note
  * en note tenue, . silence */
 export type MotifsDeMelodie = Partial<Record<Genre, string[]>>;
-
-// Les notes de basse d'une mesure, avec les règles du générateur : glisser joue la fondamentale, sauter l'octave,
-// le double saut la quinte au-dessus de l'octave, la plaque la fondamentale accentuée (ADR-0003). La plaque
-// remplace la première note de la mesure qui ouvre un refrain (#8).
-function mesureDeBasse(motif: string, bar: number, ch: Accord, kind: Genre, plaque: boolean): Note[] {
-  const notes: Note[] = [];
-  for (let k = 0; k < 8; k++) {
-    const c = motif[k],
-      p = plaque && k === 0;
-    if (!p && (c === "." || c === "-")) continue;
-    let dur = 0;
-    if (c === "T" && !p) {
-      let n = 1;
-      while (k + n < 8 && motif[k + n] === "-") n++;
-      dur = n / 2;
-    }
-    const lane = p ? 3 : c === "W" ? 1 : c === "D" ? 2 : 0;
-    notes.push({
-      hand: "L",
-      beat: bar * 4 + k / 2,
-      dur,
-      lane,
-      bar,
-      kind,
-      midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
-      state: "pending",
-    });
-  }
-  return notes;
-}
 
 // Les notes de mélodie d'une mesure : chaque couloir joue son degré de l'accord (ADR-0003), avec l'harmonie du
 // générateur (le degré au-dessus)
@@ -108,7 +79,7 @@ export function assembler(
         ev.push({ ...e, beat: e.beat + 4 * decale, bar: e.bar + decale, kind: m.genre, grp: undefined });
     const a = motifs[m.genre];
     for (let i = 0; a && i < m.mesures; i++)
-      ev.push(...mesureDeBasse(a[i % a.length], bar + i, chords[bar + i], m.genre, m.genre === "refrain" && i === 0));
+      ev.push(...notesDeBasse(a[i % a.length], bar + i, chords[bar + i], m.genre, m.genre === "refrain" && i === 0));
     bar += m.mesures;
   }
   return finaliser({ ...source, sections, totalBars: bar, chords, ev, endBeat: bar * 4 });
