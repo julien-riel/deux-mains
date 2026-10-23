@@ -37,7 +37,9 @@ export interface Note {
   hand: Main;
   beat: number;
   dur: number;
-  /** Main gauche : 0 glisser, 1 sauter, 2 double saut, 3 écraser (#8). Main droite : le couloir. */
+  /** Main gauche : 0 glisser, 1 sauter, 2 double saut, 3 écraser (#8), 4 monter une marche et 5 descendre une
+   * marche d'un escalier (#13). Main droite : le couloir, ou n + 0,5 pour une petite note entre les couloirs n et
+   * n + 1 (#14), qui se joue avec l'une ou l'autre des deux touches (ADR-0010). */
   lane: number;
   bar: number;
   kind: Genre;
@@ -101,6 +103,8 @@ export interface Chanteur {
 export interface Progression {
   name: string;
   mode: string;
+  /** La gamme des notes hors accord (ADR-0010), une clé de `GAMMES` : celle du mode, sauf indication */
+  gamme?: string;
   chords: [number, string][];
   end: [number, string];
 }

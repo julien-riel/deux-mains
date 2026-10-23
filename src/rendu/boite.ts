@@ -246,6 +246,40 @@ export function boiteEnemy(x, y, ev, col, a, nb, hsl) {
   g.lineTo(x + 5, y - 15);
   g.stroke();
 }
+// La petite note (#14) : une mite de papier, deux fois plus petite que les papillons, qui bat vite des ailes
+export function boitePetite(x, y, col, a, nb, hsl) {
+  const flap = 0.3 + 0.7 * Math.abs(Math.sin(nb * Math.PI * 4 + x));
+  g.fillStyle = hsl(32, 25, 66, 0.9 * a);
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(x + s * 4, y - 2, 4, 6 * flap, s * 0.5, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillStyle = col;
+  g.beginPath();
+  g.ellipse(x, y + 1, 2.2, 5, 0, 0, Math.PI * 2);
+  g.fill();
+}
+// La marche d'un escalier (#13) : une touche d'ivoire dressée à la hauteur de sa note, coiffée de laiton, avec
+// un petit chevron qui monte ou descend dans le sens de l'escalier
+export function boiteMarche(x, haut, fill, monte) {
+  rr(x - 15, GY - haut, 30, haut, 4);
+  g.fillStyle = hexA(COL.fg, 0.85);
+  g.fill();
+  g.strokeStyle = fill;
+  g.lineWidth = 2;
+  g.stroke();
+  g.fillStyle = fill;
+  g.fillRect(x - 15, GY - haut, 30, 5);
+  g.strokeStyle = hexA(COL.ink, 0.6);
+  g.lineWidth = 2;
+  g.beginPath();
+  const y = GY - haut / 2 + (monte ? 3 : -3);
+  g.moveTo(x - 6, y);
+  g.lineTo(x, y + (monte ? -6 : 6));
+  g.lineTo(x + 6, y);
+  g.stroke();
+}
 // Le serpent (#16) : un ruban de papier cousu, porté par une file de papillons de nuit qui battent des ailes
 export function boiteSerpent(troncons: { lane: number; pts: [number, number][] }[], couleur, nb) {
   const tracer = (pts: [number, number][]) => {

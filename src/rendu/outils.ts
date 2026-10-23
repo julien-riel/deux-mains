@@ -15,6 +15,10 @@ export const GY = 505,
   PPB = 150;
 export const LANE_Y = [395, 315, 235, 155];
 export const LANE_HUE = [198, 262, 320, 168];
+/** La hauteur et la teinte d'un couloir, ou du milieu de deux couloirs pour une petite note (#14, n + 0,5) */
+export const yDeCouloir = (l: number) => (Number.isInteger(l) ? LANE_Y[l] : (LANE_Y[l - 0.5] + LANE_Y[l + 0.5]) / 2);
+export const teinteDeCouloir = (l: number) =>
+  Number.isInteger(l) ? LANE_HUE[l] : (LANE_HUE[l - 0.5] + LANE_HUE[l + 0.5]) / 2;
 export const HUE_BASS = 28,
   HUE_MEL = 198;
 

@@ -2,6 +2,7 @@
 // dans un faux navigateur (tests/support/navigateur.ts) qui charge les modules de src/.
 
 import { afterEach, describe, expect, it } from "vitest";
+import { estPetiteNote } from "../src/chanson/generateur";
 import { seuilTrille } from "../src/jeu/jugement";
 import { coupsAttendus } from "./support/appuis";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
@@ -63,6 +64,13 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(reponse.map((ev) => [ev.state, ev.beat - 4, ev.lane])).toEqual(
         (ch?.notes ?? []).map((n) => ["hit", n.beat, n.lane]),
       );
+      // Les petites notes (#14) et les marches d'escalier (#13) : l'auto-play les réussit toutes. Cette chanson-ci
+      // n'a de petites notes qu'en Difficile, et aucun escalier : sa cadence andalouse avance d'un degré à chaque
+      // accord (les escaliers sont joués par l'auto-play dans l'essai « walking-bass », tests/essais.test.ts)
+      const petites = etat.ev.filter(estPetiteNote);
+      expect(petites.length > 0).toBe(difficulte === "difficile");
+      expect(petites.every((ev) => ev.state === "hit")).toBe(true);
+      expect(etat.ev.filter((ev) => ev.hand === "L" && ev.lane >= 4).every((ev) => ev.state === "hit")).toBe(true);
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

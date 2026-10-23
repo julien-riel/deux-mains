@@ -1,7 +1,21 @@
 // Les effets du jugement : ce que le son et l'image font quand un coup est jugé
 import { glisserVoix, harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
 import { AC, timeOfBeat } from "../audio/moteur";
-import { COL, GY, HITX, HUE_BASS, LANE_HUE, LANE_Y, PW, PX, burst, popup, reduced } from "../rendu/outils";
+import {
+  COL,
+  GY,
+  HITX,
+  HUE_BASS,
+  LANE_HUE,
+  LANE_Y,
+  PW,
+  PX,
+  burst,
+  popup,
+  reduced,
+  teinteDeCouloir,
+  yDeCouloir,
+} from "../rendu/outils";
 import { die } from "./deroulement";
 import { S, chordAtBeat, layers } from "./etat";
 import { couloirDe, type Effets } from "./jugement";
@@ -30,10 +44,12 @@ export const effets: Effets = {
       S.shake = reduced ? 0 : 7;
     } else if (ev.hand === "L") {
       popup(label, PX + 20, GY - 140, color);
-      burst(PX + PW / 2, ev.lane ? GY - 20 : GY - 55, HUE_BASS, 8);
+      burst(PX + PW / 2, ev.lane === 0 || ev.lane === 5 ? GY - 55 : GY - 20, HUE_BASS, 8);
     } else {
-      popup(label, HITX + 30, LANE_Y[ev.lane] - 26, color);
-      burst(HITX, LANE_Y[ev.lane], LANE_HUE[ev.lane], 16);
+      // Une petite note (#14) éclate moins, entre ses deux couloirs
+      const petite = !Number.isInteger(ev.lane);
+      popup(label, HITX + 30, yDeCouloir(ev.lane) - 26, color);
+      burst(HITX, yDeCouloir(ev.lane), teinteDeCouloir(ev.lane), petite ? 8 : 16);
     }
   },
   accord(grp) {
@@ -47,7 +63,7 @@ export const effets: Effets = {
       thud();
       popup("Aïe", PX + 20, GY - 140, COL.bad);
     } else {
-      popup("Raté", HITX + 30, LANE_Y[ev.lane] - 26, COL.bad);
+      popup("Raté", HITX + 30, yDeCouloir(ev.lane) - 26, COL.bad);
     }
   },
   lache(ev) {

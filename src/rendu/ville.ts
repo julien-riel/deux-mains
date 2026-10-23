@@ -250,6 +250,45 @@ export function villeEnemy(x, y, ev, col, a, nb, hsl) {
     g.fill();
   }
 }
+// La petite note (#14) : un mini-drone de surveillance, un losange qui clignote sous deux hélices
+export function villePetite(x, y, col, a, nb, hsl) {
+  g.beginPath();
+  g.moveTo(x, y - 6);
+  g.lineTo(x + 6, y);
+  g.lineTo(x, y + 6);
+  g.lineTo(x - 6, y);
+  g.closePath();
+  g.fillStyle = hsl(250, 20, 90, 0.18 * a);
+  g.fill();
+  g.strokeStyle = hsl(250, 20, 90, 0.7 * a);
+  g.lineWidth = 1.2;
+  g.stroke();
+  g.beginPath();
+  g.arc(x, y, Math.floor(nb * 4) % 2 ? 2.5 : 1.8, 0, Math.PI * 2);
+  g.fillStyle = col;
+  g.fill();
+  const spin = Math.abs(Math.sin(nb * 14 + x));
+  g.fillStyle = hsl(250, 10, 82, 0.6 * a);
+  g.fillRect(x - 9 - 4 * spin, y - 9, 8 * spin + 1, 1.5);
+  g.fillRect(x + 9 - 4 * spin, y - 9, 8 * spin + 1, 1.5);
+}
+// La marche d'un escalier (#13) : un bloc de béton à la hauteur de sa note, avec son nez de marche et une rampe
+// qui monte ou descend dans le sens de l'escalier
+export function villeMarche(x, haut, fill, monte) {
+  rr(x - 17, GY - haut, 34, haut, 2);
+  g.fillStyle = fill;
+  g.fill();
+  g.fillStyle = hexA(COL.ink, 0.35);
+  for (let yy = GY - haut + 8; yy < GY - 2; yy += 7) g.fillRect(x - 15, yy, 30, 1.5);
+  g.fillStyle = hexA(COL.fg, 0.55);
+  g.fillRect(x - 17, GY - haut, 34, 3);
+  g.strokeStyle = hexA(COL.fg, 0.4);
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(x - 17, GY - haut - 14 + (monte ? 6 : -6));
+  g.lineTo(x + 17, GY - haut - 14 + (monte ? -6 : 6));
+  g.stroke();
+}
 // Le serpent (#16) : un câble lumineux tendu d'un couloir à l'autre, avec un halo, une âme claire et des
 // étincelles qui courent le long du fil
 export function villeSerpent(troncons: { lane: number; pts: [number, number][] }[], couleur, nb) {

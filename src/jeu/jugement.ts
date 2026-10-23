@@ -310,8 +310,13 @@ function appuiSurSerpent(ev: Note, lane: number, ns: number) {
 
 /** En l'air, sur un saut simple : un second appui sur sauter y devient un double saut (#7) */
 export const enLair = (ns: number) => S.doubleAt < S.jumpAt && ns >= S.jumpAt && ns < S.jumpAt + S.jumpAir;
+/** Dans un escalier (#13, ADR-0010), sauter monte d'une marche et glisser en descend une : le geste devient
+ * celui de la marche qui arrive, s'il lui correspond */
+export const gesteDansLEscalier = (lane: number, ev: Note | undefined) =>
+  ev && ev.lane === 4 && lane === 1 ? 4 : ev && ev.lane === 5 && lane === 0 ? 5 : lane;
 export function leftPress(lane: number, ns: number) {
   const near = findNear("L", ns);
+  lane = gesteDansLEscalier(lane, near?.ev);
   // Près d'un saut ordinaire, un appui en l'air reste un saut simple : on a juste sauté un peu tôt
   if (lane === 1 && enLair(ns) && !(near && near.ev.lane === 1)) lane = 2;
   const air = (near && near.ev.lane === lane ? near.ev.air : 0.8) * spb();
@@ -321,7 +326,7 @@ export function leftPress(lane: number, ns: number) {
   } else if (lane === 2) {
     S.doubleAt = ns;
     S.doubleAir = air;
-  } else if (lane === 1) {
+  } else if (lane === 1 || lane === 4) {
     S.jumpAt = ns;
     S.jumpAir = air;
   } else {
@@ -348,8 +353,9 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   // Pendant un serpent (#16), le couloir suivant est un passage : ni vibrato, ni mauvais couloir
   const serpent = serpentEnCours(ns);
   if (serpent && appuiSurSerpent(serpent, lane, ns)) return [];
-  // Une trille (#15) commence sur l'un ou l'autre de ses deux couloirs
-  const near = findNear("R", ns, (ev) => ev.lane === lane || ev.trille === lane);
+  // Une trille (#15) commence sur l'un ou l'autre de ses deux couloirs, et une petite note (#14, ADR-0010) se
+  // touche avec l'une ou l'autre des deux touches voisines
+  const near = findNear("R", ns, (ev) => ev.lane === lane || ev.trille === lane || Math.abs(ev.lane - lane) === 0.5);
   if (near && near.ev.trille !== undefined) {
     commencerTrille(near.ev, near.d, lane);
     effets.tir(lane, true);

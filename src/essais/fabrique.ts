@@ -8,11 +8,14 @@ import { mulberry32 } from "../chanson/aleatoire";
 import {
   buildSong,
   couloirsDuSerpent,
+  escalier,
   notesDeBasse,
   noteDeMelodie,
+  petiteNote,
   phraseDuChanteur,
   voisin,
 } from "../chanson/generateur";
+import { gammeDe, makeChord } from "../chanson/theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
 /** Des mesures de la chanson générée, recopiées dans la chanson d'essai comme une section */
@@ -22,6 +25,9 @@ export interface Morceau {
   /** La première mesure recopiée, dans la chanson générée (à partir de 0) */
   de: number;
   mesures: number;
+  /** Des accords à la place de ceux de la chanson générée, en boucle (décalage depuis la tonique, qualité) : la
+   * mélodie de ce genre doit alors être réécrite (`melodie`), pour jouer les degrés de ces accords */
+  accords?: [number, string][];
 }
 
 /** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel,
@@ -31,13 +37,23 @@ export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
 /** Les motifs de mélodie par genre de section, une mesure en huit croches : 0 à 3 le couloir, - prolonge la note
  * en note tenue, ~ en trille (#15) avec le couloir au-dessus et _ avec celui au-dessous (retournés au bord),
  * / et \ en serpent (#16) qui monte ou descend d'un couloir à chacun (ses couloirs se partagent également sa
- * durée : « 1// » monte de 1 à 3 en trois croches, « 3-\-\- » descend de 3 à 1 en trois temps), . silence */
+ * durée : « 1// » monte de 1 à 3 en trois croches, « 3-\-\- » descend de 3 à 1 en trois temps), a, b et c une
+ * petite note (#14) entre les couloirs 0 et 1, 1 et 2, 2 et 3, qui mène à la note suivante de la mesure, . silence */
 export type MotifsDeMelodie = Partial<Record<Genre, string[]>>;
 
-// Les notes de mélodie d'une mesure, construites comme celles du générateur (ADR-0003)
-function mesureDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre): Note[] {
+// Les notes de mélodie d'une mesure, construites comme celles du générateur (ADR-0003, ADR-0010)
+function mesureDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre, pentatonique: number[]): Note[] {
   const notes: Note[] = [];
   for (let k = 0; k < 8; k++) {
+    const petite = "abc".indexOf(motif[k]);
+    if (petite >= 0) {
+      // Elle mène à la note suivante de la mesure : vers le haut si celle-ci est au-dessus
+      const lane = petite + 0.5,
+        suivante = motif.slice(k + 1).match(/[0-3]/),
+        n = petiteNote(lane, !suivante || +suivante[0] > lane, bar * 4 + k / 2, bar, ch, kind, pentatonique);
+      if (n) notes.push(n);
+      continue;
+    }
     if (!/[0-3]/.test(motif[k])) continue;
     const lane = +motif[k],
       suite = motif[k + 1];
@@ -75,10 +91,16 @@ export function assembler(
   for (const m of morceaux) {
     sections.push({ name: m.nom, kind: m.genre, bars: m.mesures, start: bar });
     const decale = bar - m.de;
-    for (let i = 0; i < m.mesures; i++) chords.push(source.chords[m.de + i]);
+    for (let i = 0; i < m.mesures; i++)
+      chords.push(m.accords ? makeChord(source.keyPc, m.accords[i % m.accords.length]) : source.chords[m.de + i]);
     const chant = melodie[m.genre];
-    for (let i = 0; chant && i < m.mesures; i++)
-      ev.push(...mesureDeMelodie(chant[i % chant.length], bar + i, chords[bar + i], m.genre));
+    if (m.accords && !chant) throw new Error(`Morceau « ${m.nom} » : de nouveaux accords demandent une mélodie`);
+    for (let i = 0; chant && i < m.mesures; i++) {
+      const ch = chords[bar + i];
+      ev.push(
+        ...mesureDeMelodie(chant[i % chant.length], bar + i, ch, m.genre, gammeDe(source.keyPc, source.prog, ch, true)),
+      );
+    }
     for (const e of chant ? [] : source.ev)
       if (e.hand === "R" && e.bar >= m.de && e.bar < m.de + m.mesures)
         // Une réponse au chanteur (#18) recopiée sans lui redevient une note de mélodie ordinaire
@@ -152,6 +174,49 @@ export function accorder(chanson: Chanson, temps: number[] = [0]): Chanson {
           }),
         );
       }
+  }
+  return finaliser(chanson);
+}
+
+/**
+ * Fait marcher la basse (#13) : chaque mesure des sections de ces genres finit en escalier de walking bass vers la
+ * fondamentale de la mesure suivante, quand la gamme le permet (`escalier` du générateur, ADR-0010). La mesure
+ * suivante peut être dans la section d'après. La basse est réécrite avec les motifs de la difficulté, remplacés
+ * par `basse`, comme dans `assembler`.
+ */
+export function marcher(
+  chanson: Chanson,
+  diff: string,
+  genres: Genre[] = ["couplet", "refrain"],
+  basse: MotifsDeBasse = {},
+): Chanson {
+  const motifs: MotifsDeBasse = { ...DIFFS[diff].bass, ...basse },
+    motifDe = (bar: number) => {
+      const sec = chanson.sections.find((s) => bar >= s.start && bar < s.start + s.bars),
+        a = sec && motifs[sec.kind];
+      return a ? { sec, motif: a[(bar - sec.start) % a.length] } : null;
+    };
+  for (const sec of chanson.sections) {
+    if (!genres.includes(sec.kind)) continue;
+    for (let bar = sec.start; bar < sec.start + sec.bars; bar++) {
+      const ici = motifDe(bar),
+        suivante = motifDe(bar + 1),
+        plaque = sec.kind === "refrain" && bar === sec.start;
+      if (!ici || plaque) continue;
+      const ch = chanson.chords[bar],
+        e =
+          suivante &&
+          escalier(
+            ici.motif,
+            ch,
+            chanson.chords[bar + 1],
+            suivante.sec.kind === "refrain" && bar + 1 === suivante.sec.start ? "P" : suivante.motif,
+            gammeDe(chanson.keyPc, chanson.prog, ch),
+          );
+      if (!e) continue;
+      chanson.ev = chanson.ev.filter((n) => n.hand !== "L" || n.bar !== bar);
+      chanson.ev.push(...notesDeBasse(e.motif, bar, ch, sec.kind, false, e.marches));
+    }
   }
   return finaliser(chanson);
 }

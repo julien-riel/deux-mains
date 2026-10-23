@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { mulberry32, randomSeed } from "../src/chanson/aleatoire";
 import { DIFFS } from "../src/chanson/difficultes";
-import { buildSong } from "../src/chanson/generateur";
+import { buildSong, estPetiteNote } from "../src/chanson/generateur";
 import { PROGS, makeChord, mtof, noteName } from "../src/chanson/theorie";
 import type { Chanson, Note } from "../src/chanson/types";
 import { DIFFICULTES, GRAINES, decrireChanson } from "./support/instantane";
@@ -91,9 +91,9 @@ describe("générateur", () => {
     }
   });
 
-  it("chaque note de la main droite est un degré de l'accord de sa mesure (ADR-0003)", () => {
+  it("chaque note de la main droite est un degré de l'accord de sa mesure (ADR-0003), hors petites notes (ADR-0010)", () => {
     for (const { chanson } of CHANSONS)
-      for (const ev of droite(chanson)) {
+      for (const ev of droite(chanson).filter((e) => !estPetiteNote(e))) {
         expect(ev.bar).toBe(Math.floor(ev.beat / 4));
         expect(ev.lane).toSatisfy((l: number) => l >= 0 && l <= 3);
         expect(ev.midi).toBe(chanson.chords[ev.bar].lanes[ev.lane]);
@@ -101,8 +101,9 @@ describe("générateur", () => {
   });
 
   it("chaque note de la main gauche est la fondamentale (glisser, écraser), l'octave (sauter) ou la quinte au-dessus (double saut)", () => {
+    // Les marches d'escalier (#13, ADR-0010) jouent la gamme : tests/hors-accord.test.ts
     for (const { chanson } of CHANSONS)
-      for (const ev of gauche(chanson)) {
+      for (const ev of gauche(chanson).filter((e) => e.lane < 4)) {
         const { bass, ints } = chanson.chords[ev.bar];
         // La pente descendante (#12) part de l'octave : tests/pentes.test.ts
         if (ev.fin !== undefined && ev.fin < ev.midi) expect(ev.midi).toBe(bass + 12);
@@ -243,8 +244,12 @@ describe("serpents (#16)", () => {
         P.serpentP = 0;
         const sans = buildSong(graine, diff);
         P.serpentP = avant;
+        // Les petites notes (#14) dépendent des notes voisines : elles ne comptent pas ici
         const hors = (c: Chanson, tous: Note[]) =>
-          c.ev.filter((e) => !tous.some((s) => e.hand === "R" && e.beat >= s.beat && e.beat < s.beat + s.dur));
+          c.ev.filter(
+            (e) =>
+              !estPetiteNote(e) && !tous.some((s) => e.hand === "R" && e.beat >= s.beat && e.beat < s.beat + s.dur),
+          );
         const sp = serpents(avec),
           resume = (notes: Note[]) => notes.map(({ hand, beat, lane, dur, midi }) => [hand, beat, lane, dur, midi]);
         expect(resume(hors(avec, sp))).toEqual(resume(hors(sans, sp)));
