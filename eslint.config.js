@@ -19,6 +19,7 @@ export default defineConfig([
       "src/jeu/jugement.ts",
       "src/jeu/calibrage.ts",
       "src/jeu/midi.ts",
+      "src/jeu/variations.ts",
     ],
     rules: {
       "no-restricted-imports": [

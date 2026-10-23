@@ -77,19 +77,20 @@ describe("duo local (#6)", () => {
 
   it("l'écran de fin compare les deux joueurs et compte les accords à deux mains réussis", async () => {
     const S = await partieEnDuo();
-    const accords = new Set(S.song.ev.filter(aDeuxMains).map((ev) => ev.grp)).size;
-    expect(accords).toBeGreaterThan(0);
     nav.presser("KeyA");
 
     nav.avancerJusqua((s) => s.mode !== "play", dureeChanson() + 10);
 
     expect(S.mode).toBe("done");
+    // Les notes de la partie : la phrase du solo de l'auto-play revient au dernier refrain (ADR-0012)
+    const accords = new Set(S.ev.filter(aDeuxMains).map((ev) => ev.grp)).size;
+    expect(accords).toBeGreaterThan(0);
     const html = nav.overlay.innerHTML;
     for (const texte of ["Basse", "Mélodie", "Précision", "Parfait", "Raté", "Combo max", "Score total"])
       expect(html).toContain(texte);
     expect(html).toContain(`Accords en duo : ${accords} / ${accords}`);
-    expect(S.parMain.L.perfect).toBe(S.song.ev.filter((ev) => ev.hand === "L").length);
-    expect(S.parMain.R.perfect).toBe(S.song.ev.filter((ev) => ev.hand === "R").length);
+    expect(S.parMain.L.perfect).toBe(S.ev.filter((ev) => ev.hand === "L").length);
+    expect(S.parMain.R.perfect).toBe(S.ev.filter((ev) => ev.hand === "R").length);
   });
 
   it("l'essai duo s'ouvre en duo, et son écran de fin compare aussi les deux joueurs", async () => {

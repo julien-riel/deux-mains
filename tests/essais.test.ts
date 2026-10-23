@@ -7,6 +7,7 @@ import { buildSong } from "../src/chanson/generateur";
 import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
+import { soloEtRefrain } from "../src/jeu/variations";
 import { Navigateur } from "./support/navigateur";
 
 let nav: Navigateur;
@@ -66,6 +67,12 @@ describe("registre des essais", () => {
       const c = e.chanson();
       verifierChanson(c);
       expect(c.totalBars).toBeLessThanOrEqual(20);
+      // Une variation de la partie (ADR-0012) naît en jouant : la chanson n'en a pas, son solo arrive tôt
+      if (e.variation) {
+        expect(c.ev.filter(e.repere)).toEqual([]);
+        expect(soloEtRefrain(c.sections).solo.start).toBeLessThan(4);
+        return;
+      }
       const reperes = c.ev.filter(e.repere);
       expect(reperes.length).toBeGreaterThanOrEqual(4);
       expect(reperes[0].bar).toBeLessThan(4);
@@ -170,7 +177,14 @@ describe.each(ESSAIS.map((e) => [e.id, e] as const))("essai %s", (id, e) => {
     nav.avancerJusqua((s) => s.mode !== "play", (S.song.endBeat * 60) / S.song.bpm + 10);
 
     expect(S.mode).toBe("done");
-    expect([S.miss, S.health, S.perfect]).toEqual([0, 100, S.song.ev.length]);
+    // Les notes jouées sont celles de la partie, variations comprises (ADR-0012)
+    expect([S.miss, S.health, S.perfect]).toEqual([0, 100, S.ev.length]);
+    if (e.variation) {
+      const { solo } = soloEtRefrain(S.song.sections),
+        reperes = S.ev.filter(e.repere);
+      expect(reperes.length).toBeGreaterThanOrEqual(4);
+      expect(reperes[0].bar).toBeLessThan(solo.start + solo.bars + 4);
+    }
     expect(nav.overlay.innerHTML).toContain("Essai terminé");
     expect(nav.overlay.innerHTML).toContain('data-act="quitter-essai"');
   });

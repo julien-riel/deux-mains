@@ -1,9 +1,9 @@
 // Auto-play : le son part du séquenceur à l'heure exacte, l'animation suit au moment où on l'entend (ADR-0004).
 // Ce module décide quoi jouer ; le séquenceur fait sonner les notes.
 import type { Note, Section } from "../chanson/types";
-import { clamp } from "../outils";
-import { COULOIRS, S, autoFor, spb } from "./etat";
+import { COULOIRS, S, autoFor, mesureDeLaChanson, spb } from "./etat";
 import { alterner, hitEv } from "./jugement";
+import { improviser, noterAuSolo } from "./variations";
 
 /** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
 export function autoNotes(step: number) {
@@ -34,13 +34,23 @@ export function autoTrilles(step: number) {
   }
   return appuis;
 }
-// Pendant le solo libre, le bot improvise par degrés voisins : renvoie le couloir joué, ou null
+// Pendant le solo libre, le bot improvise par degrés voisins, à partir de la graine (ADR-0012) : renvoie le
+// couloir joué, ou null. Ses notes sont gardées comme celles d'une personne, et sa phrase revient au refrain.
+let impro = { graine: NaN, croches: 0, couloirs: new Map<number, number>() };
+function improvisation(graine: number, croches: number) {
+  if (impro.graine !== graine || impro.croches !== croches)
+    impro = { graine, croches, couloirs: new Map(improviser(graine, croches).map((n) => [n.croche, n.couloir])) };
+  return impro.couloirs;
+}
 export function autoSolo(step: number, sec: Section) {
-  if (!(autoFor("R") && sec.kind === "pont" && step % 2 === 0 && Math.random() < 0.55)) return null;
-  const r = Math.random();
-  S.autoLane = clamp(S.autoLane + (r < 0.4 ? -1 : r < 0.8 ? 1 : 0), 0, 3);
-  S.autoQ.push({ at: (step / 4) * spb(), solo: S.autoLane });
-  return S.autoLane;
+  if (!(autoFor("R") && sec.kind === "pont" && step % 2 === 0)) return null;
+  // La croche dans le solo : en boucle, chaque passage rejoue la même improvisation (ADR-0009)
+  const croche = (mesureDeLaChanson(Math.floor(step / 16)) - sec.start) * 8 + (step % 16) / 2,
+    couloir = improvisation(S.song.seed, sec.bars * 8).get(croche);
+  if (couloir === undefined) return null;
+  noterAuSolo(sec, sec.start * 4 + croche / 2, couloir);
+  S.autoQ.push({ at: (step / 4) * spb(), solo: couloir });
+  return couloir;
 }
 // L'auto-play anime le personnage et les touches comme si quelqu'un jouait
 function tirer(lane: number) {

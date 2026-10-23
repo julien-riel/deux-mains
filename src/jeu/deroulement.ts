@@ -10,6 +10,7 @@ import { autoAlterner, autoHit } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
 import { completeHold, finirTrille, gagner, missEv } from "./jugement";
+import { repriseNeuve, reprendreLeSolo } from "./variations";
 
 /* ---------- Partie ---------- */
 export function resetRun() {
@@ -38,6 +39,8 @@ export function resetRun() {
     keyFlash: {},
     ev: S.song.ev,
     bouclePartie: null,
+    // Une nouvelle partie repart de la chanson de la graine : la reprise du solo d'avant est oubliée (ADR-0012)
+    reprise: repriseNeuve(),
   });
   for (const ev of S.song.ev) {
     ev.state = "pending";
@@ -148,8 +151,10 @@ export function resumeCP() {
   });
   // En boucle, une mort fait reprendre la boucle au début de la section
   if (S.bouclePartie) return armerBoucle();
+  // Une mort après le solo garde la phrase reprise ; une mort avant sa fin efface ce qui a été joué (ADR-0012)
+  if (!S.reprise.faite) S.reprise.solo = [];
   const b0 = cp.sec.start * 4;
-  for (const ev of S.song.ev) {
+  for (const ev of S.ev) {
     ev.voice = null;
     ev.auto = false;
     ev.vibrato = ev.vibreAt = ev.ecart = ev.dernier = ev.alternances = ev.trilleAt = undefined;
@@ -211,6 +216,13 @@ export function update(nb) {
         S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };
     }
   }
+  // À la fin du solo, sa meilleure phrase revient dans le refrain qui suit (#9, ADR-0012)
+  if (reprendreLeSolo(nb, DIFFS[S.diff].mel))
+    S.banner = {
+      text: S.curSec.name,
+      sub: autoFor("R") ? "Le refrain reprend le solo" : "Le refrain reprend ton solo",
+      at: performance.now(),
+    };
   if (S.autoQ.length) {
     const due = S.autoQ.filter((q) => q.at <= ns);
     S.autoQ = S.autoQ.filter((q) => q.at > ns);

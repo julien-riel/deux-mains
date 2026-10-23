@@ -4,6 +4,7 @@
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
 import { S, compterPassage, mult, sectionAtBar, spb } from "./etat";
+import { noterAuSolo } from "./variations";
 
 export interface Effets {
   /** Fait sonner la note : sur son temps `beat` (coup en avance, quantifié), ou tout de suite (`null`).
@@ -232,8 +233,11 @@ export function leftPress(lane: number, ns: number) {
 /** Tire dans un couloir, et renvoie les notes réussies. `accordEntier` : toucher un couloir de l'accord joue
  * toutes ses notes de la main droite, car un pouce ne touche qu'une zone à la fois (ADR-0008). */
 export function rightPress(lane: number, ns: number, accordEntier = false): Note[] {
-  const nb = ns / spb();
-  if (sectionAtBar(Math.floor(nb / 4)).kind === "pont") {
+  const nb = ns / spb(),
+    sec = sectionAtBar(Math.floor(nb / 4));
+  if (sec.kind === "pont") {
+    // La note est gardée : la meilleure phrase du solo revient au dernier refrain (#9)
+    noterAuSolo(sec, nb, lane);
     effets.solo(lane, nb);
     gagner(25, "R");
     effets.tir(lane, true);

@@ -152,7 +152,7 @@ describe("réglage Vitesse", () => {
     const etat = nav.avancerJusqua((e) => e.mode !== "play", dureeChanson() / v + 10);
 
     expect(etat.mode).toBe("done");
-    expect([etat.miss, etat.perfect]).toEqual([0, etat.song.ev.length]);
+    expect([etat.miss, etat.perfect]).toEqual([0, etat.ev.length]);
     expect(nav.horloge.audio - debut).toBeGreaterThan(dureeChanson() / v);
     expect(nav.horloge.audio - debut).toBeLessThan(dureeChanson() / v + 1);
     // Les trilles (#15) suivent la vitesse : l'auto-play les réussit toutes, même ralenti

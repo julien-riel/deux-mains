@@ -36,7 +36,8 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(nav.overlay.hidden).toBe(false);
       expect(nav.overlay.innerHTML).toContain("Écoute terminée");
       expect(etat.miss).toBe(0);
-      expect(etat.perfect).toBe(etat.song.ev.length);
+      // Les notes de la partie : la phrase du solo de l'auto-play revient au dernier refrain (ADR-0012)
+      expect(etat.perfect).toBe(etat.ev.length);
       expect(etat.health).toBe(100);
       // Les pentes (#12), en Normal et en Difficile : tenues jusqu'au bout
       const pentes = etat.ev.filter((ev) => ev.fin !== undefined);

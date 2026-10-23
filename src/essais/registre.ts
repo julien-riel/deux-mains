@@ -28,6 +28,10 @@ export interface Essai {
   chanson(): Chanson;
   /** Les notes qui portent la fonctionnalité : les tests vérifient qu'elles arrivent tôt et souvent */
   repere(ev: Note): boolean;
+  /** Les notes du repère naissent pendant la partie, dans ses variations (ADR-0012) : les tests les cherchent dans
+   * les notes de la partie jouée par l'auto-play, dans les quatre mesures qui suivent le solo, qui doit commencer
+   * dans les quatre premières mesures */
+  variation?: boolean;
 }
 
 // Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
@@ -194,6 +198,26 @@ export const ESSAIS: Essai[] = [
         },
       ),
     repere: (ev) => ev.hand === "R" && ev.trille !== undefined,
+  },
+  {
+    id: "reprise-solo",
+    titre: "Reprise du solo",
+    verifier:
+      "Le solo libre arrive tout de suite : joue au moins trois notes (J K L ;), une phrase qui finit sur J sonne mieux. Au refrain, « Le refrain reprend ton solo » s'affiche, et les mesures 3–4 et 7–8 du refrain rejouent ta meilleure phrase sur les accords du refrain : ses ennemis portent une étoile. Sans rien jouer au solo, le refrain reste celui de la chanson.",
+    issue: 9,
+    univers: "boite",
+    diff: "facile",
+    mains: "R",
+    // Une mesure de décompte, le solo, puis le dernier refrain : la phrase revient deux mesures après le solo
+    chanson: () =>
+      assembler(GRAINE, "facile", [
+        { nom: "Intro", genre: "intro", de: 1, mesures: 1 },
+        { nom: "Solo libre", genre: "pont", de: 18, mesures: 4 },
+        refrain(22, 8),
+        OUTRO,
+      ]),
+    repere: (ev) => ev.hand === "R" && !!ev.reprise,
+    variation: true,
   },
 ];
 

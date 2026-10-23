@@ -2,6 +2,7 @@
 import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
+import type { Reprise } from "./variations";
 
 export type Mode = "title" | "essais" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
 
@@ -128,7 +129,6 @@ export interface Etat {
   autoUsed: boolean;
   /** Ce que l'auto-play anime au moment où on l'entend : une note, un appui de trille (#15) sur un couloir, ou le solo */
   autoQ: { at: number; ev?: Note; trille?: number; solo?: number }[];
-  autoLane: number;
   keyFlash: Partial<Record<Action, number>>;
   practice: Mains;
   /** Vitesse de lecture choisie (#4), et celle de la partie en cours, figée au départ pour que l'horloge ne saute pas */
@@ -137,6 +137,8 @@ export interface Etat {
   /** Section choisie pour la boucle (#5), par son rang dans la chanson, -1 pour aucune ; et la boucle de la partie en cours */
   boucle: number;
   bouclePartie: Boucle | null;
+  /** Ce que la partie garde du solo libre, et la phrase qui revient au dernier refrain (#9, ADR-0012) */
+  reprise: Reprise;
   theme: string;
   /** Une forme par couloir, en plus de la couleur (#31) */
   formes: boolean;
@@ -189,13 +191,13 @@ export const S: Etat = {
   auto: false,
   autoUsed: false,
   autoQ: [],
-  autoLane: 1,
   keyFlash: {},
   practice: "both",
   vitesse: 1,
   vitessePartie: 1,
   boucle: -1,
   bouclePartie: null,
+  reprise: { solo: [], phrase: null, faite: false },
   theme: "ville",
   formes: true,
   keyAng: 0,
