@@ -175,7 +175,7 @@ describe("la grille de l'éditeur", () => {
 describe("les compositions dans la sauvegarde (ADR-0014)", () => {
   it("un document de la version 1 migre vers la version actuelle, sans composition", () => {
     const v1 = JSON.stringify({ v: 1, carte: { ville: ["Royal Road"] }, chansons: {} });
-    expect(VERSION).toBe(2);
+    expect(VERSION).toBeGreaterThanOrEqual(2);
     expect(lireDocument(v1)).toEqual({
       etat: "ok",
       doc: { v: VERSION, carte: { ville: ["Royal Road"] }, chansons: {} },

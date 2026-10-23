@@ -11,7 +11,8 @@ import { NOM_CROISEE, NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../c
 import { VERSION_PARTITION, composer, type Partition } from "../chanson/partition";
 import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
-import { sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
+import { reunir, trace } from "../jeu/traces";
+import { cleEssai, sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
 import { accorder, assembler, chanter, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
 
 export interface Essai {
@@ -103,6 +104,25 @@ function progressionFictive(): Sauvegarde {
   const autres = LIEUX.filter((l) => l !== progressionDe(GRAINE).name);
   return { ...sauvegardeVide(), carte: { ville: autres.slice(0, 3), boite: autres.slice(1, 3) } };
 }
+
+// La chanson des essais des traces (#29) : le couplet commence dès la troisième mesure
+const chansonDesTraces = () => assembler(GRAINE, "normal", [INTRO, couplet(2, 4), refrain(10, 4), OUTRO]);
+// Leur progression fictive : les traces d'un passage précédent, deux par mesure paire, sur les premières notes de la
+// mélodie. Les mesures impaires sont vides, pour que les nouvelles traces s'y voient.
+function progressionTracee(id: string): () => Sauvegarde {
+  return () => {
+    const parMesure = new Map<number, number[]>();
+    for (const ev of chansonDesTraces().ev) {
+      const m = Math.floor(ev.beat / 4),
+        traces = parMesure.get(m) ?? [];
+      if (ev.hand === "R" && m % 2 === 0 && traces.length < 2)
+        parMesure.set(m, [...traces, trace("R", ev.beat, ev.lane)]);
+    }
+    return { ...sauvegardeVide(), chansons: { [cleEssai(id)]: { traces: reunir([...parMesure.values()].flat()) } } };
+  };
+}
+const RETROUVER_TRACES =
+  "Finis la chanson des deux mains, sans auto-play, puis rejoue l'essai (Entrée) : tes traces sont toujours là, aux mêmes endroits, et les nouvelles s'y ajoutent. Ta vraie sauvegarde n'est pas touchée.";
 
 export const ESSAIS: Essai[] = [
   {
@@ -503,6 +523,31 @@ export const ESSAIS: Essai[] = [
     chanson: () => assembler(GRAINE, "facile", [INTRO, couplet(2, 8), OUTRO]),
     repere: () => true,
     progression: progressionFictive,
+  },
+  {
+    id: "graffitis",
+    titre: "Graffitis lumineux",
+    verifier: `Une mesure sur deux, des tags lumineux sont déjà bombés sur les immeubles du premier plan : ceux d'un passage précédent. Chaque « Parfait » bombe un nouveau tag sur le mur derrière la note, à la couleur et à la forme de son couloir (un éclair ambre pour la basse), d'autant plus haut que la note est haute ; il grossit un instant, puis défile avec l'immeuble. Au plus trois tags par mesure. ${RETROUVER_TRACES}`,
+    issue: 29,
+    univers: "ville",
+    diff: "normal",
+    mains: "both",
+    chanson: chansonDesTraces,
+    // Toute note jouée « Parfait » laisse sa trace
+    repere: () => true,
+    progression: progressionTracee("graffitis"),
+  },
+  {
+    id: "etoiles",
+    titre: "Étoiles phosphorescentes",
+    verifier: `La même mécanique que les graffitis de la Ville, habillée par la Boîte : une mesure sur deux, des étoiles phosphorescentes sont déjà collées aux planches du grenier. Chaque « Parfait » colle une nouvelle étoile à la hauteur de sa note et à la couleur de son couloir (ambre, près du cylindre, pour la basse) ; elle brille fort un instant, puis luit doucement au rythme. Au plus trois étoiles par mesure. ${RETROUVER_TRACES}`,
+    issue: 29,
+    univers: "boite",
+    diff: "normal",
+    mains: "both",
+    chanson: chansonDesTraces,
+    repere: () => true,
+    progression: progressionTracee("etoiles"),
   },
   {
     id: "polyrythmie",

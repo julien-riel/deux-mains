@@ -2,9 +2,16 @@
 // essai, tout se passe dans sa progression fictive, en mémoire : un essai n'écrit jamais dans la sauvegarde du
 // joueur (#25).
 import { LIEUX } from "../jeu/carte";
-import { S, progression } from "../jeu/etat";
+import { S, cleDesTraces, progression } from "../jeu/etat";
 import { decoder, encoder } from "../sauvegarde/code";
-import { clePartition, fusionner, lieuxReussis, noterReussite, type Sauvegarde } from "../sauvegarde/format";
+import {
+  clePartition,
+  fusionner,
+  lieuxReussis,
+  noterReussite,
+  noterTraces,
+  type Sauvegarde,
+} from "../sauvegarde/format";
 import { ECRAN_CODE, carteDisponible } from "./ecran-carte";
 import { show } from "./ecrans";
 import { ecrireSauvegarde, lireSauvegarde } from "./stockage";
@@ -25,8 +32,8 @@ export function remplacer(doc: Sauvegarde) {
 
 /**
  * À la fin d'une chanson : si elle est réussie avec un score classé (ni auto-play, ni une seule main, ni ralenti,
- * ni boucle, ni jam), son lieu devient réussi dans l'univers, et une chanson générée garde son meilleur score. On écrit
- * ici, une fois par chanson, jamais à chaque image.
+ * ni boucle, ni jam), son lieu devient réussi dans l'univers, une chanson générée garde son meilleur score, et chaque
+ * chanson les traces de ses notes parfaites (#29). On écrit ici, une fois par chanson, jamais à chaque image.
  */
 export function noterFinDePartie() {
   S.progres = null;
@@ -42,7 +49,7 @@ export function noterFinDePartie() {
       cle: clePartition(source.empreinte),
       score: S.score,
     });
-    remplacer(doc);
+    remplacer(avecTraces(doc));
     S.progres = progres;
     return;
   }
@@ -52,8 +59,14 @@ export function noterFinDePartie() {
     // Une chanson d'essai n'est pas celle de sa graine : elle ne garde pas de score
     S.essai ? reussite : { ...reussite, graine: S.seed, diff: S.diff, score: S.score },
   );
-  remplacer(doc);
+  remplacer(avecTraces(doc));
   S.progres = progres;
+}
+// Les traces peintes par les notes parfaites de la partie (#29) rejoignent celles que la chanson garde déjà : celles
+// d'un essai, sous sa clé, dans sa progression fictive
+function avecTraces(doc: Sauvegarde) {
+  const { cle, nouvelles } = S.traces;
+  return cle !== null && cle === cleDesTraces() ? noterTraces(doc, cle, nouvelles) : doc;
 }
 
 /* ---------- Code de sauvegarde ---------- */

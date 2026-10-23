@@ -2,7 +2,16 @@
 import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
-import { sauvegardeVide, type Progres, type Sauvegarde } from "../sauvegarde/format";
+import {
+  cleChanson,
+  cleEssai,
+  clePartition,
+  sauvegardeVide,
+  tracesGardees,
+  type Progres,
+  type Sauvegarde,
+} from "../sauvegarde/format";
+import { reunir } from "./traces";
 import type { Partition } from "../chanson/partition";
 import type { Outil } from "./editeur";
 import type { Enregistrement } from "./enregistrement";
@@ -221,6 +230,9 @@ export interface Etat {
   sauvegarde: Sauvegarde;
   /** Ce que la dernière chanson finie a changé dans la progression (#25), pour l'écran de fin ; null sinon */
   progres: Progres | null;
+  /** Les traces peintes par les notes parfaites de la partie en cours (#29), et la clé de sa chanson
+   * (`cleDesTraces`) ; elles rejoignent celles de la sauvegarde à la fin d'une chanson réussie */
+  traces: { cle: string | null; nouvelles: number[] };
   /** Le remontage en cours, ou le dernier fait pour la chanson en place (#27) ; null sinon */
   remontage: RemontageEnCours | null;
   /** L'harmonie de départ des parties de la chanson en place, gagnée au remontage (#27) ; null : 100 */
@@ -295,6 +307,7 @@ export const S: Etat = {
   jam: null,
   sauvegarde: sauvegardeVide(),
   progres: null,
+  traces: { cle: null, nouvelles: [] },
   remontage: null,
   depart: null,
   boss: null,
@@ -317,6 +330,26 @@ export const auRepos = () =>
 // et ne lit ni n'écrit celle du joueur (#25)
 const AUCUNE = sauvegardeVide();
 export const progression = (): Sauvegarde => (S.essai ? (S.essai.sauvegarde ?? AUCUNE) : S.sauvegarde);
+
+/**
+ * La clé sous laquelle la chanson installée garde ses traces (#29) : celle de son meilleur score, ou celle de l'essai
+ * en cours, dans sa progression fictive. Le boss de fin (#26) n'est pas la chanson de sa graine : il n'en a pas.
+ */
+export function cleDesTraces(): string | null {
+  const source = S.song?.source;
+  if (!S.song || S.song.boss) return null;
+  if (S.essai) return cleEssai(S.essai.essai.id);
+  if (source?.genre === "partition") return clePartition(source.empreinte);
+  return cleChanson(S.seed, S.diff);
+}
+/** Les traces que le décor montre : celles que la progression garde pour la chanson installée, puis celles que la
+ * partie en cours vient de peindre, dans la limite du plafond */
+export function tracesAffichees(): number[] {
+  const cle = cleDesTraces();
+  if (cle === null) return [];
+  const gardees = tracesGardees(progression(), cle);
+  return S.traces.cle === cle ? reunir(gardees, S.traces.nouvelles) : gardees;
+}
 
 /** La chanson installée vient d'une partition écrite à la main (#28, ADR-0016) */
 export const enComposition = () => S.song?.source?.genre === "partition";

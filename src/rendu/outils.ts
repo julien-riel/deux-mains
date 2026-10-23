@@ -1,5 +1,7 @@
 /* ---------- Outils de dessin ---------- */
-import { S, auRepos } from "../jeu/etat";
+import { PAS_PAR_TEMPS } from "../chanson/temps";
+import { S, auRepos, tracesAffichees } from "../jeu/etat";
+import { COULEUR_BASSE, couleurDeLaTrace, pasDeLaTrace } from "../jeu/traces";
 import { clamp } from "../outils";
 
 export const cv = document.querySelector<HTMLCanvasElement>("#game"),
@@ -138,3 +140,32 @@ export function hh(a, b = 0) {
 }
 // Énergie de la scène : monte avec le combo, retombe quand l'harmonie baisse
 export const energy = () => (auRepos() ? 0.35 : clamp(S.combo / 35, 0, 1) * (S.health >= 50 ? 1 : 0.35));
+
+/** Une trace d'une note parfaite (#29) à l'écran : la trace, sa couleur (`COULEUR_BASSE` ou un couloir), sa place sur
+ * le plan du décor, et à quel point la partie vient de la peindre (de 1, à l'instant, à 0, un temps plus tard) */
+export interface TraceVue {
+  t: number;
+  couleur: number;
+  x: number;
+  frais: number;
+}
+/**
+ * Les traces que le décor montre (#29), sur un plan qui défile à `vitesse` fois celle des notes : chacune là où
+ * passait ce plan quand sa note a été jouée, derrière le personnage pour la basse, derrière la ligne de tir pour la
+ * mélodie. Seules celles qui tombent sur l'écran ; il n'y en a jamais plus que le plafond des traces (`TRACES`).
+ */
+export function tracesVisibles(nb: number, vitesse: number): TraceVue[] {
+  const vues: TraceVue[] = [];
+  for (const t of tracesAffichees()) {
+    const couleur = couleurDeLaTrace(t),
+      temps = pasDeLaTrace(t) / PAS_PAR_TEMPS,
+      x = (couleur === COULEUR_BASSE ? PX + PW / 2 : HITX) + (temps - nb) * PPB * vitesse;
+    if (x < -40 || x > W + 40) continue;
+    const age = nb - temps,
+      frais = age >= 0 && age < 1 && S.traces.nouvelles.includes(t) ? 1 - age : 0;
+    vues.push({ t, couleur, x, frais });
+  }
+  return vues;
+}
+/** La teinte d'une trace : celle de son couloir, ou l'ambre de la basse (ADR-0006) */
+export const teinteDeTrace = (couleur: number) => (couleur === COULEUR_BASSE ? HUE_BASS : LANE_HUE[couleur]);

@@ -3,8 +3,19 @@
 // de la chanson (en secondes) en paramètre, et passe par les effets qu'on lui branche pour le son et l'image.
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
-import { COULOIRS, S, chordAtBeat, compterPassage, mult, sectionAtBar, spb, type Action } from "./etat";
+import {
+  COULOIRS,
+  S,
+  chordAtBeat,
+  compterPassage,
+  mult,
+  sectionAtBar,
+  spb,
+  tracesAffichees,
+  type Action,
+} from "./etat";
 import { noteDeJam } from "./jam";
+import { peutAjouter, trace } from "./traces";
 import { estSolo, noterAuSolo } from "./variations";
 
 export interface Effets {
@@ -108,7 +119,15 @@ function compter(ev: Note, d: number, points = 0) {
   compterPassage(ev, perfect ? "parfait" : "bien");
   gagner(Math.round((perfect ? 300 : 120) * mult(ev.hand)) + points, ev.hand);
   if (S.combo % 8 === 0) S.health = Math.min(100, S.health + 4);
+  if (perfect) peindre(ev);
   return perfect;
+}
+// Une note « Parfait » laisse sa trace sur le décor (#29), au temps et dans le couloir où elle a été jouée : un
+// passage du serpent (#16), au temps du passage et dans son nouveau couloir. Une mesure ou une chanson pleine n'en
+// prend plus (`TRACES`).
+function peindre(ev: Note) {
+  const t = trace(ev.hand, ev.troncon ? tempsDuPassage(ev, ev.troncon) : ev.beat, couloirDe(ev));
+  if (S.traces.cle !== null && peutAjouter(tracesAffichees(), t)) S.traces.nouvelles.push(t);
 }
 // L'accord dont cette note vient d'être jugée : le bonus quand toutes ses notes sont réussies, et le suivi du duo
 function jugerAccord(ev: Note) {

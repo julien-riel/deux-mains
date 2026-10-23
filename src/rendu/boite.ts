@@ -1,7 +1,24 @@
 import { S, progression } from "../jeu/etat";
+import { COULEUR_BASSE } from "../jeu/traces";
 import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
-import { COL, GY, HITX, LANE_Y, PPB, PX, W, energy, g, hexA, hh, rr, type PoseDuBoss } from "./outils";
+import {
+  COL,
+  GY,
+  HITX,
+  LANE_Y,
+  PPB,
+  PX,
+  W,
+  energy,
+  g,
+  hexA,
+  hh,
+  rr,
+  teinteDeTrace,
+  tracesVisibles,
+  type PoseDuBoss,
+} from "./outils";
 
 /* La Boîte à musique */
 export function boiteBack(nb, hsl, bp) {
@@ -66,6 +83,7 @@ export function boiteBack(nb, hsl, bp) {
       );
     }
   }
+  boiteEtoiles(nb, hsl, bp);
   // Lumière de la lucarne et poussière qui danse
   g.beginPath();
   g.moveTo(800, -12);
@@ -83,6 +101,30 @@ export function boiteBack(nb, hsl, bp) {
     const xx = left + hh(i, 5) * (right - left) + Math.sin(nb + i) * 4;
     g.fillStyle = hsl(45, 80, 85, 0.2 + 0.45 * bp * hh(i, 8));
     g.fillRect(xx, yy, 2, 2);
+  }
+}
+// Les étoiles phosphorescentes des notes parfaites (#29, ADR-0015) : collées aux planches du grenier, à la hauteur
+// où la note a été jouée (son couloir pour la mélodie, au ras du cylindre pour la basse), à la couleur de son
+// couloir. Elles luisent doucement au rythme ; celle qu'on vient de coller brille plus fort pendant un temps.
+function boiteEtoiles(nb, hsl, bp) {
+  for (const { t, couleur, x, frais } of tracesVisibles(nb, 0.12)) {
+    const y = (couleur === COULEUR_BASSE ? GY - 70 : LANE_Y[couleur]) + (hh(t, 71) - 0.5) * 50,
+      r = 5 * (1 + frais),
+      teinte = teinteDeTrace(couleur),
+      tourne = hh(t, 72) * Math.PI;
+    g.beginPath();
+    g.arc(x, y, r * 2.4, 0, Math.PI * 2);
+    g.fillStyle = hsl(teinte, 80, 70, 0.08 + 0.06 * bp + 0.25 * frais);
+    g.fill();
+    g.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const a = tourne + (k * Math.PI) / 5,
+        d = k % 2 ? r * 0.45 : r;
+      g.lineTo(x + d * Math.cos(a), y + d * Math.sin(a));
+    }
+    g.closePath();
+    g.fillStyle = hsl(teinte, 75, 72 + 15 * frais, 0.85);
+    g.fill();
   }
 }
 export function gear(cx, cy, r, teeth, ang, color) {
