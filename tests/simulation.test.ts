@@ -71,6 +71,11 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(petites.length > 0).toBe(difficulte === "difficile");
       expect(petites.every((ev) => ev.state === "hit")).toBe(true);
       expect(etat.ev.filter((ev) => ev.hand === "L" && ev.lane >= 4).every((ev) => ev.state === "hit")).toBe(true);
+      // Les phrases en relais (#20), en Normal et en Difficile : l'auto-play passe le relais d'une main à l'autre,
+      // réussit chaque phrase entière et gagne son bonus ; la reprise du solo (#9) ne les touche pas
+      const relais = new Set(etat.ev.filter((ev) => ev.relais !== undefined).map((ev) => ev.relais));
+      expect(relais.size > 0).toBe(difficulte === "normal" || difficulte === "difficile");
+      expect(etat.relais).toEqual({ reussis: relais.size, total: relais.size });
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

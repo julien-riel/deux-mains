@@ -89,6 +89,10 @@ describe("duo local (#6)", () => {
     for (const texte of ["Basse", "Mélodie", "Précision", "Parfait", "Raté", "Combo max", "Score total"])
       expect(html).toContain(texte);
     expect(html).toContain(`Accords en duo : ${accords} / ${accords}`);
+    // Les phrases en relais (#20) passent d'un joueur à l'autre : un autre exploit commun
+    const relais = new Set(S.ev.filter((ev) => ev.relais !== undefined).map((ev) => ev.relais)).size;
+    expect(relais).toBeGreaterThan(0);
+    expect(html).toContain(`relais passés : ${relais} / ${relais}`);
     expect(S.parMain.L.perfect).toBe(S.ev.filter((ev) => ev.hand === "L").length);
     expect(S.parMain.R.perfect).toBe(S.ev.filter((ev) => ev.hand === "R").length);
   });

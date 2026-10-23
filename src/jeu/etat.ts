@@ -28,7 +28,8 @@ export const statsNeuves = (): Record<Main, StatsMain> => ({
   R: { score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0 },
 });
 
-/** Les accords à deux mains : réussis, et jugés (réussis ou non). En duo, c'est l'exploit commun (#6). */
+/** Les accords à deux mains, ou les phrases en relais (#20) : réussis, et jugés (réussis ou non). En duo, c'est
+ * l'exploit commun (#6). */
 export interface AccordsDuo {
   reussis: number;
   total: number;
@@ -44,6 +45,7 @@ export interface PointDeReprise {
   maxCombo: number;
   parMain: Record<Main, StatsMain>;
   accordsDuo: AccordsDuo;
+  relais: AccordsDuo;
 }
 
 /** Les coups d'un passage de la boucle */
@@ -92,6 +94,8 @@ export interface Etat {
   /** Les mêmes coups, main par main : le score total, lui, compte aussi le bonus des accords */
   parMain: Record<Main, StatsMain>;
   accordsDuo: AccordsDuo;
+  /** Les phrases en relais entre les deux mains (#20) */
+  relais: AccordsDuo;
   // Horloge de la partie (ADR-0004), et le décalage du joueur mesuré par le calibrage, en secondes
   startBeat: number;
   decalage: number;
@@ -163,6 +167,7 @@ export const S: Etat = {
   miss: 0,
   parMain: statsNeuves(),
   accordsDuo: { reussis: 0, total: 0 },
+  relais: { reussis: 0, total: 0 },
   startBeat: 0,
   decalage: 0,
   calib: null,

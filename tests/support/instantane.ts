@@ -22,6 +22,7 @@ interface NoteBrute {
   serpent?: number[];
   midiSerpent?: number[];
   reponse?: true;
+  relais?: number;
   harm?: number;
   vel?: number;
   air?: number;
@@ -84,6 +85,8 @@ function canonique(s: ChansonBrute) {
       ...(e.serpent ? [e.serpent, e.midiSerpent] : []),
       // De même pour les réponses au chanteur (#18)
       ...(e.reponse ? ["reponse"] : []),
+      // De même pour les phrases en relais (#20)
+      ...(e.relais !== undefined ? ["relais", e.relais] : []),
     ]),
     // Les chanteurs (#18) ne comptent que dans les chansons qui en ont : Débutant garde son empreinte
     ...(s.chanteurs?.length

@@ -19,7 +19,7 @@ import {
   spb,
   type Action,
 } from "../jeu/etat";
-import { couloirDe, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
+import { couloirDe, notesDuRelais, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
 import { CRITERES, conseil } from "../jeu/style";
 import { soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
@@ -197,7 +197,8 @@ export function render(nb, dt) {
   g.fillStyle = TH().under;
   g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
 
-  // Obstacles (main gauche) et ennemis (main droite)
+  // Obstacles (main gauche) et ennemis (main droite), sous le fil des relais (#20)
+  dessinerRelais(nb, pnow);
   for (const ev of S.ev) {
     if (ev.beat > nb + 8) break;
     if (ev.state === "skip" || ev.beat + ev.dur < nb - 3) continue;
@@ -537,6 +538,70 @@ export function drawChordLinks(grp, nb) {
     g.stroke();
   }
   g.restore();
+}
+
+// Le point d'une note où s'attache le fil d'un relais (#20) : l'ennemi, ou le haut de l'obstacle ; une fois passée
+// la ligne de tir (ou le personnage), il y reste accroché
+function pointDeRelais(ev, nb): [number, number] {
+  if (ev.hand === "R") return [Math.max(HITX, HITX + (ev.beat - nb) * PPB), LANE_Y[ev.lane]];
+  const x0 = PX + PW / 2;
+  return [Math.max(x0, x0 + (ev.beat - nb) * PPB), GY - (ev.lane >= 4 ? hauteurMarche(ev.midi) + 10 : 44)];
+}
+/**
+ * Le passage de relais (#20) : un fil relie la dernière note de la main qui commence la phrase à la première de
+ * celle qui la finit, aux couleurs des deux mains. Il se tend et s'éclaire quand la première main a joué toute sa
+ * part (le relais est passé), et disparaît dès que la seconde main a joué sa première note, ou qu'une note de la
+ * phrase est ratée.
+ */
+function dessinerRelais(nb, pnow) {
+  const vus = new Set<number>();
+  for (const ev of S.ev) {
+    if (ev.beat > nb + 8) break;
+    if (ev.relais === undefined || vus.has(ev.relais)) continue;
+    vus.add(ev.relais);
+    const phrase = notesDuRelais(ev),
+      main = phrase[0].hand,
+      part = phrase.filter((e) => e.hand === main),
+      de = part[part.length - 1],
+      vers = phrase.find((e) => e.hand !== main);
+    if (!vers || vers.state !== "pending" || phrase.some((e) => e.state === "miss")) continue;
+    const passe = part.every((e) => e.state === "hit"),
+      [x1, y1] = pointDeRelais(de, nb),
+      [x2, y2] = pointDeRelais(vers, nb);
+    if (x1 > W + 40) continue;
+    const cx = (x1 + x2) / 2,
+      cy = Math.min(y1, y2) - 46,
+      couleur = (e) => (e.hand === "R" ? COL.mel : COL.bass),
+      a = passe ? 0.95 : 0.6,
+      fil = g.createLinearGradient(x1, y1, x2, y2);
+    fil.addColorStop(0, hexA(couleur(de), a));
+    fil.addColorStop(1, hexA(couleur(vers), a));
+    g.save();
+    g.lineCap = "round";
+    g.strokeStyle = fil;
+    g.lineWidth = passe ? 4 : 2.5;
+    // Les tirets coulent de la première main vers la seconde
+    g.setLineDash([9, 7]);
+    g.lineDashOffset = reduced ? 0 : -((pnow / 30) % 16);
+    g.beginPath();
+    g.moveTo(x1, y1);
+    g.quadraticCurveTo(cx, cy, x2, y2);
+    g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = hexA(couleur(vers), a);
+    g.beginPath();
+    g.arc(x2, y2, passe ? 5 : 3.5, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    txt(
+      "RELAIS",
+      (x1 + 2 * cx + x2) / 4,
+      (y1 + 2 * cy + y2) / 4 - 8,
+      `600 11px ${FONT.mono}`,
+      hexA(COL.fg, a),
+      "center",
+    );
+  }
 }
 
 // La hauteur d'une pente (#12) au-dessus du sol, à la fraction p de sa longueur : elle monte ou descend avec la note

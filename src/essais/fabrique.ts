@@ -13,6 +13,7 @@ import {
   noteDeMelodie,
   petiteNote,
   phraseDuChanteur,
+  phraseEnRelais,
   voisin,
 } from "../chanson/generateur";
 import { gammeDe, makeChord } from "../chanson/theorie";
@@ -103,7 +104,8 @@ export function assembler(
     }
     for (const e of chant ? [] : source.ev)
       if (e.hand === "R" && e.bar >= m.de && e.bar < m.de + m.mesures)
-        // Une réponse au chanteur (#18) recopiée sans lui redevient une note de mélodie ordinaire
+        // Une réponse au chanteur (#18) recopiée sans lui redevient une note de mélodie ordinaire, et une note de
+        // relais (#20) sans la basse qui le finit aussi : `relayer` en pose où l'on veut
         ev.push({
           ...e,
           beat: e.beat + 4 * decale,
@@ -111,6 +113,7 @@ export function assembler(
           kind: m.genre,
           grp: undefined,
           reponse: undefined,
+          relais: undefined,
         });
     const a = motifs[m.genre];
     for (let i = 0; a && i < m.mesures; i++)
@@ -135,6 +138,20 @@ export function chanter(chanson: Chanson, diff: string, mesures: number[], grain
     chanson.ev = chanson.ev.filter((e) => e.hand === "L" || (e.bar !== bar && e.bar !== bar + 1));
     chanson.ev.push(...reponse);
     chanson.chanteurs = [...chanson.chanteurs.filter((c) => c.bar !== bar), chanteur].sort((a, b) => a.bar - b.bar);
+  }
+  return finaliser(chanson);
+}
+
+/**
+ * Pose une phrase en relais (#20) sur chacune des mesures de `relais` et la suivante, montante (true) ou
+ * descendante (false), construite comme dans le générateur : elle remplace les notes des deux mains de ces deux
+ * mesures, et une note tenue d'avant qui déborderait dessus.
+ */
+export function relayer(chanson: Chanson, relais: [number, boolean][]): Chanson {
+  for (const [bar, monte] of relais) {
+    const sec = chanson.sections.find((s) => bar >= s.start && bar < s.start + s.bars);
+    chanson.ev = chanson.ev.filter((e) => e.beat >= (bar + 2) * 4 || e.beat + Math.max(e.dur, 0.01) <= bar * 4);
+    chanson.ev.push(...phraseEnRelais(monte, bar, chanson.chords, sec.kind));
   }
   return finaliser(chanson);
 }

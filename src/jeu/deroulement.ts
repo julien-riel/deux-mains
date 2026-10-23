@@ -25,6 +25,7 @@ export function resetRun() {
     miss: 0,
     parMain: statsNeuves(),
     accordsDuo: { reussis: 0, total: 0 },
+    relais: { reussis: 0, total: 0 },
     cp: null,
     curSec: null,
     banner: null,
@@ -97,6 +98,8 @@ function passage(k: number): Note[] {
         ...ev,
         beat: ev.beat + decale,
         bar: ev.bar + k * sec.bars,
+        // Chaque passage a son relais (#20), désigné comme lui par sa mesure de début
+        relais: ev.relais === undefined ? undefined : ev.relais + k * sec.bars,
         state: "pending",
         auto: false,
         voice: null,
@@ -146,6 +149,7 @@ export function resumeCP() {
     // En duo, chaque joueur retrouve ses coups du point de reprise, avec un combo neuf
     parMain: { L: { ...cp.parMain.L, combo: 0 }, R: { ...cp.parMain.R, combo: 0 } },
     accordsDuo: { ...cp.accordsDuo },
+    relais: { ...cp.relais },
     health: 100,
     combo: 0,
     keys: {},
@@ -226,6 +230,7 @@ export function update(nb) {
         maxCombo: S.maxCombo,
         parMain: structuredClone(S.parMain),
         accordsDuo: { ...S.accordsDuo },
+        relais: { ...S.relais },
       };
       if (sec.kind !== "intro")
         S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };

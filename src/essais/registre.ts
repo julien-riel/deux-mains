@@ -7,7 +7,7 @@
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
 import { estPetiteNote } from "../chanson/generateur";
-import { accorder, assembler, chanter, marcher, type Morceau } from "./fabrique";
+import { accorder, assembler, chanter, marcher, relayer, type Morceau } from "./fabrique";
 
 export interface Essai {
   /** Court, en minuscules avec des tirets : il sert dans l'adresse (?essai=double-saut) */
@@ -342,6 +342,25 @@ export const ESSAIS: Essai[] = [
     // La note de style ne fait pas de notes : le repère est la phrase reprise, notée en même temps (ADR-0012)
     repere: (ev) => ev.hand === "R" && !!ev.reprise,
     variation: true,
+  },
+  {
+    id: "relais",
+    titre: "Phrases en relais",
+    verifier:
+      "Les deux mains se passent l'arpège : la mélodie descend de l'octave à la fondamentale (; L K J), puis la basse finit la descente une octave plus bas (W, S ↓, S ↓, S) ; ou la basse monte (S, W ↑, W ↑, W) et la mélodie finit (J K L ;). On entend une seule ligne ; un fil « RELAIS » relie la dernière note d'une main à la première de l'autre, et toute la phrase réussie affiche « Relais + ».",
+    issue: 20,
+    univers: "ville",
+    diff: "normal",
+    mains: "both",
+    // Le couplet n'est fait que de relais, une phrase sur deux dans chaque sens
+    chanson: () =>
+      relayer(assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]), [
+        [2, false],
+        [4, true],
+        [6, false],
+        [8, true],
+      ]),
+    repere: (ev) => ev.relais !== undefined,
   },
 ];
 
