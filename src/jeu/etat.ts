@@ -15,6 +15,7 @@ import { reunir } from "./traces";
 import type { Partition } from "../chanson/partition";
 import type { Outil } from "./editeur";
 import type { Enregistrement } from "./enregistrement";
+import type { Fantome } from "./fantome";
 import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
 import type { Remontage } from "./remontage";
@@ -217,6 +218,10 @@ export interface Etat {
   theme: string;
   /** Une forme par couloir, en plus de la couleur (#31) */
   formes: boolean;
+  /** Le fantôme du meilleur passage et l'écart de score avec lui se voient (#32) ; un réglage les masque */
+  voirFantome: boolean;
+  /** Le fantôme du meilleur passage de la chanson, pour la partie en cours (#32) ; null s'il n'y en a pas */
+  fantome: Fantome | null;
   keyAng: number;
   /** Le mode essai : l'essai ouvert, ou null pour une chanson générée */
   essai: EssaiEnCours | null;
@@ -303,6 +308,8 @@ export const S: Etat = {
   reprise: { solo: [], phrase: null, style: null, faite: false },
   theme: "ville",
   formes: true,
+  voirFantome: true,
+  fantome: null,
   keyAng: 0,
   essai: null,
   enregistrement: null,

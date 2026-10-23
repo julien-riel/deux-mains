@@ -18,6 +18,7 @@ import {
   load,
   setCommandes,
   setDecalage,
+  setFantome,
   setFormes,
   setPianiste,
   setPractice,
@@ -83,6 +84,7 @@ let savedHands = null,
   savedDecalage = null,
   savedFormes = null,
   savedPianiste = null,
+  savedFantome = null,
   savedVitesse = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
@@ -92,6 +94,7 @@ try {
   savedDecalage = localStorage.getItem("deux-mains-decalage");
   savedFormes = localStorage.getItem("deux-mains-formes");
   savedPianiste = localStorage.getItem("deux-mains-pianiste");
+  savedFantome = localStorage.getItem("deux-mains-fantome");
   savedVitesse = Number(localStorage.getItem("deux-mains-vitesse"));
 } catch {
   /* stockage indisponible */
@@ -121,6 +124,7 @@ const boot = (data) => {
   setFormes(savedFormes !== "non");
   // Le mode pianiste (#53) est désactivé par défaut
   setPianiste(savedPianiste === "oui");
+  setFantome(savedFantome !== "masquer");
   demarrerMidi();
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");

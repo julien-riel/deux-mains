@@ -30,6 +30,7 @@ export default defineConfig([
       "src/jeu/remontage.ts",
       "src/jeu/editeur.ts",
       "src/jeu/traces.ts",
+      "src/jeu/fantome.ts",
     ],
     rules: {
       "no-restricted-imports": [

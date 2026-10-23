@@ -18,6 +18,9 @@ import { finaliser, notesDeMelodie } from "../chanson/partition";
 import { memeTemps } from "../chanson/temps";
 import { gammeDe, makeChord } from "../chanson/theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
+import type { Coup } from "../jeu/enregistrement";
+import type { Action } from "../jeu/etat";
+import type { Fantome } from "../jeu/fantome";
 
 /** Des mesures de la chanson générée, recopiées dans la chanson d'essai comme une section */
 export interface Morceau {
@@ -237,4 +240,57 @@ export function marcher(
     }
   }
   return finaliser(chanson);
+}
+
+// Le tir de chaque couloir de la mélodie ; une petite note (#14) se tire avec la touche du dessous
+const COULOIRS_DE_TIR: Action[] = ["couloir0", "couloir1", "couloir2", "couloir3"];
+/**
+ * Un fantôme fictif (#32), pour l'essai du fantôme : la partie d'un joueur qui joue chaque note de la chanson à son
+ * temps, d'un appui (tenu jusqu'au bout d'une note tenue), sauf une note sur `oubli`, qu'il laisse passer. Son score
+ * au début de chaque temps compte les points d'une note réussie au temps près, multipliés par le combo comme dans le
+ * jeu, mais sans les bonus (accords, phrases, style) : un joueur sans faute le dépasse.
+ */
+export function fantomeFictif(chanson: Chanson, diff: string, essai: string, oubli = 4): Fantome {
+  const notes = [...chanson.ev].sort((a, b) => a.beat - b.beat),
+    coups: Coup[] = [],
+    gains: { beat: number; points: number }[] = [];
+  let combo = 0;
+  notes.forEach((ev, i) => {
+    if (i % oubli === oubli - 1) {
+      combo = 0;
+      return;
+    }
+    const action: Action =
+      ev.hand === "R"
+        ? COULOIRS_DE_TIR[Math.floor(ev.lane)]
+        : ev.lane === 3
+          ? "ecraser"
+          : ev.lane === 0 || ev.lane === 5
+            ? "glisser"
+            : "sauter";
+    coups.push(
+      { temps: ev.beat, geste: "appui", action, resultat: "parfait" },
+      { temps: ev.beat + Math.max(ev.dur, 0.25), geste: "relache", action },
+    );
+    combo++;
+    gains.push({ beat: ev.beat, points: Math.round(300 * (1 + Math.min(3, Math.floor(combo / 10)) * 0.5)) });
+  });
+  coups.sort((a, b) => a.temps - b.temps);
+  const scores: number[] = [];
+  for (let b = 0, k = 0, score = 0; b <= chanson.endBeat; b++) {
+    while (k < gains.length && gains[k].beat < b) score += gains[k++].points;
+    scores.push(score);
+  }
+  return {
+    graine: chanson.seed,
+    difficulte: diff,
+    essai,
+    mains: "both",
+    vitesse: 1,
+    auto: false,
+    coups,
+    scores,
+    finie: true,
+    le: 0,
+  };
 }

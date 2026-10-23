@@ -25,6 +25,7 @@ export interface InterfaceJeu {
   setCommandes(v: "auto" | "clavier" | "tactile"): void;
   setFormes(oui: boolean): void;
   setPianiste(oui: boolean): void;
+  setFantome(voir: boolean): void;
   /** Le temps de la chanson, en secondes */
   songNow(): number;
 }
@@ -297,6 +298,7 @@ export class Navigateur {
       setCommandes: reglages.setCommandes,
       setFormes: reglages.setFormes,
       setPianiste: reglages.setPianiste,
+      setFantome: reglages.setFantome,
       songNow,
     };
     return nav;

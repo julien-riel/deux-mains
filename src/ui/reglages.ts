@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage, formes des couloirs et mode pianiste, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage, formes des couloirs, mode pianiste et fantôme (#32), retenus d'une visite à l'autre
 import { B, AC, songNow } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -252,6 +252,21 @@ export function setPianiste(oui: boolean) {
   }
   etiquettes();
   if (S.mode === "title" && S.song) show("title");
+}
+document
+  .querySelectorAll<HTMLInputElement>('input[name="fantome"]')
+  .forEach((r) => r.addEventListener("change", () => setFantome(r.value === "voir")));
+// Fantôme du meilleur passage (#32) : on le voit courir avec l'écart de score, ou on le masque. Il se change aussi en
+// pleine partie : le fantôme apparaît ou disparaît aussitôt.
+export function setFantome(voir: boolean) {
+  S.voirFantome = voir;
+  const r = document.getElementById(voir ? "fa-voir" : "fa-masquer") as HTMLInputElement;
+  if (r) r.checked = true;
+  try {
+    localStorage.setItem("deux-mains-fantome", voir ? "voir" : "masquer");
+  } catch {
+    /* stockage indisponible */
+  }
 }
 $("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));
 $("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, diffDuJoueur(), enBoss()));

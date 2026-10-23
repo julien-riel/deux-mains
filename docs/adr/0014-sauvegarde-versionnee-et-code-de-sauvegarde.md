@@ -77,6 +77,8 @@ Un test (`tests/sauvegarde.test.ts`) relie la version à l'empreinte SHA-256 de 
 
 ### Code de sauvegarde
 
+> **Point remplacé par [ADR-0017](0017-fantomes-hors-du-code-de-sauvegarde.md)** : le code ne porte plus le document entier, mais le document sans ce qui est propre à l'appareil (les fantômes de #32).
+
 - Forme : `DM` + la version du document + `.` + le JSON du document en UTF-8, encodé en base64url sans remplissage : `DM1.eyJ2IjoxLC…`. Pas de compression en version 1 : le document est petit. Si un code devient trop long, une forme compressée prendra un autre préfixe, sans casser les codes existants.
 - Lecture : espaces et retours à la ligne ignorés ; la version du préfixe doit être celle du document ; un code d'une version plus ancienne est migré ; un code d'une version plus récente est refusé en disant pourquoi ; un code abîmé est refusé.
 - Coller un code **fusionne** : les lieux réussis s'additionnent et chaque chanson garde le meilleur des deux scores (`fusionner`). Rien n'est perdu ; il n'y a pas de « remplacer ».
@@ -95,6 +97,8 @@ Un test (`tests/sauvegarde.test.ts`) relie la version à l'empreinte SHA-256 de 
 - Les réglages gardent leurs clés actuelles (`deux-mains-diff`, `-theme`, `-hands`, `-vitesse`, `-commandes`, `-decalage`, `-formes`, `-separation`) et ne voyagent pas dans le code : le décalage, les commandes et la séparation MIDI dépendent de l'appareil.
 - Le ressort gagné entre deux souvenirs (#27) n'est pas sauvegardé.
 - Quand le stockage sera plein (fantômes de #32), les fantômes les plus anciens partiront d'abord ; la règle s'écrira avec #32.
+
+  > **Précision (#32, 2026-10-23)** : la règle annoncée ci-dessus. Le fantôme est dans l'entrée de sa chanson (`chansons[clé].fantome`, version 4 du document), daté du moment où il a été gardé (`le`). Une sauvegarde garde au plus `MAX_FANTOMES` fantômes (20, `src/jeu/fantome.ts`) ; au-delà, et quand le stockage refuse d'écrire parce qu'il est plein (`QuotaExceededError`), `ui/stockage.ts` retire les fantômes un à un jusqu'à ce que le document tienne, dans l'ordre de `fantomesParAnciennete` (`src/sauvegarde/format.ts`) : d'abord ceux d'une autre version du générateur, qui ne rejoueront plus jamais, puis les plus anciens. Seul le fantôme part : le meilleur score et les traces de son entrée restent. Un refus qui n'est pas un stockage plein (navigation privée, accès bloqué) ne fait partir aucun fantôme.
 
 ## Conséquences
 

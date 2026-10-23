@@ -32,7 +32,7 @@ const REGLAGES: ReglagesDePartie = {
 describe("l'enregistrement des coups", () => {
   it("commence vide avec les réglages de la partie, et garde les coups dans l'ordre où ils sont joués", () => {
     const enr = nouvelEnregistrement(REGLAGES);
-    expect(enr).toEqual({ ...REGLAGES, coups: [], finie: false });
+    expect(enr).toEqual({ ...REGLAGES, coups: [], scores: [], finie: false });
     noter(enr, { temps: 4, geste: "appui", action: "sauter", resultat: "parfait" });
     noter(enr, { temps: 3.98, geste: "appui", action: "couloir1" }); // horodaté par une autre commande
     noter(enr, { temps: 4.5, geste: "relache", action: "sauter" });

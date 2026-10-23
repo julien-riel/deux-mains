@@ -6,7 +6,7 @@ import { DIFFS } from "../chanson/difficultes";
 import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { COMMANDES } from "../ui/touches";
-import { noterFinDePartie } from "../ui/progression";
+import { fantomeEnJeu, noterFinDePartie } from "../ui/progression";
 import { TH } from "../univers/univers";
 import { oublierTouches } from "./actions";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
@@ -24,7 +24,7 @@ import {
   statsNeuves,
   uneMain,
 } from "./etat";
-import { noter, reprendre } from "./enregistrement";
+import { noter, noterScore, reprendre } from "./enregistrement";
 import { corpsDeLaChanson } from "./jam";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
 import { enregistrer, finirReecoute, garderLaPartie, rejouer } from "./reecoute";
@@ -69,6 +69,8 @@ export function resetRun() {
     traces: { cle: cleDesTraces(), nouvelles: [] },
     // Le mode pianiste (#53) se constate à la première note jouée ainsi
     pianiste: false,
+    // Seule une partie neuve a un fantôme (#32) : ni la réécoute, ni la jam
+    fantome: null,
   });
   oublierTouches();
   for (const ev of S.song.ev) {
@@ -109,8 +111,9 @@ export function newRun(auto = false) {
   S.autoUsed = auto || uneMain();
   const sec = S.song.sections[S.boucle];
   if (sec) S.bouclePartie = { sec, cree: 0, passages: [] };
-  // La partie s'enregistre (#23), sauf en boucle
+  // La partie s'enregistre (#23), sauf en boucle ; le fantôme du meilleur passage la suit (#32), sauf en boucle aussi
   enregistrer();
+  S.fantome = fantomeEnJeu();
   if (!sec) return startAt(0);
   armerBoucle();
 }
@@ -303,6 +306,8 @@ function avancer(nb: number) {
     ns = nb * spb(),
     wg = DIFFS[S.diff].win[1];
   const bar = Math.floor(nb / 4);
+  // Le score au début de chaque temps, auquel se comparera le fantôme de cette partie (#32)
+  noterScore(S.enregistrement, nb, S.score);
   // À la fin du solo, sa meilleure phrase revient dans le refrain qui suit (#9, ADR-0012), et sa note de style
   // rapporte ses points (#22) avant le point de reprise du refrain : une mort au refrain ne les fait pas perdre
   const soloEnCours = !S.reprise.faite,
