@@ -13,6 +13,7 @@ import { show } from "./ui/ecrans";
 import { essaiDeLAdresse } from "./ui/essais";
 import { suivreCalibrage } from "./ui/calibrage";
 import { demarrerMidi } from "./ui/midi";
+import { chargerSauvegarde } from "./ui/progression";
 import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
@@ -91,6 +92,8 @@ if (hot && hot.snapshot)
   });
 const boot = (data) => {
   data = data || {};
+  // La progression (ADR-0014) avant la première chanson : le décor en dépend dès l'écran de départ
+  chargerSauvegarde();
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
   setDecalage(Number(savedDecalage) || 0);
   setFormes(savedFormes !== "non");

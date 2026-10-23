@@ -1,5 +1,6 @@
-import { S } from "../jeu/etat";
+import { S, progression } from "../jeu/etat";
 import { clamp } from "../outils";
+import { lieuxReussis } from "../sauvegarde/format";
 import { COL, GY, HITX, LANE_Y, PPB, PX, W, energy, g, hexA, hh, rr } from "./outils";
 
 /* La Boîte à musique */
@@ -19,6 +20,29 @@ export function boiteBack(nb, hsl, bp) {
     g.fillStyle = hsl(26, 30, 4, 0.6);
     g.fillRect(x + 62, 0, 2, GY);
   }
+  // Les souvenirs déjà retrouvés (#25) restent accrochés au mur : une photographie sépia de plus par souvenir
+  const retrouves = lieuxReussis(progression(), "boite").length;
+  if (retrouves)
+    for (let k = k0; k < k0 + W / 64 + 2; k++) {
+      if (hh(k, 30) >= 0.06 * retrouves) continue;
+      const x = k * 64 - woff + 14,
+        y = 60 + hh(k, 31) * 110,
+        pente = (hh(k, 32) - 0.5) * 0.16;
+      g.save();
+      g.translate(x + 17, y + 13);
+      g.rotate(pente);
+      g.fillStyle = hsl(40, 45, 42);
+      g.fillRect(-19, -15, 38, 30);
+      g.fillStyle = hsl(34, 40, 68);
+      g.fillRect(-15, -11, 30, 22);
+      // Une silhouette, à peine dessinée
+      g.fillStyle = hsl(28, 30, 40);
+      g.beginPath();
+      g.arc(0, -3, 4, 0, Math.PI * 2);
+      g.fill();
+      g.fillRect(-6, 3, 12, 8);
+      g.restore();
+    }
   // Engrenages : ils tournent avec la musique, et brillent quand les engrenages jouent
   const e = energy();
   for (const [speed, slot, l, layer] of [

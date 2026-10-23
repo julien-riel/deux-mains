@@ -27,6 +27,8 @@ export default defineConfig({
       include: [
         "src/chanson/**",
         "src/essais/**",
+        "src/sauvegarde/**",
+        "src/jeu/carte.ts",
         "src/jeu/jugement.ts",
         "src/jeu/midi.ts",
         "src/jeu/variations.ts",
@@ -39,6 +41,8 @@ export default defineConfig({
       thresholds: {
         "src/chanson/**": { lines: 90 },
         "src/essais/**": { lines: 90 },
+        "src/sauvegarde/**": { lines: 90 },
+        "src/jeu/carte.ts": { lines: 90 },
         "src/jeu/jugement.ts": { lines: 90 },
         "src/jeu/midi.ts": { lines: 90 },
         "src/jeu/variations.ts": { lines: 90 },

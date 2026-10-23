@@ -62,6 +62,8 @@ export function chargerEssai(e: Essai) {
     avant: { diff: S.diff, theme: S.theme, practice: S.practice, vitesse: S.vitesse, boucle: S.boucle },
   };
   S.essai.essai = e;
+  // Sa progression fictive (#25), neuve à chaque ouverture : la sauvegarde du joueur n'est ni lue ni écrite
+  S.essai.sauvegarde = e.progression?.();
   S.boucle = -1;
   setTheme(e.univers, false);
   setPractice(e.mains, false);
@@ -108,7 +110,8 @@ export function setTheme(v: string, choix = true) {
   if (choix) retenir("theme", v);
   if (S.song)
     $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
-  if (S.mode === "title" && S.song) show("title");
+  // La carte (#25) change d'habillage avec l'univers : la Carte de la Ville, l'Album de la Boîte
+  if ((S.mode === "title" || S.mode === "carte") && S.song) show(S.mode);
 }
 // Mains jouées : les deux, une seule (l'autre en auto-play, un entraînement), ou le duo local (#6)
 export function setPractice(v: Mains, choix = true) {

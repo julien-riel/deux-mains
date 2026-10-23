@@ -6,7 +6,9 @@
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
-import { NOM_CROISEE, estPetiteNote } from "../chanson/generateur";
+import { NOM_CROISEE, estPetiteNote, progressionDe } from "../chanson/generateur";
+import { LIEUX } from "../jeu/carte";
+import { sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
 import { accorder, assembler, chanter, marcher, relayer, type Morceau } from "./fabrique";
 
 export interface Essai {
@@ -35,6 +37,9 @@ export interface Essai {
   variation?: boolean;
   /** L'essai ouvre la jam (#24) sur sa chanson : aucune note n'y est jouée, et le repère n'en trouve aucune */
   jam?: boolean;
+  /** Une progression fictive pour la carte du monde (#25), neuve à chaque ouverture : pendant l'essai, la carte et
+   * le décor la montrent, et ce que l'essai gagne s'y ajoute en mémoire, sans jamais toucher la vraie sauvegarde */
+  progression?(): Sauvegarde;
 }
 
 // Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
@@ -48,6 +53,13 @@ const couplet = (de: number, mesures: number): Morceau => ({ nom: "Couplet", gen
   refrain = (de: number, mesures: number): Morceau => ({ nom: "Refrain", genre: "refrain", de, mesures }),
   // Un pont en mains croisées (#21) de quatre mesures, qui recopie la mélodie de la chanson générée à partir de `de`
   pontCroise = (de: number): Morceau => ({ nom: NOM_CROISEE, genre: "pont", de, mesures: 4, croisee: true });
+
+// La progression fictive des essais de la carte (#25) : des lieux déjà réussis, trois dans la Ville et deux dans la
+// Boîte, mais jamais celui de la chanson d'essai, qu'on réussit en la jouant
+function progressionFictive(): Sauvegarde {
+  const autres = LIEUX.filter((l) => l !== progressionDe(GRAINE).name);
+  return { ...sauvegardeVide(), carte: { ville: autres.slice(0, 3), boite: autres.slice(1, 3) } };
+}
 
 export const ESSAIS: Essai[] = [
   {
@@ -421,6 +433,33 @@ export const ESSAIS: Essai[] = [
       ]),
     // La jam ne joue aucune note de la chanson
     repere: () => false,
+  },
+  {
+    id: "carte",
+    titre: "Carte de la ville",
+    verifier:
+      "Avec une progression fictive : ouvre la Carte (C), trois quartiers sont rallumés et trois éteints, et au départ des fenêtres sont déjà allumées. Finis la chanson des deux mains, sans auto-play : l'écran de fin annonce que son quartier se rallume, et la carte l'allume. Ta vraie sauvegarde n'est pas touchée.",
+    issue: 25,
+    univers: "ville",
+    diff: "facile",
+    mains: "both",
+    chanson: () => assembler(GRAINE, "facile", [INTRO, couplet(2, 8), OUTRO]),
+    // La carte ne fait pas de notes : le repère est toute la chanson, qu'il faut finir pour rallumer son quartier
+    repere: () => true,
+    progression: progressionFictive,
+  },
+  {
+    id: "album",
+    titre: "Album des souvenirs",
+    verifier:
+      "Avec une progression fictive : ouvre l'Album (C), deux souvenirs montrent leur illustration et les autres des cadres vides, et au départ leurs photographies pendent au mur du grenier. Finis la chanson des deux mains, sans auto-play : son souvenir rejoint l'album. Ta vraie sauvegarde n'est pas touchée.",
+    issue: 25,
+    univers: "boite",
+    diff: "facile",
+    mains: "both",
+    chanson: () => assembler(GRAINE, "facile", [INTRO, couplet(2, 8), OUTRO]),
+    repere: () => true,
+    progression: progressionFictive,
   },
 ];
 

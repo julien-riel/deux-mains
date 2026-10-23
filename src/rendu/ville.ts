@@ -1,4 +1,5 @@
-import { S, layers } from "../jeu/etat";
+import { S, layers, progression } from "../jeu/etat";
+import { lieuxReussis } from "../sauvegarde/format";
 import { COL, GY, PPB, PW, PX, W, energy, g, hexA, hh, rr } from "./outils";
 
 /* La Ville Muette */
@@ -21,8 +22,10 @@ export function villeBack(nb, hsl, bp) {
   g.fillStyle = hsl(50, 95, 65);
   g.fill();
   g.globalAlpha = 1;
-  // Les fenêtres s'allument avec le combo : les habitants se réveillent
-  const lit = 0.05 + 0.55 * energy(),
+  // Les fenêtres s'allument avec le combo : les habitants se réveillent. Ceux des quartiers déjà rallumés (#25)
+  // restent réveillés : chaque quartier réussi garde des fenêtres allumées dès le départ
+  const veille = 0.05 + 0.05 * lieuxReussis(progression(), "ville").length,
+    lit = veille + (0.6 - veille) * energy(),
     flicker = S.mode === "play" && S.health < 40,
     strings = layers().strings;
   for (const [speed, slot, minH, maxH, l, layer] of [

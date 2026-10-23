@@ -10,6 +10,7 @@ import { CRITERES, conseil } from "../jeu/style";
 import { clamp } from "../outils";
 import { LANE_HUE } from "../rendu/outils";
 import { TH, placeName } from "../univers/univers";
+import { carteDisponible, ecranCarte, ecranSauvegarde, prochainLieu, progresDeFin } from "./ecran-carte";
 import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
@@ -76,6 +77,12 @@ const boutonReecoute = () =>
 const sortiesEssai = () =>
   `<button type="button" data-act="essais">Autres essais <kbd>E</kbd></button>
       <button type="button" data-act="quitter-essai">Quitter les essais <kbd>Échap</kbd></button>`;
+// La carte du monde (#25) : la Carte de la Ville ou l'Album de la Boîte
+const boutonCarte = () =>
+  carteDisponible() ? `<button type="button" data-act="carte">${TH().carte.nom} <kbd>C</kbd></button>` : "";
+// L'enchaînement (#25) : le prochain lieu à faire sur la carte, après celui de la chanson
+const boutonSuivant = () =>
+  `<button type="button" data-act="suivant">Suivant : ${TH().places[prochainLieu()]} <kbd>→</kbd></button>`;
 export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff],
@@ -102,7 +109,11 @@ export function show(kind) {
           : `<button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>`
       }
-      ${sortiesEssai()}</div>`;
+      ${boutonCarte()}${sortiesEssai()}</div>`;
+  } else if (kind === "carte") {
+    h = ecranCarte();
+  } else if (kind === "sauvegarde") {
+    h = ecranSauvegarde();
   } else if (kind === "essais") {
     h = `<p class="eyebrow">Mode essai</p><h2>Essayer une fonctionnalité</h2>
       <p class="meta">Une chanson courte où elle revient dès les premières mesures.</p>
@@ -118,6 +129,7 @@ export function show(kind) {
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
       <button type="button" data-act="jam">Jam ${kc("KeyJ")}</button>
+      ${boutonCarte()}
       <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
@@ -190,7 +202,7 @@ export function show(kind) {
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
-      ${essai ? sortiesEssai() : `<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
+      ${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
   } else if (kind === "done" && essai) {
     h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
       <h2>Essai terminé</h2>
@@ -204,11 +216,11 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
+      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
       <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
-      ${sortiesEssai()}</div>`;
+      ${boutonCarte()}${sortiesEssai()}</div>`;
   } else if (kind === "done") {
     const acc = precision(S.perfect, S.good, S.miss);
     const rank = acc >= 0.95 ? "Virtuose" : acc >= 0.85 ? "Soliste" : acc >= 0.7 ? "Choriste" : "Élève";
@@ -226,10 +238,11 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
+      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      ${boutonSuivant()}${boutonCarte()}
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;

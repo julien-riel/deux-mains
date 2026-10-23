@@ -32,6 +32,12 @@ Les autres touches ne font rien. Le réglage « Séparation » déplace les sept
 
 Le MIDI ne marche que dans Chrome ou Edge (Safari et Firefox sans module n'ont pas Web MIDI), et **pas dans la page d'artefact claude.ai**, qui refuse l'accès aux périphériques : ouvre `dist/deux-mains.html` ou lance `npm run dev`. L'essai `midi` (bouton « Essais » de l'écran titre, ou `?essai=midi`) rappelle la table des touches.
 
+## Carte du monde et sauvegarde
+
+La touche `C` (ou le bouton « Carte » dans la Ville, « Album » dans la Boîte) ouvre la carte : six lieux par univers, un par progression d'accords. Un chiffre prépare la chanson d'un lieu. Une chanson finie avec un score classé (sans auto-play, des deux mains, à pleine vitesse, hors boucle) allume son lieu : dans la Ville, les quartiers rallumés gardent des fenêtres allumées au départ des niveaux suivants ; dans la Boîte, chaque souvenir retrouvé révèle son illustration dans l'album et reste accroché au mur du grenier. Après une chanson, `→` enchaîne avec le prochain lieu à faire.
+
+La progression est gardée dans le navigateur. Depuis la carte, « Code de sauvegarde » (`S`) donne un code à copier, et un champ pour coller celui d'un autre navigateur ou d'un autre appareil : il s'ajoute à la progression. Voir [ADR-0014](docs/adr/0014-sauvegarde-versionnee-et-code-de-sauvegarde.md).
+
 ## Principes de gameplay
 
 - **Tout le jeu parle en degrés.** La zone donne l'accord, et chaque action choisit un degré de cet accord. Il est donc impossible de jouer faux.

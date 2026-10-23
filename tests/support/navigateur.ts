@@ -33,6 +33,8 @@ export interface Options {
   tactile?: boolean;
   /** Ce que le navigateur a gardé d'une visite précédente */
   stockage?: Record<string, string>;
+  /** Le stockage refuse toute lecture et toute écriture, comme en navigation privée stricte */
+  stockageBloque?: boolean;
   /** L'adresse de la page : la requête (« ?essai=… ») et l'ancre (« #essai=… ») */
   adresse?: { search?: string; hash?: string };
   /** Web MIDI, absent si l'option manque : la permission retenue par le navigateur (« prompt » par défaut), une
@@ -153,10 +155,12 @@ function fauxAudioContext(horloge: Horloge) {
 
 /* ---------- Canvas et page ---------- */
 // Toutes les méthodes de dessin sont acceptées et ne font rien, sauf fillText qui garde le texte
-function contexte2d(textes: string[]) {
+function contexte2d(textes: string[], remplissages: string[]) {
   const degrade = { addColorStop: () => {} };
   const cible: Record<string | symbol, unknown> = {
     fillText: (s: string) => void textes.push(s),
+    // La couleur de chaque rectangle plein : les fenêtres allumées de la Ville, les photographies de la Boîte (#25)
+    fillRect: () => void remplissages.push(String(cible.fillStyle)),
     measureText: () => ({ width: 0 }),
     createLinearGradient: () => degrade,
     createRadialGradient: () => degrade,
@@ -250,8 +254,11 @@ export class Navigateur {
   jeu: InterfaceJeu;
   /** Les textes dessinés sur la scène à la dernière image */
   textes: string[] = [];
+  /** La couleur des rectangles pleins dessinés à la dernière image */
+  remplissages: string[] = [];
   /** Le localStorage du navigateur */
   readonly stockage = new Map<string, string>();
+  private bloque = false;
   /** L'adresse de la page */
   readonly location = { search: "", hash: "" };
   private elements: Record<string, ReturnType<typeof element>> = {};
@@ -267,6 +274,7 @@ export class Navigateur {
   static async ouvrir(options: Options = {}) {
     const nav = new Navigateur();
     for (const [k, v] of Object.entries(options.stockage ?? {})) nav.stockage.set(k, v);
+    nav.bloque = !!options.stockageBloque;
     Object.assign(nav.location, options.adresse);
     if (options.midi) nav.midi = new FauxMidi(options.midi);
     nav.installer();
@@ -303,7 +311,7 @@ export class Navigateur {
       "#game": element({
         width: 1200,
         height: 620,
-        getContext: () => contexte2d(this.textes),
+        getContext: () => contexte2d(this.textes, this.remplissages),
         getBoundingClientRect: () => RECTANGLE,
       }),
       "#overlay": this.overlay,
@@ -314,7 +322,8 @@ export class Navigateur {
       "#new": element(),
     });
     const parId = new Map<string, ReturnType<typeof element>>();
-    const stockage = this.stockage;
+    const stockage = this.stockage,
+      bloque = this.bloque;
 
     const page = this.document;
     const fenetre: Record<string, unknown> = {
@@ -340,8 +349,14 @@ export class Navigateur {
       location: this.location,
       performance: { now: ms },
       localStorage: {
-        getItem: (k: string) => stockage.get(k) ?? null,
-        setItem: (k: string, v: string) => void stockage.set(k, String(v)),
+        getItem: (k: string) => {
+          if (bloque) throw new Error("stockage bloqué");
+          return stockage.get(k) ?? null;
+        },
+        setItem: (k: string, v: string) => {
+          if (bloque) throw new Error("stockage bloqué");
+          stockage.set(k, String(v));
+        },
       },
       matchMedia: (requete: string) => this.media(requete),
       getComputedStyle: () => ({ getPropertyValue: () => "#808080" }),
@@ -461,7 +476,7 @@ export class Navigateur {
     }
     const images = this.images;
     this.images = [];
-    if (images.length) this.textes.length = 0;
+    if (images.length) this.textes.length = this.remplissages.length = 0;
     for (const fn of images) fn(ms);
   }
 
