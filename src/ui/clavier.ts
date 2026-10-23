@@ -8,7 +8,7 @@ import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./c
 import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./carte";
 import { aRemonter, overlay, show } from "./ecrans";
 import { fermerEditeur, jouerBrouillon, ouvrirEditeur } from "./editeur";
-import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
+import { fermerMenuEssais, menuEssais, ouvrirEssai, taperChiffre, validerChiffres } from "./essais";
 import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
 import { basculerBoss, nouvelleChanson, quitterEssai } from "./reglages";
 import { lancerRemontage, passerLeRemontage, taperRemontage } from "./remontage";
@@ -106,10 +106,10 @@ addEventListener("keydown", (e) => {
       else appliquerCalibrage();
     }
   } else if (S.mode === "essais") {
-    // La liste des essais : un chiffre lance l'essai de ce numéro
-    const n = /^Digit([1-9])$/.exec(c),
-      id = n && essaiNumero(+n[1]);
-    if (id) ouvrirEssai(id, true);
+    // La liste des essais : le numéro tapé lance l'essai, en deux chiffres au-delà de neuf
+    const n = /^(?:Digit|Numpad)(\d)$/.exec(c);
+    if (n) taperChiffre(n[1]);
+    else if ((c === "Enter" || c === "NumpadEnter") && validerChiffres()) e.preventDefault();
     else if (c === "Escape") fermerMenuEssais();
   } else if (S.mode === "carte") {
     // La carte (#25) : un chiffre prépare la chanson du lieu de ce numéro

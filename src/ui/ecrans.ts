@@ -161,7 +161,7 @@ export function show(kind) {
     h = ecranSauvegarde();
   } else if (kind === "essais") {
     h = `<p class="eyebrow">Mode essai</p><h2>Essayer une fonctionnalité</h2>
-      <p class="meta">Une chanson courte où elle revient dès les premières mesures.</p>
+      <p class="meta">Une chanson courte où elle revient dès les premières mesures. Tape le numéro de l'essai, en deux chiffres au-delà de 9.</p>
       <div class="essais">${ESSAIS.map(
         (e, i) =>
           `<button type="button" data-act="essai" data-essai="${e.id}"><kbd>${i + 1}</kbd><span><b>${e.titre}</b><small>${e.verifier}</small></span></button>`,

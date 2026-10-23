@@ -1,5 +1,5 @@
 // Mode essai : la liste des essais, l'ouverture d'un essai, et l'accès direct par l'adresse (?essai=<id> ou #essai=<id>)
-import { ESSAIS, essaiDemande, trouverEssai } from "../essais/registre";
+import { ESSAIS, essaiDemande, essaiTape, trouverEssai } from "../essais/registre";
 import { lancerJam, newRun } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { show } from "./ecrans";
@@ -19,15 +19,40 @@ export function ouvrirEssai(id: string, demarrer = false) {
   else if (demarrer) (e.jam ? lancerJam : newRun)();
   return true;
 }
-/** Le n-ième essai de la liste, à partir de 1 : les chiffres du clavier */
-export const essaiNumero = (n: number) => ESSAIS[n - 1]?.id;
+// Le numéro tapé dans la liste, qui attend peut-être un deuxième chiffre
+const DELAI_CHIFFRE = 800;
+let saisie = "",
+  minuterie: ReturnType<typeof setTimeout> | undefined;
+function oublierSaisie() {
+  clearTimeout(minuterie);
+  saisie = "";
+}
+/** Ouvre l'essai du numéro qui attend un deuxième chiffre (Entrée, ou la fin du délai) */
+export function validerChiffres() {
+  const id = saisie && ESSAIS[+saisie - 1]?.id;
+  oublierSaisie();
+  if (id && S.mode === "essais") ouvrirEssai(id, true);
+  return !!id;
+}
+/** Un chiffre tapé dans la liste : « 3 » ouvre le 3e essai, « 1 » attend un instant un « 2 » pour ouvrir le 12e */
+export function taperChiffre(chiffre: string) {
+  clearTimeout(minuterie);
+  let r = essaiTape(saisie + chiffre);
+  // Un chiffre qui ne prolonge aucun numéro recommence la saisie
+  if (!r.id && !r.attente) r = essaiTape(chiffre);
+  saisie = r.attente;
+  if (r.id) ouvrirEssai(r.id, true);
+  else if (saisie) minuterie = setTimeout(validerChiffres, DELAI_CHIFFRE);
+}
 
 export function menuEssais() {
+  oublierSaisie();
   S.mode = "essais";
   show("essais");
 }
 /** Revient de la liste des essais à l'écran de départ : celui de l'essai ouvert, ou de la chanson */
 export function fermerMenuEssais() {
+  oublierSaisie();
   S.mode = "title";
   show("title");
 }
