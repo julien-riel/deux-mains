@@ -7,7 +7,7 @@ import { buildSong } from "../src/chanson/generateur";
 import { gammeDe } from "../src/chanson/theorie";
 import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler, chanter } from "../src/essais/fabrique";
-import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
+import { ESSAIS, essaiDemande, essaiTape, trouverEssai } from "../src/essais/registre";
 import { corpsDeLaChanson } from "../src/jeu/jam";
 import { soloEtRefrain } from "../src/jeu/variations";
 import { coupsAttendus } from "./support/appuis";
@@ -229,6 +229,15 @@ describe("registre des essais", () => {
     }
   });
 
+  it("les chiffres tapés : un numéro qu'aucun chiffre ne peut allonger ouvre aussitôt, sinon il attend", () => {
+    expect(essaiTape("3", 26)).toEqual({ id: ESSAIS[2].id, attente: "" });
+    expect(essaiTape("2", 26)).toEqual({ attente: "2" });
+    expect(essaiTape("26", 26)).toEqual({ id: ESSAIS[25]?.id, attente: "" });
+    expect(essaiTape("27", 26)).toEqual({ attente: "" });
+    expect(essaiTape("0", 26)).toEqual({ attente: "" });
+    expect(essaiTape("1", 9)).toEqual({ id: ESSAIS[0].id, attente: "" });
+  });
+
   it("l'adresse demande un essai par sa requête ou par son ancre", () => {
     expect(essaiDemande("?essai=double-saut", "")).toBe("double-saut");
     expect(essaiDemande("", "#essai=ecrasement")).toBe("ecrasement");
@@ -299,8 +308,34 @@ describe("accès au mode essai", () => {
     nav.presser("Escape");
     expect([S.mode, S.essai]).toEqual(["title", null]);
     nav.presser("KeyE");
+    nav.presser("Digit9");
+    expect([S.mode, S.essai.essai.id]).toEqual(["play", ESSAIS[8].id]);
+  });
+
+  it("au-delà de neuf essais, deux chiffres ouvrent l'essai ; Entrée ou le délai valident un seul chiffre", async () => {
+    expect(ESSAIS.length).toBeGreaterThan(12);
+    nav = await Navigateur.ouvrir();
+    const S = nav.jeu.state;
+    nav.presser("KeyE");
     nav.presser("Digit1");
-    expect([S.mode, S.essai.essai.id]).toEqual(["play", ESSAIS[0].id]);
+    expect(S.mode).toBe("essais");
+    nav.presser("Digit2");
+    expect([S.mode, S.essai.essai.id]).toEqual(["play", ESSAIS[11].id]);
+    nav.fermer();
+
+    nav = await Navigateur.ouvrir();
+    nav.presser("KeyE");
+    nav.presser("Digit1");
+    nav.presser("Enter");
+    expect([nav.jeu.state.mode, nav.jeu.state.essai.essai.id]).toEqual(["play", ESSAIS[0].id]);
+    nav.fermer();
+
+    nav = await Navigateur.ouvrir();
+    nav.presser("KeyE");
+    nav.presser("Numpad2");
+    expect(nav.jeu.state.mode).toBe("essais");
+    await new Promise((fin) => setTimeout(fin, 900));
+    expect([nav.jeu.state.mode, nav.jeu.state.essai.essai.id]).toEqual(["play", ESSAIS[1].id]);
   });
 
   it("#essai= ouvre l'essai, au chargement comme quand l'ancre change ; un id inconnu est ignoré", async () => {

@@ -7,7 +7,7 @@ const ACCES_INTERDIT =
   "La chanson et le jugement restent de la logique pure (ADR-0007) : passer par des fonctions fournies.";
 
 export default defineConfig([
-  globalIgnores(["dist/", "node_modules/"]),
+  globalIgnores(["dist/", "node_modules/", ".claude/worktrees/"]),
   {
     files: ["src/**/*.ts", "tests/**/*.ts"],
     extends: [js.configs.recommended, tseslint.configs.recommended],

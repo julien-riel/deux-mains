@@ -589,3 +589,15 @@ export function essaiDemande(search: string, hash: string): string | null {
   }
   return null;
 }
+
+/**
+ * Les chiffres tapés dans la liste des essais : au-delà de neuf essais, un numéro peut en avoir deux.
+ * Rend l'essai à ouvrir tout de suite quand aucun chiffre de plus ne peut allonger le numéro,
+ * sinon `attente`, le numéro qui attend un deuxième chiffre (ou Entrée, ou la fin du délai).
+ */
+export function essaiTape(saisie: string, nb = ESSAIS.length): { id?: string; attente: string } {
+  const n = Number(saisie);
+  if (!/^[1-9]\d*$/.test(saisie) || n > nb) return { attente: "" };
+  if (n * 10 > nb) return { id: ESSAIS[n - 1]?.id, attente: "" };
+  return { attente: saisie };
+}
