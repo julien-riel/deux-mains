@@ -22,6 +22,8 @@ export interface Essai {
   diff: "debutant" | "facile" | "normal" | "difficile";
   /** Les mains jouées : les deux, une seule (l'autre joue toute seule), ou le duo, un joueur par main (#6) */
   mains: Mains;
+  /** La scène montre les touches du clavier MIDI, branché ou non (#10) */
+  midi?: boolean;
   /** Construit la chanson d'essai, neuve à chaque appel */
   chanson(): Chanson;
   /** Les notes qui portent la fonctionnalité : les tests vérifient qu'elles arrivent tôt et souvent */
@@ -146,6 +148,28 @@ export const ESSAIS: Essai[] = [
           couplet: ["S...W..."],
         }),
         [0, 2],
+      ),
+    repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.some((e) => e.hand === "R"),
+  },
+  {
+    id: "midi",
+    titre: "Clavier MIDI",
+    verifier:
+      "Branche un clavier MIDI et active-le (Chrome ou Edge, dans deux-mains.html ou le serveur de développement : la page d'artefact bloque les périphériques). Gauche : Do3 glisser, Mi3 écraser, Sol3 sauter ; droite : Do4, Mi4, Sol4, Do5 pour les couloirs. Le bas de la scène indique le clavier détecté ; une touche tenue tient tunnels et ennemis allongés.",
+    issue: 10,
+    univers: "ville",
+    diff: "facile",
+    mains: "both",
+    midi: true,
+    // Une chanson simple aux deux mains : la basse et la mélodie partent ensemble à chaque mesure, comme au piano,
+    // avec des notes tenues de chaque côté et la plaque de chaque refrain
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "facile",
+        [INTRO, couplet(2, 4), refrain(10, 4), couplet(6, 4), OUTRO],
+        { couplet: ["S...W...", "T--.W..."], refrain: ["S...W...", "S.W.T--."] },
+        { couplet: ["0...1...", "2-..3..."], refrain: ["0.2.1...", "3...2-.."] },
       ),
     repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.some((e) => e.hand === "R"),
   },

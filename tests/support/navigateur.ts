@@ -1,7 +1,8 @@
 // Faux navigateur pour faire tourner le jeu complet dans Node.
 //
 // Avant d'importer src/main.ts, on remplace les globales du navigateur par des imitations qui fournissent
-// juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier, toucher et localStorage.
+// juste ce que le jeu utilise : document, canvas 2D, Web Audio, minuteries, clavier, toucher, Web MIDI et
+// localStorage.
 // Une seule horloge simulée fait avancer à la fois AudioContext.currentTime, performance.now(),
 // setInterval (le séquenceur) et requestAnimationFrame (la boucle d'images). Le faux navigateur garde
 // les sons programmés et les textes dessinés sur la scène à la dernière image.
@@ -34,6 +35,9 @@ export interface Options {
   stockage?: Record<string, string>;
   /** L'adresse de la page : la requête (« ?essai=… ») et l'ancre (« #essai=… ») */
   adresse?: { search?: string; hash?: string };
+  /** Web MIDI, absent si l'option manque : la permission retenue par le navigateur (« prompt » par défaut), une
+   * demande d'accès refusée (comme dans la page d'artefact), et les claviers branchés */
+  midi?: { permission?: "granted" | "prompt" | "denied"; refuse?: boolean; claviers?: string[] };
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
@@ -184,6 +188,49 @@ function requeteMedia(matches: boolean) {
   };
 }
 
+/* ---------- Web MIDI ---------- */
+interface EntreeMidi {
+  name: string;
+  state: "connected" | "disconnected";
+  onmidimessage: ((e: { data: Uint8Array; timeStamp: number }) => void) | null;
+}
+// navigator.requestMIDIAccess et navigator.permissions, avec des claviers qu'on branche et débranche
+class FauxMidi {
+  readonly entrees = new Map<string, EntreeMidi>();
+  readonly acces = { inputs: this.entrees, onstatechange: null as (() => void) | null };
+  /** Le nombre de demandes d'accès faites par le jeu */
+  demandes = 0;
+  constructor(private options: NonNullable<Options["midi"]>) {
+    for (const nom of options.claviers ?? [])
+      this.entrees.set(nom, { name: nom, state: "connected", onmidimessage: null });
+  }
+  navigateur() {
+    return {
+      requestMIDIAccess: () => {
+        this.demandes++;
+        return this.options.refuse
+          ? Promise.reject(new DOMException("Accès refusé", "SecurityError"))
+          : Promise.resolve(this.acces);
+      },
+      permissions: {
+        query: ({ name }: { name: string }) =>
+          name === "midi"
+            ? Promise.resolve({ state: this.options.permission ?? "prompt" })
+            : Promise.reject(new TypeError(name)),
+      },
+    };
+  }
+  brancher(nom: string) {
+    this.entrees.set(nom, { name: nom, state: "connected", onmidimessage: null });
+    this.acces.onstatechange?.();
+  }
+  debrancher(nom: string) {
+    this.entrees.get(nom).state = "disconnected";
+    this.acces.onstatechange?.();
+    this.entrees.delete(nom);
+  }
+}
+
 /* ---------- Navigateur ---------- */
 export class Navigateur {
   readonly horloge = new Horloge();
@@ -206,16 +253,21 @@ export class Navigateur {
   private images: ((t: number) => void)[] = [];
   private minuteries = new Map<number, { fn: () => void; ms: number; prochaine: number }>();
   private prochainId = 1;
+  /** Web MIDI, s'il est installé (option `midi`) */
+  midi: FauxMidi | null = null;
 
   /** Installe le faux navigateur, puis charge le jeu comme le ferait la page. */
   static async ouvrir(options: Options = {}) {
     const nav = new Navigateur();
     for (const [k, v] of Object.entries(options.stockage ?? {})) nav.stockage.set(k, v);
     Object.assign(nav.location, options.adresse);
+    if (options.midi) nav.midi = new FauxMidi(options.midi);
     nav.installer();
     nav.media("(hover: none) and (pointer: coarse)").matches = !!options.tactile;
     vi.resetModules();
     await import("../../src/main");
+    // L'accès MIDI déjà accordé se branche tout seul : on laisse ses promesses aboutir
+    await nav.promesses();
     const { S } = await import("../../src/jeu/etat");
     const reglages = await import("../../src/ui/reglages");
     const { songNow } = await import("../../src/audio/moteur");
@@ -277,7 +329,7 @@ export class Navigateur {
         getElementById: (id: string) => parId.get(id) ?? parId.set(id, element()).get(id),
         addEventListener: page.addEventListener,
       },
-      navigator: {},
+      navigator: this.midi ? this.midi.navigateur() : {},
       location: this.location,
       performance: { now: ms },
       localStorage: {
@@ -303,6 +355,27 @@ export class Navigateur {
     };
     fenetre.window = fenetre;
     for (const [nom, valeur] of Object.entries(fenetre)) vi.stubGlobal(nom, valeur);
+  }
+
+  /** Laisse aboutir les promesses en attente (accès MIDI, permissions) */
+  async promesses() {
+    await new Promise((fin) => setTimeout(fin, 0));
+  }
+
+  /** Envoie un message MIDI, comme le clavier branché en n-ième. `retard` : le jeu le traite après coup. */
+  messageMidi(data: number[], retard = 0, clavier = 0) {
+    const entree = [...this.midi.entrees.values()][clavier];
+    entree.onmidimessage?.({ data: Uint8Array.from(data), timeStamp: this.horloge.secondes * 1000 - retard * 1000 });
+  }
+
+  /** Enfonce une touche du clavier MIDI (note de 0 à 127, le Do central vaut 60) */
+  noteMidi(note: number, retard = 0, clavier = 0) {
+    this.messageMidi([0x90, note, 100], retard, clavier);
+  }
+
+  /** Relâche une touche du clavier MIDI : un noteoff, ou un noteon de vélocité 0 comme beaucoup de claviers */
+  relacherMidi(note: number, retard = 0, noteOnNul = false) {
+    this.messageMidi(noteOnNul ? [0x90, note, 0] : [0x80, note, 64], retard);
   }
 
   /** Simule une touche pressée, repérée par sa position physique (KeyboardEvent.code). */

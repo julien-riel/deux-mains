@@ -12,6 +12,7 @@ import "./ui/clavier";
 import { show } from "./ui/ecrans";
 import { essaiDeLAdresse } from "./ui/essais";
 import { suivreCalibrage } from "./ui/calibrage";
+import { demarrerMidi } from "./ui/midi";
 import { load, setCommandes, setDecalage, setFormes, setPractice, setTheme, setVitesse } from "./ui/reglages";
 import "./ui/tactile";
 import { THEMES } from "./univers/univers";
@@ -93,6 +94,7 @@ const boot = (data) => {
   setCommandes(COMMANDES.includes(savedCommandes) ? savedCommandes : "auto");
   setDecalage(Number(savedDecalage) || 0);
   setFormes(savedFormes !== "non");
+  demarrerMidi();
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   setVitesse(VITESSES.includes(data.vitesse) ? data.vitesse : VITESSES.includes(savedVitesse) ? savedVitesse : 1);

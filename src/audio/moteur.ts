@@ -5,6 +5,14 @@ export const lat = () => (AC && (AC.outputLatency || AC.baseLatency)) || 0;
 // Le temps de la chanson tel que le joueur l'entend, corrigé du décalage mesuré par le calibrage (#30).
 // Le jugement et l'image le suivent ; la programmation des sons (timeOfBeat) ne le suit pas.
 export const songNow = () => AC.currentTime - lat() - S.decalage - S.t0 + S.startBeat * spb();
+// Le temps écoulé depuis un événement horodaté (toucher, message MIDI), en secondes : le délai de traitement ne
+// compte pas. Un horodatage d'une autre base (anciens navigateurs) est ignoré.
+export function retardDe(timeStamp: number) {
+  const ms = performance.now() - timeStamp;
+  return ms >= 0 && ms < 1000 ? ms / 1000 : 0;
+}
+// L'heure d'un événement horodaté, ramenée sur l'horloge de la chanson (ADR-0004, ADR-0008 règle 2)
+export const heureDe = (timeStamp: number) => songNow() - retardDe(timeStamp);
 export const timeOfBeat = (b) => S.t0 + (b - S.startBeat) * spb();
 
 export let AC = null,
