@@ -6,7 +6,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Main, Note } from "../src/chanson/types";
 import { S, mult } from "../src/jeu/etat";
-import { VIBRATO, brancherEffets, leftPress, missEv, release, rightPress, type Effets } from "../src/jeu/jugement";
+import {
+  TRILLE,
+  VIBRATO,
+  brancherEffets,
+  finirTrille,
+  leftPress,
+  missEv,
+  release,
+  rightPress,
+  seuilTrille,
+  type Effets,
+} from "../src/jeu/jugement";
 
 const DIFFICULTES = ["debutant", "facile", "normal", "difficile"] as const;
 const ETAT_NEUF = { ...S };
@@ -23,6 +34,7 @@ beforeEach(() => {
     mauvaisCouloir: vi.fn(),
     solo: vi.fn(),
     vibrato: vi.fn(),
+    trille: vi.fn(),
     tir: vi.fn(),
     mourir: vi.fn(),
   };
@@ -324,6 +336,168 @@ describe("vibrato (#17)", () => {
     rightPress(1, 17);
     expect(effets.solo).toHaveBeenCalled();
     expect(effets.vibrato).not.toHaveBeenCalled();
+  });
+});
+
+describe("trilles (#15)", () => {
+  /** Une trille de `dur` temps entre `lane` et `voisin` */
+  function trille(beat: number, lane: number, voisin: number, dur = 2): Note {
+    return { ...note("R", beat, lane, dur), midi: 60 + lane, trille: voisin, midiTrille: 60 + voisin };
+  }
+  /** Alterne `n` fois à partir du couloir du premier appui, en appuis réguliers jusqu'à peu avant la fin */
+  function alterner(ev: Note, depart: number, n: number) {
+    const autre = depart === ev.lane ? ev.trille : ev.lane;
+    for (let k = 1; k <= n; k++) rightPress(k % 2 ? autre : depart, ev.beat + (k * (ev.dur - 0.1)) / n);
+  }
+
+  it("le seuil est de TRILLE.parTemps alternances par temps de la trille", () => {
+    expect(seuilTrille(trille(4, 1, 2, 2))).toBe(Math.floor(2 * TRILLE.parTemps));
+    expect(seuilTrille(trille(4, 1, 2, 1))).toBe(Math.floor(TRILLE.parTemps));
+  });
+
+  it("alterner les deux touches joue alternativement les deux notes, et chaque changement de couloir compte", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    expect(rightPress(1, 4)).toEqual([ev]);
+    alterner(ev, 1, 5);
+    expect(ev.state).toBe("holding");
+    expect(ev.alternances).toBe(5);
+    expect(effets.jouer.mock.calls.map(([, , lane]) => lane)).toEqual([1, 2, 1, 2, 1, 2]);
+    expect(effets.trille).toHaveBeenCalledTimes(6);
+    expect(effets.tir.mock.calls.every(([, ok]) => ok)).toBe(true);
+    // Rien n'est compté avant la fin de la trille
+    expect([S.combo, S.perfect, S.score]).toEqual([0, 0, 0]);
+  });
+
+  it("la trille peut commencer sur l'un ou l'autre de ses couloirs ; le premier appui sonne sur le temps", () => {
+    const [ev] = partie([trille(4, 3, 2)]);
+    rightPress(2, 4 - DIFFS.normal.win[1] * 0.5);
+    expect([ev.state, ev.dernier, ev.alternances]).toEqual(["holding", 2, 0]);
+    expect(effets.jouer).toHaveBeenCalledWith(ev, 4, 2);
+  });
+
+  it("appuyer deux fois sur le même couloir joue la note, sans compter d'alternance", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    rightPress(1, 4);
+    rightPress(1, 4.3);
+    rightPress(2, 4.6);
+    rightPress(2, 4.9);
+    expect(ev.alternances).toBe(1);
+    expect(effets.jouer).toHaveBeenCalledTimes(4);
+  });
+
+  it("sous le seuil, la trille est ratée ; au seuil, elle est réussie sans bonus", () => {
+    const [a, b] = partie([trille(4, 1, 2), trille(8, 0, 1)]);
+    rightPress(1, 4);
+    alterner(a, 1, seuilTrille(a) - 1);
+    finirTrille(a);
+    expect([a.state, S.miss, S.combo, S.health]).toEqual(["miss", 1, 0, 100 - DIFFS.normal.dmgR]);
+    expect(effets.rate).toHaveBeenCalledWith(a);
+    rightPress(0, 8);
+    alterner(b, 0, seuilTrille(b));
+    finirTrille(b);
+    expect([b.state, S.perfect, S.combo]).toEqual(["done", 1, 1]);
+    expect(effets.reussite).toHaveBeenCalledWith(b, true, 0);
+  });
+
+  it("au-dessus du seuil, chaque alternance en plus rapporte TRILLE.bonus points", () => {
+    const [a, b] = partie([trille(4, 1, 2), trille(8, 1, 2)]);
+    rightPress(1, 4);
+    alterner(a, 1, seuilTrille(a));
+    finirTrille(a);
+    const auSeuil = S.score;
+    S.combo = 0;
+    rightPress(1, 8);
+    alterner(b, 1, seuilTrille(b) + 3);
+    finirTrille(b);
+    expect(S.score - auSeuil).toBe(auSeuil + 3 * TRILLE.bonus);
+    expect(effets.reussite).toHaveBeenLastCalledWith(b, true, 3 * TRILLE.bonus);
+  });
+
+  it("le premier appui décide du « Parfait » ou du « Bien », compté à la fin", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    rightPress(1, 4 + DIFFS.normal.win[1] * 0.9);
+    alterner(ev, 1, seuilTrille(ev));
+    finirTrille(ev);
+    expect([S.perfect, S.good]).toEqual([0, 1]);
+    expect(effets.reussite).toHaveBeenCalledWith(ev, false, 0);
+  });
+
+  it("une autre touche pendant la trille ne la casse pas et ne compte pas : ni erreur, ni vibrato", () => {
+    const [ev] = partie([trille(4, 1, 2), note("R", 6.05, 3)]);
+    rightPress(1, 4);
+    rightPress(2, 4.2);
+    rightPress(3, 4.4);
+    rightPress(0, 4.6);
+    rightPress(1, 4.8);
+    expect([ev.state, ev.alternances]).toEqual(["holding", 2]);
+    expect(effets.tir).toHaveBeenCalledWith(3, null);
+    expect(effets.mauvaisCouloir).not.toHaveBeenCalled();
+    expect(effets.vibrato).not.toHaveBeenCalled();
+    expect(effets.jouer).toHaveBeenCalledTimes(3);
+    // Même juste avant la note suivante, dont la fenêtre est ouverte : la trille protège de l'erreur
+    rightPress(0, 6 - 0.05);
+    expect([S.combo, ev.state]).toEqual([0, "holding"]);
+    expect(effets.mauvaisCouloir).not.toHaveBeenCalled();
+  });
+
+  it("lâcher les touches de la trille ne la casse pas", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    rightPress(1, 4);
+    release("R", 1, 4.1);
+    rightPress(2, 4.3);
+    release("R", 2, 4.4);
+    expect(ev.state).toBe("holding");
+    expect(effets.lache).not.toHaveBeenCalled();
+  });
+
+  it("pendant une note tenue, la trille qui suit ne fait pas vibrer ; la note tenue garde son vibrato", () => {
+    const [tenue, tr] = partie([note("R", 4, 0, 2), trille(7, 2, 3)]);
+    rightPress(0, 4);
+    rightPress(3, 4.5);
+    expect(effets.vibrato).toHaveBeenCalledWith(tenue, VIBRATO.points);
+    release("R", 0, 6);
+    rightPress(2, 7);
+    rightPress(0, 7.5);
+    expect(effets.vibrato).toHaveBeenCalledTimes(1);
+    expect([tr.state, tr.vibrato]).toEqual(["holding", undefined]);
+  });
+
+  it("à la pause, la trille en cours est réussie, sans bonus", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    rightPress(1, 4);
+    finirTrille(ev, true);
+    expect([ev.state, S.miss, S.perfect]).toEqual(["done", 0, 1]);
+    expect(effets.reussite).toHaveBeenCalledWith(ev, true, 0);
+  });
+
+  it("un appui hors de la fenêtre ne commence pas la trille", () => {
+    const [ev] = partie([trille(4, 1, 2)]);
+    rightPress(2, 4 - DIFFS.normal.win[1] * 1.1);
+    expect(ev.state).toBe("pending");
+    expect(effets.tir).toHaveBeenCalledWith(2, null);
+  });
+
+  it("dans un accord à deux mains, la trille compte à sa fin : bonus et accord du duo seulement si elle réussit", () => {
+    const [basse, a, basse2, b] = partie([
+      ...accord(note("L", 4, 0), trille(4, 1, 2)),
+      ...accord(note("L", 8, 0), trille(8, 1, 2)),
+    ]);
+    rightPress(1, 4);
+    leftPress(0, 4);
+    expect([basse.state, a.state]).toEqual(["hit", "holding"]);
+    expect(effets.accord).not.toHaveBeenCalled();
+    expect(S.accordsDuo).toEqual({ reussis: 0, total: 0 });
+    for (let k = 1; k <= seuilTrille(a); k++) rightPress(k % 2 ? 2 : 1, 4 + k * 0.3);
+    finirTrille(a);
+    expect(effets.accord).toHaveBeenCalledWith([basse, a]);
+    expect(S.accordsDuo).toEqual({ reussis: 1, total: 1 });
+    // Ratée, la trille fait rater l'accord, même si la basse l'a joué
+    leftPress(0, 8);
+    rightPress(1, 8);
+    finirTrille(b);
+    expect([basse2.state, b.state]).toEqual(["hit", "miss"]);
+    expect(effets.accord).toHaveBeenCalledTimes(1);
+    expect(S.accordsDuo).toEqual({ reussis: 1, total: 2 });
   });
 });
 

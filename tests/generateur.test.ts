@@ -163,6 +163,28 @@ describe("hauts obstacles (#7)", () => {
   });
 });
 
+describe("trilles (#15)", () => {
+  const trilles = (c: Chanson) => droite(c).filter((ev) => ev.trille !== undefined);
+
+  it.each(["debutant", "facile"])("en %s, aucune trille", (diff) => {
+    for (const chanson of dans(diff)) expect(trilles(chanson)).toEqual([]);
+  });
+
+  it.each(["normal", "difficile"])("en %s, des chansons ont des trilles", (diff) => {
+    expect(dans(diff).filter((c) => trilles(c).length > 0).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("une trille est une note longue qui alterne avec un degré voisin de l'accord, hors accord de la main droite", () => {
+    for (const { chanson } of CHANSONS)
+      for (const ev of trilles(chanson)) {
+        expect(ev.dur).toBeGreaterThanOrEqual(1);
+        expect(Math.abs(ev.trille - ev.lane)).toBe(1);
+        expect(ev.midiTrille).toBe(chanson.chords[ev.bar].lanes[ev.trille]);
+        expect((ev.grp ?? []).filter((e) => e.hand === "R")).toEqual(ev.grp ? [ev] : []);
+      }
+  });
+});
+
 describe("Débutant", () => {
   it("la main droite joue sur les temps uniquement, refrain compris", () => {
     for (const c of dans("debutant")) for (const ev of droite(c)) expect(ev.beat % 1).toBe(0);

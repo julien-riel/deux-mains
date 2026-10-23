@@ -3,6 +3,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { Note } from "../src/chanson/types";
+import { appuis } from "./support/appuis";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage. Celle-ci a des accords de la main droite
@@ -60,6 +61,10 @@ const premierAccord = (S: { song: { ev: Note[] } }) =>
 function jouerAuDoigt(maxSecondes: number) {
   const S = nav.jeu.state;
   const notes = S.song.ev.filter((ev) => ev.hand === "L" || !ev.grp || ev.grp.find((e) => e.hand === "R") === ev);
+  // Une trille (#15) se joue en touchant tour à tour ses deux bandes
+  const gestes = notes
+    .flatMap((ev) => appuis(ev).map((a) => ({ ev: { ...ev, lane: a.lane }, at: a.beat * spb(), fin: a.fin })))
+    .sort((a, b) => a.at - b.at);
   const leves: { at: number; doigt: number }[] = [];
   let i = 0,
     doigt = 1;
@@ -69,10 +74,10 @@ function jouerAuDoigt(maxSecondes: number) {
     const t = nav.jeu.songNow();
     for (const l of leves.filter((l) => l.at <= t)) nav.lever(l.doigt, t - l.at);
     leves.splice(0, leves.length, ...leves.filter((l) => l.at > t));
-    while (i < notes.length && temps(notes[i]) <= t) {
-      const ev = notes[i++];
-      nav.toucher(doigt, ...position(ev), t - temps(ev));
-      leves.push({ at: temps(ev) + (ev.dur > 0 ? ev.dur * spb() : 0.05), doigt: doigt++ });
+    while (i < gestes.length && gestes[i].at <= t) {
+      const g = gestes[i++];
+      nav.toucher(doigt, ...position(g.ev), t - g.at);
+      leves.push({ at: g.fin === null ? g.at + 0.05 : g.fin * spb(), doigt: doigt++ });
     }
   }
   return S;

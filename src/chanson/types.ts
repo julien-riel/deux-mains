@@ -42,6 +42,9 @@ export interface Note {
   midi: number;
   /** Une pente (#12) : glisser tenu, la note glisse de `midi` jusqu'à cette note d'arrivée */
   fin?: number;
+  /** Une trille (#15) de la main droite : le couloir voisin avec lequel on alterne pendant `dur`, et sa note */
+  trille?: number;
+  midiTrille?: number;
   harm?: number;
   vel?: number;
   air?: number;
@@ -55,6 +58,12 @@ export interface Note {
   /** Les tapotements de vibrato donnés pendant cette note tenue (#17), et l'heure du dernier pour l'image */
   vibrato?: number;
   vibreAt?: number;
+  /** Une trille en cours (#15) : l'écart du premier appui, le dernier couloir appuyé, les alternances comptées,
+   * et l'heure du dernier appui pour l'image */
+  ecart?: number;
+  dernier?: number;
+  alternances?: number;
+  trilleAt?: number;
   /** Le passage de la boucle auquel appartient cette copie de la note (ADR-0009) */
   passage?: number;
 }

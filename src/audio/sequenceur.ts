@@ -1,5 +1,5 @@
 /* ---------- Séquenceur (double-croches) ---------- */
-import { autoNotes, autoSolo } from "../jeu/autoplay";
+import { autoNotes, autoSolo, autoTrilles } from "../jeu/autoplay";
 import { S, layers, mesureDeLaChanson, sectionAtBar, spb, uneMain } from "../jeu/etat";
 import { arpV, click, crash, harmV, hat, kick, leadTimbre, leadV, padV, playHit, snare, stringsV } from "./instruments";
 import { AC, timeOfBeat } from "./moteur";
@@ -86,6 +86,7 @@ function autoStep(step, t, sec, ch) {
   // En duo comme avec les deux mains, personne n'est joué automatiquement (#6)
   if (S.auto || uneMain()) {
     for (const ev of autoNotes(step)) playHit(ev, t);
+    for (const { ev, lane } of autoTrilles(step)) playHit(ev, t, lane);
     const lane = autoSolo(step, sec);
     if (lane !== null) {
       leadV(t, ch.lanes[lane], 0, leadTimbre("refrain"));

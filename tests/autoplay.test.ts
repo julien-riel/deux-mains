@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSong } from "../src/chanson/generateur";
 import type { Note } from "../src/chanson/types";
 import { S, autoFor, sectionAtBar } from "../src/jeu/etat";
-import { autoHit, autoNotes, autoSolo } from "../src/jeu/autoplay";
-import { brancherEffets, type Effets } from "../src/jeu/jugement";
+import { autoAlterner, autoHit, autoNotes, autoSolo, autoTrilles } from "../src/jeu/autoplay";
+import { brancherEffets, finirTrille, seuilTrille, type Effets } from "../src/jeu/jugement";
 
 // Graine fixe (ADR-0005), avec des accords et des notes tenues de Facile à Difficile (Débutant n'en a pas)
 const GRAINE = 4;
@@ -25,6 +25,7 @@ beforeEach(() => {
       "mauvaisCouloir",
       "solo",
       "vibrato",
+      "trille",
       "tir",
       "mourir",
     ].map((k) => [k, vi.fn()]),
@@ -43,6 +44,21 @@ function parcourir() {
   for (let step = 0; step < S.song.totalBars * 16; step++) prises.push(...autoNotes(step));
   return prises;
 }
+/** Comme le séquenceur puis l'image : chaque pas prend ses notes et ses appuis de trille (#15), l'animation les
+ * joue dans l'ordre, et les trilles sont jugées à leur fin. Renvoie les appuis de trille. */
+function jouerTout() {
+  const appuis: { ev: Note; lane: number }[] = [];
+  for (let step = 0; step < S.song.totalBars * 16; step++) {
+    autoNotes(step);
+    appuis.push(...autoTrilles(step));
+  }
+  for (const q of S.autoQ) {
+    if (q.trille === undefined) autoHit(q.ev);
+    else autoAlterner(q.ev, q.trille);
+  }
+  for (const ev of S.ev) if (ev.state === "holding" && ev.trille !== undefined) finirTrille(ev);
+  return appuis;
+}
 
 describe("auto-play", () => {
   it.each(["debutant", "facile", "normal", "difficile"])(
@@ -52,8 +68,13 @@ describe("auto-play", () => {
       const prises = parcourir();
       expect(prises).toHaveLength(song.ev.length);
       expect(S.autoQ).toHaveLength(song.ev.length);
-      for (const q of S.autoQ) autoHit(q.ev);
-      expect(song.ev.every((ev) => ev.state === "hit" || ev.state === "holding")).toBe(true);
+      partie(diff, { auto: true });
+      jouerTout();
+      // Les trilles (#15) sont jugées à leur fin : toutes réussies
+      const etats = (trille: boolean) =>
+        new Set(S.ev.filter((ev) => (ev.trille !== undefined) === trille).map((ev) => ev.state));
+      expect(etats(false)).toEqual(new Set(diff === "debutant" ? ["hit"] : ["hit", "holding"]));
+      expect(etats(true)).toEqual(new Set(diff === "normal" || diff === "difficile" ? ["done"] : []));
       expect([S.perfect, S.good, S.miss, S.health]).toEqual([song.ev.length, 0, 0, 100]);
       expect(effets.reussite.mock.calls.every(([, parfait]) => parfait)).toBe(true);
       if (diff === "debutant") expect(effets.accord).not.toHaveBeenCalled();
@@ -88,6 +109,28 @@ describe("auto-play", () => {
     autoHit(ennemi);
     expect(S.beams.at(-1)).toMatchObject({ lane: ennemi.lane, ok: true });
   });
+
+  it("l'auto-play alterne les deux couloirs de la trille en double-croches, assez pour la réussir (#15)", () => {
+    partie("normal", { auto: true });
+    const appuis = jouerTout(),
+      trilles = S.ev.filter((ev) => ev.trille !== undefined),
+      spb = 60 / S.song.bpm;
+    expect(trilles.length).toBeGreaterThan(0);
+    for (const tr of trilles) {
+      const siens = appuis.filter((a) => a.ev === tr);
+      // Le premier appui est la note elle-même ; puis une alternance à chaque double-croche jusqu'à la fin
+      expect(siens.map((a) => a.lane)).toEqual(siens.map((_, k) => (k % 2 ? tr.lane : tr.trille)));
+      expect(tr.alternances).toBe(4 * tr.dur - 1);
+      expect(tr.alternances).toBeGreaterThanOrEqual(seuilTrille(tr));
+      expect(tr.state).toBe("done");
+    }
+    const files = S.autoQ.filter((q) => q.trille !== undefined);
+    expect(files.length).toBe(appuis.length);
+    for (const q of files) expect(q.at / spb - q.ev.beat).toBeGreaterThan(0);
+    // Le séquenceur les a fait sonner : le jugement ne rejoue pas les appuis
+    expect(effets.jouer).not.toHaveBeenCalled();
+    expect(effets.trille).toHaveBeenCalledTimes(appuis.length + trilles.length);
+  });
 });
 
 describe("entraînement", () => {
@@ -108,6 +151,16 @@ describe("entraînement", () => {
   it("avec les deux mains, rien n'est joué automatiquement", () => {
     partie("normal");
     expect(parcourir()).toEqual([]);
+    expect(jouerTout()).toEqual([]);
+  });
+
+  it("en « Main gauche seule », l'auto-play fait les trilles ; en « Main droite seule », c'est au joueur (#15)", () => {
+    partie("normal", { practice: "L" });
+    expect(jouerTout().length).toBeGreaterThan(0);
+    expect(S.ev.filter((ev) => ev.trille !== undefined).every((ev) => ev.state === "done")).toBe(true);
+    partie("normal", { practice: "R" });
+    expect(jouerTout()).toEqual([]);
+    expect(S.ev.filter((ev) => ev.trille !== undefined).every((ev) => ev.state === "pending")).toBe(true);
   });
 
   it("en duo (#6), aucune note n'est jouée automatiquement : chaque main a son joueur", () => {

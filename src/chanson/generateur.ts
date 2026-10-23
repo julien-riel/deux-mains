@@ -47,6 +47,8 @@ export function genMotif(rng, P, occ, refrain) {
     notes.forEach((n, i) => {
       const next = i < notes.length - 1 ? notes[i + 1].s : 16;
       if (P.holdP && next - n.s >= 4 && rng() < P.holdP) n.dur = Math.min(next - n.s - 2, 4);
+      // Une note longue peut devenir une trille (#15), avec le couloir au-dessus ou au-dessous
+      if (n.dur > 0 && !n.cross && P.trilleP && rng() < P.trilleP) n.tr = rng() < 0.5 ? 1 : -1;
     });
     // Accords main droite : une deuxième note de l'accord, à deux degrés (fondamentale + quinte…) ou au degré voisin
     notes.forEach((n) => {
@@ -79,7 +81,9 @@ export function answer(rng, m, P) {
   c[L - 1].lane = 0;
   if (L > 1 && c[L - 2].lane === 0) c[L - 2].lane = 1;
   c[L - 1].dur = P.holdP > 0 && 16 - c[L - 1].s >= 4 ? Math.min(16 - c[L - 1].s - 2, 4) : 0;
-  if (P.triad) c[L - 1].extra = [1, 2]; // la phrase se pose sur l'accord complet
+  // La fondamentale tenue peut se poser en trille avec la tierce (#15)
+  c[L - 1].tr = c[L - 1].dur > 0 && P.trilleP && rng() < P.trilleP ? 1 : 0;
+  if (P.triad && !c[L - 1].tr) c[L - 1].extra = [1, 2]; // la phrase se pose sur l'accord complet
   return c;
 }
 
@@ -116,6 +120,42 @@ export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre
     notes.push(note);
   }
   return notes;
+}
+
+/** Le couloir voisin d'une trille (#15), dans le sens `sens` (1 au-dessus, -1 au-dessous), retourné au bord */
+export function voisin(lane: number, sens: number) {
+  const v = lane + sens;
+  return v < 0 || v > 3 ? lane - sens : v;
+}
+
+/**
+ * Une note de la mélodie : le couloir joue son degré de l'accord, avec l'harmonie au degré au-dessus (ADR-0003).
+ * `trille` : la note longue devient une trille (#15) avec ce couloir voisin, qui joue lui aussi son degré.
+ */
+export function noteDeMelodie(
+  lane: number,
+  beat: number,
+  dur: number,
+  bar: number,
+  ch: Accord,
+  kind: Genre,
+  vel = 1,
+  trille?: number,
+): Note {
+  const note: Note = {
+    hand: "R",
+    beat,
+    dur,
+    lane,
+    bar,
+    kind,
+    vel,
+    midi: ch.lanes[lane],
+    harm: lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12,
+    state: "pending",
+  };
+  if (trille !== undefined && dur > 0) [note.trille, note.midiTrille] = [trille, ch.lanes[trille]];
+  return note;
 }
 
 export function buildSong(seed: number, diffKey: string): Chanson {
@@ -178,17 +218,9 @@ export function buildSong(seed: number, diffKey: string): Chanson {
         const beat = (s.start + 2 * k) * 4 + n.s / 2;
         const extra = [...new Set<number>(n.extra || [])].filter((l) => l !== n.lane);
         const vel = extra.length ? 0.75 : 1;
-        ev.push({
-          hand: "R",
-          beat,
-          dur: n.dur / 2,
-          lane: n.lane,
-          bar: barIdx,
-          kind: s.kind,
-          vel,
-          midi: ch.lanes[n.lane],
-          harm: n.lane < 3 ? ch.lanes[n.lane + 1] : ch.lanes[1] + 12,
-        });
+        // Pas de trille sur une note qui fait partie d'un accord de la main droite
+        const trille = n.tr && !extra.length ? voisin(n.lane, n.tr) : undefined;
+        ev.push(noteDeMelodie(n.lane, beat, n.dur / 2, barIdx, ch, s.kind, vel, trille));
         for (const l of extra)
           ev.push({ hand: "R", beat, dur: n.dur / 2, lane: l, bar: barIdx, kind: s.kind, vel, midi: ch.lanes[l] });
       }

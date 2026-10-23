@@ -3,7 +3,7 @@
 import type { Note, Section } from "../chanson/types";
 import { clamp } from "../outils";
 import { COULOIRS, S, autoFor, spb } from "./etat";
-import { hitEv } from "./jugement";
+import { alterner, hitEv } from "./jugement";
 
 /** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
 export function autoNotes(step: number) {
@@ -18,6 +18,22 @@ export function autoNotes(step: number) {
   }
   return notes;
 }
+/** Les appuis de trille (#15) de ce pas : l'auto-play alterne les deux couloirs en double-croches, du pas qui suit
+ * le premier appui jusqu'à la fin de la trille. Ils sont mis en file pour l'animation et le compte. */
+export function autoTrilles(step: number) {
+  const b = step / 4,
+    appuis: { ev: Note; lane: number }[] = [];
+  if (!autoFor("R")) return appuis;
+  for (const ev of S.ev) {
+    if (ev.beat >= b) break;
+    if (ev.trille === undefined || b >= ev.beat + ev.dur) continue;
+    if (ev.state !== "holding" && !(ev.state === "pending" && ev.auto)) continue;
+    const lane = Math.round((b - ev.beat) * 4) % 2 ? ev.trille : ev.lane;
+    appuis.push({ ev, lane });
+    S.autoQ.push({ at: b * spb(), ev, trille: lane });
+  }
+  return appuis;
+}
 // Pendant le solo libre, le bot improvise par degrés voisins : renvoie le couloir joué, ou null
 export function autoSolo(step: number, sec: Section) {
   if (!(autoFor("R") && sec.kind === "pont" && step % 2 === 0 && Math.random() < 0.55)) return null;
@@ -27,6 +43,18 @@ export function autoSolo(step: number, sec: Section) {
   return S.autoLane;
 }
 // L'auto-play anime le personnage et les touches comme si quelqu'un jouait
+function tirer(lane: number) {
+  const pnow = performance.now();
+  S.keyFlash[COULOIRS[lane]] = pnow;
+  S.laneFlash[lane] = pnow;
+  S.beams.push({ lane, at: pnow, ok: true });
+}
+/** Un appui de trille de l'auto-play, au moment où on l'entend : la touche s'allume et l'alternance compte */
+export function autoAlterner(ev: Note, lane: number) {
+  if (ev.state !== "holding") return;
+  tirer(lane);
+  alterner(ev, lane);
+}
 export function autoHit(ev: Note) {
   const ns = ev.beat * spb(),
     pnow = performance.now();
@@ -45,10 +73,6 @@ export function autoHit(ev: Note) {
       S.slideUntil = ns + (ev.dur > 0 ? ev.dur : 0.55) * spb();
       S.jumpAt = S.doubleAt = -99;
     }
-  } else {
-    S.keyFlash[COULOIRS[ev.lane]] = pnow;
-    S.laneFlash[ev.lane] = pnow;
-    S.beams.push({ lane: ev.lane, at: pnow, ok: true });
-  }
+  } else tirer(ev.lane);
   hitEv(ev, 0);
 }

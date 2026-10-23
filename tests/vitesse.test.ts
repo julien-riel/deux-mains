@@ -6,6 +6,7 @@ import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Note } from "../src/chanson/types";
 import { S, VITESSES, spb } from "../src/jeu/etat";
 import { brancherEffets, rightPress, type Effets } from "../src/jeu/jugement";
+import { evenementsClavier, faire } from "./support/appuis";
 import { Navigateur } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
@@ -154,6 +155,10 @@ describe("réglage Vitesse", () => {
     expect([etat.miss, etat.perfect]).toEqual([0, etat.song.ev.length]);
     expect(nav.horloge.audio - debut).toBeGreaterThan(dureeChanson() / v);
     expect(nav.horloge.audio - debut).toBeLessThan(dureeChanson() / v + 1);
+    // Les trilles (#15) suivent la vitesse : l'auto-play les réussit toutes, même ralenti
+    const trilles = etat.ev.filter((ev) => ev.trille !== undefined);
+    expect(trilles.length).toBeGreaterThan(0);
+    expect(trilles.every((ev) => ev.state === "done")).toBe(true);
   });
 });
 
@@ -161,19 +166,10 @@ describe("réglage Vitesse", () => {
 function jouer() {
   const S = nav.jeu.state,
     t = (beat: number) => (beat * 60) / (S.song.bpm * S.vitessePartie);
-  const evenements = S.song.ev.flatMap((ev) => {
-    const code = TOUCHE[ev.hand][ev.lane];
-    return [
-      { at: t(ev.beat), code, presse: true },
-      { at: ev.dur > 0 ? t(ev.beat + ev.dur) : t(ev.beat) + 0.05, code, presse: false },
-    ];
-  });
-  // À heure égale, on relâche avant de presser
-  evenements.sort((a, b) => a.at - b.at || Number(a.presse) - Number(b.presse));
+  const evenements = evenementsClavier(S.song.ev, t, (ev, lane) => TOUCHE[ev.hand][lane]);
   for (const e of evenements) {
     while (nav.jeu.songNow() < e.at) nav.image(e.at - nav.jeu.songNow() > 0.02 ? 1 / 60 : 0.001);
-    if (e.presse) nav.presser(e.code);
-    else nav.relacher(e.code);
+    faire(nav, e);
   }
   return nav.avancerJusqua((e) => e.mode !== "play", 10);
 }
