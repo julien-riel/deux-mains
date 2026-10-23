@@ -172,6 +172,34 @@ export function boiteBeam(x, fill) {
   g.fillStyle = fill;
   g.fill();
 }
+// Rail de laiton (#12) : une tringle inclinée sur ses montants, de la hauteur ya en a à la hauteur yb en b
+export function boitePente(a, b, ya, yb, fill) {
+  const y = (x) => ya + ((yb - ya) * (x - a)) / (b - a);
+  g.fillStyle = hexA(COL.ink, 0.45);
+  for (let x = a + 10; x < b - 4; x += 34) g.fillRect(x - 2, y(x), 4, GY - y(x));
+  g.strokeStyle = fill;
+  g.lineCap = "round";
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(a, ya);
+  g.lineTo(b, yb);
+  g.stroke();
+  g.strokeStyle = hexA(COL.fg, 0.4);
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(a + 4, ya - 2);
+  g.lineTo(b - 4, yb - 2);
+  g.stroke();
+  for (const [x, yy] of [
+    [a, ya],
+    [b, yb],
+  ]) {
+    g.fillStyle = fill;
+    g.beginPath();
+    g.arc(x, yy, 6, 0, Math.PI * 2);
+    g.fill();
+  }
+}
 // Le grand ressort, au-dessus de la tête
 export function boiteTunnel(a, b, fill) {
   rr(a, 424, b - a, 34, 17);

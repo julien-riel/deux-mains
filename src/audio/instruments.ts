@@ -1,7 +1,7 @@
 // Instruments synthétisés : tous les sons sont créés avec Web Audio, sans fichier (ADR-0007)
 import { mtof } from "../chanson/theorie";
 import { S, chordAtBeat, layers, spb } from "../jeu/etat";
-import { AC, B, decayGain, live, noise, osc, send } from "./moteur";
+import { AC, B, decayGain, live, noise, osc, send, timeOfBeat } from "./moteur";
 
 export const leadTimbre = (kind) => (S.theme === "boite" ? "box" : kind === "refrain" ? "pluck" : "bell");
 
@@ -113,9 +113,16 @@ export function padV(t, ch, dur) {
   for (const m of notes)
     for (const det of [-7, 7]) osc(boite() ? "triangle" : "sawtooth", mtof(m), t, t + dur + 0.6, det).connect(lp);
 }
-export function bassV(t, m, dur, accent = 1) {
+// `fin` : sur une pente (#12), la fréquence glisse jusqu'à cette note, pour arriver au bout de la note tenue
+export function bassV(t, m, dur, accent = 1, fin?: number) {
   const f = mtof(m),
     end = t + dur;
+  const glisse = (o) => {
+    if (fin === undefined) return o;
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(mtof(fin), end);
+    return o;
+  };
   const lp = AC.createBiquadFilter();
   lp.type = "lowpass";
   lp.Q.value = 6;
@@ -128,11 +135,11 @@ export function bassV(t, m, dur, accent = 1) {
   gn.gain.linearRampToValueAtTime(0.5 * accent, t + 0.006);
   gn.gain.setTargetAtTime(0.36 * accent, t + 0.02, 0.12);
   gn.gain.setTargetAtTime(0, end, 0.03);
-  osc(boite() ? "triangle" : "sawtooth", f, t, end + 0.4).connect(lp);
+  glisse(osc(boite() ? "triangle" : "sawtooth", f, t, end + 0.4)).connect(lp);
   lp.connect(gn);
   const sub = AC.createGain();
   sub.gain.value = 0.6;
-  osc("sine", f, t, end + 0.4).connect(sub);
+  glisse(osc("sine", f, t, end + 0.4)).connect(sub);
   sub.connect(gn);
   send(gn, 0, 0);
   return {
@@ -323,6 +330,9 @@ export function playHit(ev, t) {
   if (ev.hand === "L" && ev.lane === 3) {
     ev.voice = bassV(t, ev.midi, 0.9 * spb(), 1.5);
     impact(t, ev.midi);
+  } else if (ev.hand === "L" && ev.fin !== undefined) {
+    // La pente (#12) arrive sur sa note au bout de la rampe, même jouée un peu en retard
+    ev.voice = bassV(t, ev.midi, Math.max(0.1, timeOfBeat(ev.beat + ev.dur) - t), 1, ev.fin);
   } else if (ev.hand === "L") ev.voice = bassV(t, ev.midi, ev.dur > 0 ? ev.dur * spb() : 0.42 * spb());
   else {
     ev.voice = leadV(t, ev.midi, ev.dur * spb(), leadTimbre(ev.kind), ev.vel || 1);

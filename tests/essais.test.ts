@@ -29,7 +29,11 @@ function verifierChanson(c: Chanson) {
     expect(ev.state).toBe("pending");
     expect([0, 1, 2, 3]).toContain(ev.lane);
     const ch = c.chords[ev.bar];
-    if (ev.hand === "L") {
+    if (ev.hand === "L" && ev.fin !== undefined) {
+      // Une pente (#12) glisse entre la fondamentale et l'octave, dans un sens ou dans l'autre
+      expect([ev.midi, ev.fin].sort()).toEqual([ch.bass, ch.bass + 12]);
+      expect([ev.lane, ev.dur > 0]).toEqual([0, true]);
+    } else if (ev.hand === "L") {
       expect(ev.midi).toBe([ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][ev.lane]);
       expect(ev.air).toBeGreaterThan(0);
     } else expect(ev.midi).toBe(ch.lanes[ev.lane]);

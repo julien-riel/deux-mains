@@ -181,6 +181,46 @@ export function villeTunnel(a, b, fill) {
   g.fillStyle = hexA(COL.fg, 0.3);
   g.fillRect(a, 414, b - a, 3);
 }
+// Rampe de rue (#12) : un plan incliné de béton rayé, de la hauteur ya en a à la hauteur yb en b, avec sa main
+// courante
+export function villePente(a, b, ya, yb, fill) {
+  g.save();
+  g.beginPath();
+  g.moveTo(a, GY);
+  g.lineTo(a, ya);
+  g.lineTo(b, yb);
+  g.lineTo(b, GY);
+  g.closePath();
+  g.fillStyle = hexA(COL.ink, 0.6);
+  g.fill();
+  g.clip();
+  g.strokeStyle = hexA(COL.fg, 0.12);
+  g.lineWidth = 2;
+  g.beginPath();
+  for (let x = a; x < b + 60; x += 18) {
+    g.moveTo(x, GY);
+    g.lineTo(x - 60, GY - 60);
+  }
+  g.stroke();
+  g.restore();
+  const y = (x) => ya + ((yb - ya) * (x - a)) / (b - a);
+  g.strokeStyle = fill;
+  g.lineCap = "round";
+  g.lineWidth = 2;
+  g.beginPath();
+  for (let x = a + 14; x < b - 6; x += 46) {
+    g.moveTo(x, y(x));
+    g.lineTo(x, y(x) - 26);
+  }
+  g.moveTo(a + 8, y(a + 8) - 26);
+  g.lineTo(b - 4, y(b - 4) - 26);
+  g.stroke();
+  g.lineWidth = 5;
+  g.beginPath();
+  g.moveTo(a, ya);
+  g.lineTo(b, yb);
+  g.stroke();
+}
 // Drone du Bureau du Silence : le son capturé brille dans son bocal
 export function villeEnemy(x, y, ev, col, a, nb, hsl) {
   const big = ev.kind === "refrain",

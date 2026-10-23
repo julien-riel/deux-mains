@@ -9,6 +9,8 @@ import { Navigateur, type Difficulte, type Univers } from "./support/navigateur"
 // de Facile à Difficile (ils dépendent de la graine : certaines chansons n'en ont aucun en Facile et en Normal ;
 // Débutant n'en a jamais).
 const GRAINE = 4;
+// Une chanson qui a des accords de deux notes à la main droite en Normal
+const GRAINE_ACCORDS = 3;
 const UNIVERS: Univers[] = ["ville", "boite"];
 const DIFFICULTES: Difficulte[] = ["debutant", "facile", "normal", "difficile"];
 // Hauteur des couloirs sur la scène (1200 × 620), du plus grave au plus aigu
@@ -17,10 +19,10 @@ const LANE_Y = [395, 315, 235, 155];
 let nav: Navigateur;
 afterEach(() => nav?.fermer());
 
-async function partieTactile(univers: Univers = "ville", difficulte: Difficulte = "normal") {
+async function partieTactile(univers: Univers = "ville", difficulte: Difficulte = "normal", graine = GRAINE) {
   nav = await Navigateur.ouvrir({ tactile: true });
   nav.jeu.setTheme(univers);
-  nav.jeu.load(GRAINE, difficulte);
+  nav.jeu.load(graine, difficulte);
   nav.toucherBouton("start");
   expect(nav.jeu.state.mode).toBe("play");
   return nav.jeu.state;
@@ -133,7 +135,7 @@ describe("jugement au doigt", () => {
   });
 
   it("un pouce joue tout un accord de la main droite", async () => {
-    const S = await partieTactile();
+    const S = await partieTactile("ville", "normal", GRAINE_ACCORDS);
     const accord = premierAccord(S);
     avancerEnAuto(temps(accord));
     const droite = accord.grp.filter((e) => e.hand === "R");
@@ -143,7 +145,7 @@ describe("jugement au doigt", () => {
 
   it("au clavier, un accord demande toujours toutes ses touches", async () => {
     nav = await Navigateur.ouvrir();
-    nav.jeu.load(GRAINE, "normal");
+    nav.jeu.load(GRAINE_ACCORDS, "normal");
     nav.presser("Space");
     const S = nav.jeu.state;
     const accord = premierAccord(S);
@@ -156,7 +158,7 @@ describe("jugement au doigt", () => {
   });
 
   it("un toucher hors de l'accord reste une erreur", async () => {
-    const S = await partieTactile();
+    const S = await partieTactile("ville", "normal", GRAINE_ACCORDS);
     const accord = premierAccord(S);
     avancerEnAuto(temps(accord));
     const couloirs = accord.grp.filter((e) => e.hand === "R").map((e) => e.lane);
