@@ -322,6 +322,27 @@ export const ESSAIS: Essai[] = [
       ),
     repere: (ev) => ev.hand === "L" && ev.lane >= 4,
   },
+  {
+    id: "style-solo",
+    titre: "Style du solo",
+    verifier:
+      "Le solo libre arrive tout de suite, la basse joue toute seule : improvise avec J K L ;. À la fin du solo, la note de style s'affiche en haut de la scène : variété, respiration et résolution, d'une à trois étoiles, un conseil pour le critère le plus faible, et des points de style. Essaie une seule note répétée sans t'arrêter (une étoile en variété et en respiration), puis des phrases séparées d'un temps de silence qui finissent sur J (trois étoiles en résolution). L'écran de fin reprend la note et ses explications.",
+    issue: 22,
+    univers: "ville",
+    diff: "normal",
+    mains: "R",
+    // Une mesure de décompte, le solo, puis le dernier refrain : la note de style s'affiche à son début
+    chanson: () =>
+      assembler(GRAINE, "normal", [
+        { nom: "Intro", genre: "intro", de: 1, mesures: 1 },
+        { nom: "Solo libre", genre: "pont", de: 18, mesures: 4 },
+        refrain(22, 8),
+        OUTRO,
+      ]),
+    // La note de style ne fait pas de notes : le repère est la phrase reprise, notée en même temps (ADR-0012)
+    repere: (ev) => ev.hand === "R" && !!ev.reprise,
+    variation: true,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

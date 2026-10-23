@@ -4,7 +4,8 @@ import { DIFFS } from "../chanson/difficultes";
 import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
 import { touchesMidi } from "../jeu/midi";
-import { S, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
+import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
+import { CRITERES, conseil } from "../jeu/style";
 import { clamp } from "../outils";
 import { LANE_HUE } from "../rendu/outils";
 import { TH, placeName } from "../univers/univers";
@@ -182,7 +183,7 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
+      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
       <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
       ${sortiesEssai()}</div>`;
@@ -203,7 +204,7 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
+      }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       <button type="button" data-act="listen">Réécouter ${k("KeyA")}</button>
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
@@ -240,6 +241,22 @@ function bilanDuo() {
       </table>
       <p class="meta">Accords en duo : ${reussis} / ${total}</p>
       <p class="hint">Score total : ${S.score.toLocaleString("fr-CA")}</p>`;
+}
+
+// La note de style du solo (#22) : chaque critère avec ses étoiles et ce qu'il demande, puis le conseil pour le
+// plus faible. Celle de l'auto-play n'a pas de conseil ; en duo, c'est celle du joueur de la mélodie.
+function bilanStyle() {
+  const style = S.reprise.style;
+  if (!style || S.bouclePartie) return "";
+  const bot = autoFor("R");
+  const criteres = CRITERES.map(({ cle, nom, explication }) => {
+    const n = style[cle];
+    return `<div><b aria-label="${n} étoile${n > 1 ? "s" : ""} sur 3">${"★".repeat(n)}<i>${"☆".repeat(3 - n)}</i></b><span>${nom}</span><small>${explication}</small></div>`;
+  }).join("");
+  return `<section class="style-solo">
+        <p class="eyebrow">${bot ? "Style de l'auto-play au solo" : S.practice === "duo" ? "Style du solo · mélodie" : "Style du solo"}</p>
+        <div class="criteres">${criteres}</div>${bot ? "" : `<p class="hint">${conseil(style)}</p>`}
+      </section>`;
 }
 
 // Fin d'une boucle (#5) : le nombre de passages terminés et la précision du dernier

@@ -24,7 +24,14 @@ export default defineConfig({
     // La logique pure doit rester couverte par les tests (#3)
     coverage: {
       provider: "v8",
-      include: ["src/chanson/**", "src/essais/**", "src/jeu/jugement.ts", "src/jeu/midi.ts", "src/jeu/variations.ts"],
+      include: [
+        "src/chanson/**",
+        "src/essais/**",
+        "src/jeu/jugement.ts",
+        "src/jeu/midi.ts",
+        "src/jeu/variations.ts",
+        "src/jeu/style.ts",
+      ],
       reporter: ["text"],
       thresholds: {
         "src/chanson/**": { lines: 90 },
@@ -32,6 +39,7 @@ export default defineConfig({
         "src/jeu/jugement.ts": { lines: 90 },
         "src/jeu/midi.ts": { lines: 90 },
         "src/jeu/variations.ts": { lines: 90 },
+        "src/jeu/style.ts": { lines: 90 },
       },
     },
   },

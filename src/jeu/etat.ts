@@ -138,7 +138,8 @@ export interface Etat {
   /** Section choisie pour la boucle (#5), par son rang dans la chanson, -1 pour aucune ; et la boucle de la partie en cours */
   boucle: number;
   bouclePartie: Boucle | null;
-  /** Ce que la partie garde du solo libre, et la phrase qui revient au dernier refrain (#9, ADR-0012) */
+  /** Ce que la partie garde du solo libre, sa note de style (#22), et la phrase qui revient au dernier refrain
+   * (#9, ADR-0012) */
   reprise: Reprise;
   theme: string;
   /** Une forme par couloir, en plus de la couleur (#31) */
@@ -198,7 +199,7 @@ export const S: Etat = {
   vitessePartie: 1,
   boucle: -1,
   bouclePartie: null,
-  reprise: { solo: [], phrase: null, faite: false },
+  reprise: { solo: [], phrase: null, style: null, faite: false },
   theme: "ville",
   formes: true,
   keyAng: 0,
