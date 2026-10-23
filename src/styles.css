@@ -198,6 +198,49 @@ button kbd {
   font-size: 12px;
   color: var(--muted);
 }
+/* ---------- Mode essai ---------- */
+.essais {
+  display: grid;
+  gap: 6px;
+  width: min(640px, 100%);
+  text-align: left;
+}
+.essais button {
+  border-radius: 10px;
+  padding: 8px 14px;
+  align-items: flex-start;
+}
+.essais span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.essais small {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+/* Ce qu'il faut vérifier, en bas de la scène, sous le personnage : il ne capte pas les doigts */
+.essai-bandeau {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(72%, 70ch);
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--scrim);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+.essai-bandeau[hidden] {
+  display: none;
+}
 .bar {
   display: flex;
   flex-wrap: wrap;

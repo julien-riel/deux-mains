@@ -1,6 +1,7 @@
 /* ---------- Écrans ---------- */
 import { songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
+import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
 import { S, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb } from "../jeu/etat";
 import { clamp } from "../outils";
@@ -8,21 +9,48 @@ import { TH, placeName } from "../univers/univers";
 import { COMMANDES, KEYLABEL } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
+// Pendant un essai, ce qu'il faut vérifier reste écrit sur la scène
+const bandeau = document.querySelector<HTMLElement>("#essai-bandeau");
 
 export const k = (c) => `<kbd>${KEYLABEL[c] || c}</kbd>`;
+// Les boutons de sortie d'un essai, sur ses écrans de départ, de mort et de fin
+const sortiesEssai = () =>
+  `<button type="button" data-act="essais">Autres essais <kbd>E</kbd></button>
+      <button type="button" data-act="quitter-essai">Quitter les essais <kbd>Échap</kbd></button>`;
 export function show(kind) {
   const s = S.song,
-    D = DIFFS[S.diff];
+    D = DIFFS[S.diff],
+    essai = S.essai && S.essai.essai;
   // La durée à la vitesse choisie, qui s'appliquera au départ (#4)
   const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse)),
-    boucle = s.sections[S.boucle];
+    boucle = s.sections[S.boucle],
+    mains = S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : "";
+  bandeau.hidden = !essai;
+  bandeau.textContent = essai ? `Essai · ${essai.titre} — ${essai.verifier}` : "";
   let h = "";
-  if (kind === "title") {
-    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${S.practice === "L" ? " · main gauche seule" : S.practice === "R" ? " · main droite seule" : ""}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
+  if (kind === "title" && essai) {
+    h = `<p class="eyebrow">Essai · ${TH().label} · ${D.label}${mains}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
+      <h2>${essai.titre}</h2>
+      <p class="meta">À vérifier : ${essai.verifier}</p>
+      <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s</p>
+      <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      ${sortiesEssai()}</div>`;
+  } else if (kind === "essais") {
+    h = `<p class="eyebrow">Mode essai</p><h2>Essayer une fonctionnalité</h2>
+      <p class="meta">Une chanson courte où elle revient dès les premières mesures.</p>
+      <div class="essais">${ESSAIS.map(
+        (e, i) =>
+          `<button type="button" data-act="essai" data-essai="${e.id}"><kbd>${i + 1}</kbd><span><b>${e.titre}</b><small>${e.verifier}</small></span></button>`,
+      ).join("")}</div>
+      <div class="actions"><button type="button" data-act="titre">Retour <kbd>Échap</kbd></button></div>`;
+  } else if (kind === "title") {
+    h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
-      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>${
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
               document.fullscreenEnabled && !document.fullscreenElement
@@ -84,7 +112,20 @@ export function show(kind) {
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
-      <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
+      ${essai ? sortiesEssai() : `<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
+  } else if (kind === "done" && essai) {
+    h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
+      <h2>Essai terminé</h2>
+      <p class="meta">À vérifier : ${essai.verifier}</p>
+      <div class="stats">
+        <div><b>${S.perfect}</b><span>Parfait</span></div>
+        <div><b>${S.good}</b><span>Bien</span></div>
+        <div><b>${S.miss}</b><span>Raté</span></div>
+        <div><b>${S.maxCombo}</b><span>Combo max</span></div>
+      </div>${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
+      <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
+      <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
+      ${sortiesEssai()}</div>`;
   } else if (kind === "done") {
     const acc = precision(S.perfect, S.good, S.miss);
     const rank = acc >= 0.95 ? "Virtuose" : acc >= 0.85 ? "Soliste" : acc >= 0.7 ? "Choriste" : "Élève";

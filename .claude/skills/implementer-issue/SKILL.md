@@ -53,7 +53,8 @@ Pour ce projet :
 
 - la logique pure (générateur de chansons, jugement des coups, règles d'accords) se teste avec des tests unitaires, en s'appuyant sur des graines fixes (ADR-0005) ;
 - les parcours complets (une chanson entière en auto-play, la mort quand on ne joue pas) se testent avec une simulation sans navigateur ;
-- le rendu et le son se vérifient à l'œil et à l'oreille : décris précisément quoi vérifier à l'utilisateur.
+- le rendu et le son se vérifient à l'œil et à l'oreille : décris précisément quoi vérifier à l'utilisateur ;
+- chaque issue qui ajoute une fonctionnalité jouable ajoute un **scénario d'essai** dans `src/essais/registre.ts` (voir « Mode essai » dans `CLAUDE.md`) : une chanson courte où la fonctionnalité revient dès les premières mesures, avec la phrase « à vérifier ». Les tests de `tests/essais.test.ts` le couvrent automatiquement.
 
 ### 6. Implémenter
 
@@ -89,6 +90,7 @@ Le corps de la pull request contient :
 - les critères d'acceptation cochés, avec la façon dont chacun a été vérifié ;
 - les tests ajoutés ;
 - les ADR créés, modifiés ou respectés ;
+- l'essai ajouté (`id`) et comment l'ouvrir, pour une fonctionnalité jouable ;
 - ce qui reste à vérifier à la main.
 
 **Pourquoi `Closes` en anglais** : GitHub ne ferme l'issue à la fusion que s'il reconnaît un de ses mots-clés anglais (`Closes`, `Fixes`, `Resolves`) suivi du numéro. `Ferme #N` ne marche pas. C'est la seule exception à la règle « tout en français ». Si la PR traite plusieurs issues, répète le mot-clé : `Closes #4, closes #5`.
@@ -106,3 +108,5 @@ Ne fusionne pas la pull request sans l'accord de l'utilisateur. Après une fusio
 ### 9. Faire le compte rendu
 
 Donne l'adresse de la pull request, le résultat des tests, et ce que l'utilisateur doit vérifier lui-même (à l'écran ou à l'oreille).
+
+Pour une fonctionnalité jouable, donne aussi l'`id` de son essai et le chemin pour l'ouvrir : `npm run dev` puis `http://localhost:5173/?essai=<id>`, ou le bouton « Essais » de l'écran titre dans `dist/deux-mains.html` ou l'artefact publié. Par exemple : « Ouvre l'essai `double-saut` (Essais, puis 1) ».

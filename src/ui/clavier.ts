@@ -1,11 +1,11 @@
 import { songNow } from "../audio/moteur";
-import { randomSeed } from "../chanson/aleatoire";
 import { presser, relacher } from "../jeu/actions";
 import { finish, newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
-import { load } from "./reglages";
+import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
+import { nouvelleChanson, quitterEssai } from "./reglages";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
 overlay.addEventListener("click", (e) => {
@@ -17,7 +17,11 @@ overlay.addEventListener("click", (e) => {
   else if (act === "resume") resumeCP();
   else if (act === "continue") unpause();
   else if (act === "quitter-boucle") finish();
-  else if (act === "new") load(randomSeed(), S.diff);
+  else if (act === "new") nouvelleChanson();
+  else if (act === "essais") menuEssais();
+  else if (act === "essai") ouvrirEssai(b.dataset.essai, true);
+  else if (act === "titre") fermerMenuEssais();
+  else if (act === "quitter-essai") quitterEssai();
 });
 
 /* ---------- Entrées ---------- */
@@ -55,12 +59,20 @@ addEventListener("keydown", (e) => {
       if (S.calib.resultat === null) lancerCalibrage();
       else appliquerCalibrage();
     }
+  } else if (S.mode === "essais") {
+    // La liste des essais : un chiffre lance l'essai de ce numéro
+    const n = /^Digit([1-9])$/.exec(c),
+      id = n && essaiNumero(+n[1]);
+    if (id) ouvrirEssai(id, true);
+    else if (c === "Escape") fermerMenuEssais();
   } else if (S.mode === "title") {
     if (c === "Space" || c === "Enter") {
       e.preventDefault();
       newRun();
     } else if (c === "KeyA") newRun(true);
-    else if (c === "KeyN") load(randomSeed(), S.diff);
+    else if (c === "KeyN") nouvelleChanson();
+    else if (c === "KeyE") menuEssais();
+    else if (c === "Escape" && S.essai) quitterEssai();
   } else if (S.mode === "pause") {
     if (c === "Escape" || c === "Space") {
       e.preventDefault();
@@ -75,7 +87,9 @@ addEventListener("keydown", (e) => {
     else if (c === "Enter") {
       e.preventDefault();
       newRun();
-    } else if (c === "KeyN") load(randomSeed(), S.diff);
+    } else if (c === "KeyN") nouvelleChanson();
+    else if (c === "KeyE" && S.essai) menuEssais();
+    else if (c === "Escape" && S.essai) quitterEssai();
   }
 });
 addEventListener("keyup", (e) => {

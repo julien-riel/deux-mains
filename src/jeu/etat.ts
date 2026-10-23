@@ -1,8 +1,9 @@
 /* ---------- État ---------- */
 import type { Chanson, Main, Note, Section } from "../chanson/types";
+import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
 
-export type Mode = "title" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
+export type Mode = "title" | "essais" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
 export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
@@ -40,6 +41,12 @@ export interface Calibrage {
   fin: number;
   /** Le décalage mesuré en secondes, null s'il n'a pas pu l'être ; absent tant que le métronome joue */
   resultat?: number | null;
+}
+
+/** L'essai en cours, et les réglages du joueur à lui rendre quand il quitte les essais */
+export interface EssaiEnCours {
+  essai: Essai;
+  avant: { diff: string; theme: string; practice: string; vitesse: number; boucle: number };
 }
 
 /** L'état de la partie, partagé par tous les modules */
@@ -104,6 +111,8 @@ export interface Etat {
   /** Une forme par couloir, en plus de la couleur (#31) */
   formes: boolean;
   keyAng: number;
+  /** Le mode essai : l'essai ouvert, ou null pour une chanson générée */
+  essai: EssaiEnCours | null;
 }
 
 export const S: Etat = {
@@ -158,12 +167,13 @@ export const S: Etat = {
   theme: "ville",
   formes: true,
   keyAng: 0,
+  essai: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
 export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
-// Sur l'écran de départ et pendant le calibrage, la scène tourne au repos
-export const auRepos = () => S.mode === "title" || S.mode === "calib";
+// Sur l'écran de départ, dans la liste des essais et pendant le calibrage, la scène tourne au repos
+export const auRepos = () => S.mode === "title" || S.mode === "essais" || S.mode === "calib";
 
 export const mult = () => 1 + Math.min(3, Math.floor(S.combo / 10)) * 0.5;
 // Le temps de la partie ne recule jamais : en boucle, ses mesures continuent après la fin de la section, et
