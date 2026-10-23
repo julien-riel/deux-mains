@@ -26,6 +26,7 @@ export default defineConfig([
       "src/jeu/enregistrement.ts",
       "src/jeu/croisement.ts",
       "src/jeu/jam.ts",
+      "src/jeu/remontage.ts",
     ],
     rules: {
       "no-restricted-imports": [

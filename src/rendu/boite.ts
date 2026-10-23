@@ -407,3 +407,61 @@ export function boiteChanteur(x, y, ouvert, a, nb, hsl) {
     }
   }
 }
+
+/* ---------- Remontage (#27, ADR-0015) ---------- */
+// La boîte à musique vue de côté, sa clé de face : la clé tourne d'un quart de tour à chaque tour réussi, et le
+// ressort spiral, derrière la vitre, se resserre avec la tension (de 0 à 1)
+export function boiteCle(cx: number, cy: number, ang: number, tension: number) {
+  // La boîte
+  rr(cx - 150, cy - 70, 220, 140, 10);
+  g.fillStyle = "#5a3a22";
+  g.fill();
+  g.strokeStyle = "#c79a5a";
+  g.lineWidth = 3;
+  g.stroke();
+  // Le ressort, derrière une petite vitre
+  g.save();
+  g.beginPath();
+  g.arc(cx - 60, cy, 52, 0, Math.PI * 2);
+  g.fillStyle = "#2a1a10";
+  g.fill();
+  g.clip();
+  const tours = 2.5 + 4 * tension,
+    rmax = 46 - 10 * tension;
+  g.beginPath();
+  for (let i = 0; i <= 160; i++) {
+    const k = i / 160,
+      a = k * tours * Math.PI * 2 + ang * 0.25;
+    g.lineTo(cx - 60 + Math.cos(a) * (4 + k * rmax), cy + Math.sin(a) * (4 + k * rmax));
+  }
+  g.strokeStyle = `hsl(42,70%,${Math.round(48 + 22 * tension)}%)`;
+  g.lineWidth = 2.5;
+  g.stroke();
+  g.restore();
+  gear(cx + 10, cy + 30, 18, 9, -ang * 2, "#8a6a3a");
+  // L'axe, puis la clé papillon, de face
+  g.fillStyle = "#c79a5a";
+  g.fillRect(cx + 70, cy - 7, 40, 14);
+  g.save();
+  g.translate(cx + 130, cy);
+  g.rotate(ang);
+  g.strokeStyle = "#7a5520";
+  g.lineWidth = 3;
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(0, s * 40, 26, 34, 0, 0, Math.PI * 2);
+    g.fillStyle = "#e0b45c";
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.ellipse(0, s * 44, 10, 14, 0, 0, Math.PI * 2);
+    g.fillStyle = "#5a3a22";
+    g.fill();
+  }
+  g.beginPath();
+  g.arc(0, 0, 14, 0, Math.PI * 2);
+  g.fillStyle = "#e0b45c";
+  g.fill();
+  g.stroke();
+  g.restore();
+}

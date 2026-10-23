@@ -27,6 +27,7 @@ import { estSolo, soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
+import { dessinerRemontage } from "./remontage";
 import {
   boiteBack,
   boiteBlock,
@@ -533,6 +534,8 @@ export function render(nb, dt) {
     txt(p.text, p.x, yVu(p.y) - k * 28, `700 15px ${FONT.display}`, p.color, "center");
     g.globalAlpha = 1;
   }
+  // Le remontage entre deux lieux (#27), par-dessus la scène au repos du lieu qui suit
+  if (S.mode === "remontage") dessinerRemontage(pnow);
 }
 
 /**

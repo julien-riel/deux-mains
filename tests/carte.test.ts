@@ -312,7 +312,10 @@ describe("enchaînement", () => {
     jouerSansFaute(nav);
     expect(nav.overlay.innerHTML).toContain(`Suivant : ${THEMES.ville.places[LIEUX[3]]}`);
     nav.presser("ArrowRight");
-    expect([S.mode, S.song.prog.name, S.diff]).toEqual(["title", LIEUX[3], "debutant"]);
+    // Le remontage (#27) précède l'écran de départ du lieu suivant ; la partie était en auto-play, lui aussi
+    expect([S.mode, S.song.prog.name, S.diff]).toEqual(["remontage", LIEUX[3], "debutant"]);
+    nav.avancerJusqua((s) => s.mode !== "remontage", 30);
+    expect([S.mode, S.depart]).toEqual(["title", 100]);
     nav.presser("KeyC");
     nav.toucherBouton("lieu", { lieu: LIEUX[5] });
     expect([S.mode, S.seed]).toEqual(["title", graineDuLieu(LIEUX[5])]);

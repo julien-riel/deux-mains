@@ -377,3 +377,54 @@ export function villeChanteur(x, y, ouvert, a, nb, hsl) {
   g.fillStyle = hexA(COL.bad, (0.5 + 0.5 * ouvert) * a);
   g.fill();
 }
+
+/* ---------- Remontage (#27, ADR-0015) ---------- */
+// Le groupe électrogène du quartier : sa manivelle fait un quart de tour à chaque tour réussi, et chaque tour réussi
+// rallume une rangée de fenêtres de l'immeuble d'à côté (`allumees` rangées sur `total`, du bas vers le haut)
+export function villeManivelle(cx: number, cy: number, ang: number, allumees: number, total: number) {
+  const bx = cx + 160,
+    by = cy - 130,
+    rang = 260 / total;
+  g.fillStyle = "#2c2645";
+  g.fillRect(bx, by, 120, 270);
+  for (let r = 0; r < total; r++) {
+    const lit = total - 1 - r < allumees;
+    for (let c = 0; c < 4; c++) {
+      g.fillStyle = lit ? "hsla(45,90%,68%,1)" : "#1a1630";
+      g.fillRect(bx + 12 + c * 26, by + 8 + r * rang, 16, rang - 12);
+    }
+  }
+  // Le groupe électrogène : un caisson à grilles, et un voyant qui s'allume avec les fenêtres
+  rr(cx - 150, cy - 60, 200, 130, 8);
+  g.fillStyle = "#3a3256";
+  g.fill();
+  g.strokeStyle = "#8a80b0";
+  g.lineWidth = 3;
+  g.stroke();
+  g.fillStyle = "#241f3a";
+  for (let i = 0; i < 6; i++) g.fillRect(cx - 130, cy - 40 + i * 16, 110, 8);
+  g.beginPath();
+  g.arc(cx + 20, cy - 36, 8, 0, Math.PI * 2);
+  g.fillStyle = allumees ? hexA(COL.good, 0.5 + (0.5 * allumees) / total) : "#241f3a";
+  g.fill();
+  // La manivelle, de face : un moyeu, un bras, une poignée
+  g.save();
+  g.translate(cx + 90, cy + 10);
+  g.rotate(ang);
+  g.strokeStyle = "#b8b0d8";
+  g.lineWidth = 12;
+  g.lineCap = "round";
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.lineTo(0, -62);
+  g.stroke();
+  g.beginPath();
+  g.arc(0, -62, 12, 0, Math.PI * 2);
+  g.fillStyle = "#ff5fa2";
+  g.fill();
+  g.beginPath();
+  g.arc(0, 0, 16, 0, Math.PI * 2);
+  g.fillStyle = "#8a80b0";
+  g.fill();
+  g.restore();
+}

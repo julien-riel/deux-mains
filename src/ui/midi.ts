@@ -10,6 +10,7 @@ import { S, type Action } from "../jeu/etat";
 import { SEPARATION, SEPARATIONS, actionDeNote, lireMessage, nomDeNote } from "../jeu/midi";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
+import { taperRemontage } from "./remontage";
 import { MIDI, etatMidiLong, etiquettes, type EtatMidi } from "./touches";
 
 /* ---------- Ce que le jeu utilise de Web MIDI ---------- */
@@ -87,6 +88,11 @@ function recevoir(e: MessageMidi) {
     // Pendant le calibrage, n'importe quelle touche compte comme un coup : la latence du MIDI est mesurée aussi
     if (S.mode === "calib") return taper(retardDe(e.timeStamp));
     const a = actionDeNote(m.note, MIDI.separation);
+    // Pendant le remontage (#27), une touche de la table fait le tour de sa main
+    if (S.mode === "remontage") {
+      if (a) taperRemontage(a, retardDe(e.timeStamp));
+      return;
+    }
     // Une action déjà tenue par une autre commande (clavier, autre touche) : seule celle-ci la relâchera
     if (!a || S.keys[a]) return;
     presser(a, heureDe(e.timeStamp));

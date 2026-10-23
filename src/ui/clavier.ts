@@ -6,10 +6,11 @@ import { S, spb } from "../jeu/etat";
 import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./carte";
-import { overlay, show } from "./ecrans";
+import { aRemonter, overlay, show } from "./ecrans";
 import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
 import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
 import { nouvelleChanson, quitterEssai } from "./reglages";
+import { lancerRemontage, passerLeRemontage, taperRemontage } from "./remontage";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
 overlay.addEventListener("click", (e) => {
@@ -65,6 +66,14 @@ addEventListener("keydown", (e) => {
     if (ACTION_DE[c]) presser(ACTION_DE[c], songNow());
     return;
   }
+  if (S.mode === "remontage") {
+    // Le remontage (#27) : n'importe quelle touche d'une main fait le tour de cette main ; Échap le passe
+    if (c in KEYLABEL || c === "Space" || c === "Escape") e.preventDefault();
+    if (e.repeat) return;
+    if (c === "Escape") passerLeRemontage();
+    else if (ACTION_DE[c]) taperRemontage(ACTION_DE[c]);
+    return;
+  }
   if (e.repeat) return;
   if (S.mode === "calib") {
     const fini = S.calib.resultat !== undefined;
@@ -94,13 +103,18 @@ addEventListener("keydown", (e) => {
     if (c === "Escape") ouvrirCarte();
   } else if (S.mode === "title") {
     // L'essai de la jam (#24) n'a qu'un départ : la jam
-    const jam = !!S.essai?.essai.jam;
+    const jam = !!S.essai?.essai.jam,
+      // L'essai du remontage (#27) le propose d'abord, puis le laisse recommencer (R)
+      remonter = aRemonter();
     if (c === "Space" || c === "Enter") {
       e.preventDefault();
       if (jam) lancerJam();
+      else if (remonter) lancerRemontage(false);
       else newRun();
     } else if (c === "KeyJ") lancerJam();
+    else if (c === "KeyA" && remonter) lancerRemontage(true);
     else if (c === "KeyA" && !jam) newRun(true);
+    else if (c === "KeyR" && S.essai?.essai.remontage) lancerRemontage(false);
     else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyE") menuEssais();
     else if (c === "KeyC") ouvrirCarte();

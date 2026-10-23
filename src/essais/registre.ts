@@ -41,6 +41,10 @@ export interface Essai {
   /** Une progression fictive pour la carte du monde (#25), neuve à chaque ouverture : pendant l'essai, la carte et
    * le décor la montrent, et ce que l'essai gagne s'y ajoute en mémoire, sans jamais toucher la vraie sauvegarde */
   progression?(): Sauvegarde;
+  /** L'essai commence par le remontage entre deux lieux (#27, ADR-0015) : son écran de départ le lance (Espace, ou A
+   * en auto-play), puis joue sa chanson avec l'harmonie de départ gagnée ; R le recommence. Il ne touche pas à la
+   * sauvegarde : le remontage ne vaut que pour la chanson qui le suit. */
+  remontage?: boolean;
 }
 
 // Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
@@ -483,6 +487,33 @@ export const ESSAIS: Essai[] = [
       ),
     // Les triolets de la basse, hors de la grille des croches
     repere: (ev) => ev.kind === "polyrythmie" && ev.hand === "L" && !surLaCroche(ev.beat),
+  },
+  {
+    id: "remontage-boite",
+    titre: "Remonter la clé",
+    verifier:
+      "Espace lance le remontage : un décompte de quatre clics, puis huit tours de clé en quatre mesures, à la main gauche (W, S ou Espace) puis à la main droite (J, K, L ou ;), tour à tour. Chaque tour réussi fait cliqueter la crémaillère, tourne la clé d'un quart de tour et resserre le ressort ; un tour raté le fait déraper. L'écran de départ annonce le ressort de départ (60 sans aucun tour, 100 avec les huit), et la jauge RESSORT démarre la chanson à ce niveau. A le fait en auto-play (100).",
+    issue: 27,
+    univers: "boite",
+    diff: "normal",
+    mains: "both",
+    remontage: true,
+    chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]),
+    // Le remontage ne fait pas de notes : le repère est la chanson qu'il précède, qui démarre au ressort gagné
+    repere: () => true,
+  },
+  {
+    id: "remontage-ville",
+    titre: "Relancer le groupe électrogène",
+    verifier:
+      "Les mêmes règles que la clé de la Boîte, habillées par la Ville : Espace lance le remontage, la manivelle tourne d'un quart de tour à chaque tour réussi, le moteur tousse et chaque tour rallume une rangée de fenêtres de l'immeuble. L'écran de départ annonce le volume de départ (60 à 100), et la jauge VOLUME DU QUARTIER démarre la chanson à ce niveau. Essaie aussi en duo ou d'une seule main : l'autre main tourne toute seule.",
+    issue: 27,
+    univers: "ville",
+    diff: "normal",
+    mains: "both",
+    remontage: true,
+    chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]),
+    repere: () => true,
   },
 ];
 

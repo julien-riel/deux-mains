@@ -408,3 +408,69 @@ export function chantV(t, m, dur) {
   }
   send(gn, 0.3, 0.35);
 }
+
+/* ---------- Remontage (#27, ADR-0015) ---------- */
+// Le mécanisme qu'on remonte entre deux lieux : la clé de la boîte à musique dans la Boîte, la manivelle du groupe
+// électrogène dans la Ville. Même mécanique, deux timbres (ADR-0006).
+/** Le cliquet du mécanisme, sur chaque temps ; sur le temps d'un tour, la clé cogne sa butée, la manivelle grince */
+export function cliquet(t, accent) {
+  const bp = AC.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = boite() ? (accent ? 5200 : 4200) : accent ? 1500 : 1100;
+  bp.Q.value = boite() ? 6 : 3;
+  const gn = decayGain(t, accent ? 0.32 : 0.18, boite() ? 0.03 : 0.05);
+  noise(t, 0.07).connect(bp);
+  bp.connect(gn);
+  gn.connect(B.dry);
+  if (!accent) return;
+  const corps = decayGain(t, 0.1, 0.08);
+  osc(boite() ? "sine" : "square", boite() ? 2350 : 190, t, t + 0.1).connect(corps);
+  corps.connect(B.dry);
+}
+/** Un tour réussi : le ressort se tend de quatre crans (le moteur reprend, dans la Ville), et une note sonne */
+export function tourReussi(t, m) {
+  for (let i = 0; i < 4; i++) {
+    const tt = t + i * 0.028,
+      bp = AC.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = (boite() ? 3600 : 900) * (1 + i * 0.12);
+    bp.Q.value = 5;
+    const gn = decayGain(tt, 0.2, 0.025);
+    noise(tt, 0.04).connect(bp);
+    bp.connect(gn);
+    gn.connect(B.dry);
+  }
+  if (!boite()) {
+    // Le groupe électrogène tousse, puis ronronne un instant
+    const lp = AC.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 380;
+    const gn = AC.createGain();
+    gn.gain.setValueAtTime(0, t);
+    gn.gain.linearRampToValueAtTime(0.16, t + 0.04);
+    gn.gain.setTargetAtTime(0, t + 0.18, 0.08);
+    const o = osc("sawtooth", 42, t, t + 0.6);
+    o.frequency.setValueAtTime(42, t);
+    o.frequency.linearRampToValueAtTime(62, t + 0.2);
+    o.connect(lp);
+    lp.connect(gn);
+    gn.connect(B.dry);
+  }
+  const gn = decayGain(t, 0.16, boite() ? 1.1 : 0.5);
+  osc(boite() ? "sine" : "triangle", mtof(m), t, t + 1.2).connect(gn);
+  send(gn, 0.45, 0.15);
+}
+/** Un tour raté : le ressort dérape (Boîte), le moteur cale (Ville) */
+export function tourRate(t) {
+  const [de, vers] = boite() ? [520, 130] : [70, 35],
+    o = osc(boite() ? "sine" : "sawtooth", de, t, t + 0.35);
+  o.frequency.setValueAtTime(de, t);
+  o.frequency.exponentialRampToValueAtTime(vers, t + 0.3);
+  const lp = AC.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = boite() ? 2000 : 300;
+  const gn = decayGain(t, 0.16, 0.3);
+  o.connect(lp);
+  lp.connect(gn);
+  gn.connect(B.dry);
+}

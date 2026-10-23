@@ -5,6 +5,7 @@ import { S } from "../jeu/etat";
 import { carteDisponible, prochainLieu } from "./ecran-carte";
 import { show } from "./ecrans";
 import { diffDuJoueur, load } from "./reglages";
+import { lancerRemontage } from "./remontage";
 
 /* ---------- Carte ---------- */
 export function ouvrirCarte() {
@@ -26,5 +27,12 @@ export function choisirLieu(lieu: string) {
   load(graineDuLieu(lieu), diffDuJoueur());
   return true;
 }
-/** Enchaîne avec le lieu suivant : c'est ici qu'un entracte entre deux souvenirs pourra se glisser (#27) */
-export const enchainer = () => choisirLieu(prochainLieu());
+/**
+ * Enchaîne avec le lieu suivant : on prépare sa chanson, puis on remonte le mécanisme à son tempo (#27, ADR-0015),
+ * qui fixe l'harmonie de départ ; son écran de départ suit. Choisir un lieu sur la carte ne remonte rien.
+ */
+export function enchainer() {
+  if (!choisirLieu(prochainLieu())) return false;
+  lancerRemontage();
+  return true;
+}

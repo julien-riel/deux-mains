@@ -22,7 +22,8 @@ import { estSolo, repriseNeuve, reprendreLeSolo } from "./variations";
 /* ---------- Partie ---------- */
 export function resetRun() {
   Object.assign(S, {
-    health: 100,
+    // L'harmonie de départ : celle gagnée au remontage avant ce lieu (#27, ADR-0015), sinon 100
+    health: S.depart ?? 100,
     combo: 0,
     maxCombo: 0,
     score: 0,

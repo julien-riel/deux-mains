@@ -6,9 +6,11 @@ import { sauvegardeVide, type Progres, type Sauvegarde } from "../sauvegarde/for
 import type { Enregistrement } from "./enregistrement";
 import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
+import type { Remontage } from "./remontage";
 import type { Reprise } from "./variations";
 
-export type Mode = "title" | "essais" | "carte" | "sauvegarde" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
+export type Mode =
+  "title" | "essais" | "carte" | "sauvegarde" | "calib" | "remontage" | "play" | "pause" | "dying" | "dead" | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
 export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
@@ -74,6 +76,14 @@ export interface Calibrage {
   fin: number;
   /** Le décalage mesuré en secondes, null s'il n'a pas pu l'être ; absent tant que le métronome joue */
   resultat?: number | null;
+}
+
+/** Le remontage entre deux lieux (#27, ADR-0015) : ses tours, l'heure de son premier clic sur l'horloge audio, le
+ * prochain temps à programmer, et l'heure (performance.now) où chaque tour a été jugé, pour l'animer */
+export interface RemontageEnCours extends Remontage {
+  debut: number;
+  programme: number;
+  eclats: number[];
 }
 
 /** L'essai en cours, et les réglages du joueur à lui rendre quand il quitte les essais */
@@ -167,6 +177,10 @@ export interface Etat {
   sauvegarde: Sauvegarde;
   /** Ce que la dernière chanson finie a changé dans la progression (#25), pour l'écran de fin ; null sinon */
   progres: Progres | null;
+  /** Le remontage en cours, ou le dernier fait pour la chanson en place (#27) ; null sinon */
+  remontage: RemontageEnCours | null;
+  /** L'harmonie de départ des parties de la chanson en place, gagnée au remontage (#27) ; null : 100 */
+  depart: number | null;
 }
 
 export const S: Etat = {
@@ -230,13 +244,20 @@ export const S: Etat = {
   jam: null,
   sauvegarde: sauvegardeVide(),
   progres: null,
+  remontage: null,
+  depart: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
 export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
-// Sur l'écran de départ, dans la liste des essais et pendant le calibrage, la scène tourne au repos
+// Sur l'écran de départ, dans la liste des essais, pendant le calibrage et le remontage (#27), la scène tourne au repos
 export const auRepos = () =>
-  S.mode === "title" || S.mode === "essais" || S.mode === "carte" || S.mode === "sauvegarde" || S.mode === "calib";
+  S.mode === "title" ||
+  S.mode === "essais" ||
+  S.mode === "carte" ||
+  S.mode === "sauvegarde" ||
+  S.mode === "calib" ||
+  S.mode === "remontage";
 // Pendant un essai, la progression fictive de l'essai, ou une progression vide : un essai se voit toujours pareil,
 // et ne lit ni n'écrit celle du joueur (#25)
 const AUCUNE = sauvegardeVide();
