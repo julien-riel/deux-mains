@@ -1,7 +1,9 @@
 import { songNow } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { finish, newRun, pause, resumeCP, unpause } from "../jeu/deroulement";
-import { S } from "../jeu/etat";
+import { noter } from "../jeu/enregistrement";
+import { S, spb } from "../jeu/etat";
+import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
@@ -17,6 +19,8 @@ overlay.addEventListener("click", (e) => {
   else if (act === "resume") resumeCP();
   else if (act === "continue") unpause();
   else if (act === "quitter-boucle") finish();
+  else if (act === "reecouter") reecouter();
+  else if (act === "quitter-reecoute") quitterReecoute();
   else if (act === "new") nouvelleChanson();
   else if (act === "essais") menuEssais();
   else if (act === "essai") ouvrirEssai(b.dataset.essai, true);
@@ -34,9 +38,12 @@ addEventListener("keydown", (e) => {
     if (c in KEYLABEL || c === "Space" || c === "Escape") e.preventDefault();
     if (e.repeat) return;
     if (c === "Escape") return pause();
+    // Pendant la réécoute (#23), la partie se rejoue toute seule : seule la pause répond
+    if (S.relecture) return;
     if (c === "KeyA") {
       S.auto = !S.auto;
       if (S.auto) S.autoUsed = true;
+      noter(S.enregistrement, { temps: songNow() / spb(), geste: "auto", auto: S.auto });
       S.banner = {
         text: S.auto ? "Auto-play" : "À toi de jouer",
         sub: S.auto ? `${KEYLABEL.KeyA} pour reprendre la main` : "",
@@ -79,10 +86,12 @@ addEventListener("keydown", (e) => {
       unpause();
     } else if (c === "Enter") {
       e.preventDefault();
-      newRun();
+      if (S.relecture) quitterReecoute();
+      else newRun();
     } else if (c === "KeyB" && S.bouclePartie) finish();
   } else if (S.mode === "dead" || S.mode === "done") {
     if (c === "KeyR" && S.mode === "dead") resumeCP();
+    else if (c === "KeyR" && peutReecouter()) reecouter();
     else if (c === "KeyA") newRun(true);
     else if (c === "Enter") {
       e.preventDefault();

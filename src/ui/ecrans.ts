@@ -4,6 +4,7 @@ import { DIFFS } from "../chanson/difficultes";
 import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
 import { touchesMidi } from "../jeu/midi";
+import { peutReecouter } from "../jeu/reecoute";
 import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
 import { CRITERES, conseil } from "../jeu/style";
 import { clamp } from "../outils";
@@ -66,6 +67,11 @@ const etatMidi = () =>
       ? `<div class="actions"><button type="button" data-act="midi">Activer le clavier MIDI</button></div>`
       : ""
   }`;
+// Réécouter la partie qui vient de finir (#23), sur l'écran de fin : celle du joueur, ou l'écoute en auto-play
+const boutonReecoute = () =>
+  peutReecouter()
+    ? `<button type="button" data-act="reecouter">Réécouter ${S.auto ? "la" : "ma"} partie <kbd>R</kbd></button>`
+    : "";
 // Les boutons de sortie d'un essai, sur ses écrans de départ, de mort et de fin
 const sortiesEssai = () =>
   `<button type="button" data-act="essais">Autres essais <kbd>E</kbd></button>
@@ -149,6 +155,10 @@ export function show(kind) {
       <div class="actions"><button class="primary" type="button" data-act="calib-ok">Appliquer <kbd>Entrée</kbd></button>
       <button type="button" data-act="calib">Recommencer</button>
       <button type="button" data-act="calib-annuler">Annuler <kbd>Échap</kbd></button></div>`;
+  } else if (kind === "pause" && S.relecture) {
+    h = `<p class="eyebrow">Pause · réécoute</p><h2>La réécoute attend</h2>
+      <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>
+      <button type="button" data-act="quitter-reecoute">Quitter la réécoute <kbd>Entrée</kbd></button></div>`;
   } else if (kind === "pause") {
     h = `<p class="eyebrow">Pause</p><h2>La chanson attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>
@@ -185,6 +195,7 @@ export function show(kind) {
       </div>`
       }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
+      ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
       ${sortiesEssai()}</div>`;
   } else if (kind === "done") {
@@ -206,7 +217,8 @@ export function show(kind) {
       </div>`
       }${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
-      <button type="button" data-act="listen">Réécouter ${k("KeyA")}</button>
+      ${boutonReecoute()}
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;

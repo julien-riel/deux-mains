@@ -21,6 +21,7 @@ export default defineConfig([
       "src/jeu/midi.ts",
       "src/jeu/variations.ts",
       "src/jeu/style.ts",
+      "src/jeu/enregistrement.ts",
     ],
     rules: {
       "no-restricted-imports": [

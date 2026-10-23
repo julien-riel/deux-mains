@@ -342,6 +342,7 @@ export function render(nb, dt) {
     );
   }
   const badge = [
+    S.relecture ? "RÉÉCOUTE" : "",
     S.auto ? "AUTO-PLAY" : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
     S.bouclePartie ? "BOUCLE" : "",

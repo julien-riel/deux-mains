@@ -6,10 +6,13 @@ import { DIFFS } from "../chanson/difficultes";
 import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { TH } from "../univers/univers";
+import { oublierTouches } from "./actions";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
+import { noter, reprendre } from "./enregistrement";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
+import { enregistrer, finirReecoute, garderLaPartie, rejouer } from "./reecoute";
 import { pointsDeStyle } from "./style";
 import { repriseNeuve, reprendreLeSolo } from "./variations";
 
@@ -44,6 +47,7 @@ export function resetRun() {
     // Une nouvelle partie repart de la chanson de la graine : la reprise du solo d'avant est oubliée (ADR-0012)
     reprise: repriseNeuve(),
   });
+  oublierTouches();
   for (const ev of S.song.ev) {
     ev.state = "pending";
     ev.voice = null;
@@ -52,7 +56,8 @@ export function resetRun() {
     ev.troncon = ev.lacheAt = ev.passeAt = undefined;
   }
 }
-export function startAt(beat) {
+/** Lance la partie au temps `beat`, à la vitesse choisie, ou à celle d'une partie réécoutée (#23) */
+export function startAt(beat: number, vitesse = S.vitesse) {
   initAudio();
   if (AC.state === "suspended") AC.resume();
   const t = AC.currentTime;
@@ -62,8 +67,8 @@ export function startAt(beat) {
   B.filt.frequency.cancelScheduledValues(t);
   B.filt.frequency.setValueAtTime(18000, t);
   // La vitesse choisie s'applique au départ : une partie ralentie ou en boucle est un entraînement, son score n'est pas classé
-  S.vitessePartie = S.vitesse;
-  if (S.vitesse < 1 || S.bouclePartie) S.autoUsed = true;
+  S.vitessePartie = vitesse;
+  if (vitesse < 1 || S.bouclePartie) S.autoUsed = true;
   B.delay.delayTime.setValueAtTime(0.75 * spb(), t);
   S.startBeat = beat;
   S.t0 = t + 0.12;
@@ -80,8 +85,10 @@ export function newRun(auto = false) {
   S.auto = auto;
   S.autoUsed = auto || uneMain();
   const sec = S.song.sections[S.boucle];
+  if (sec) S.bouclePartie = { sec, cree: 0, passages: [] };
+  // La partie s'enregistre (#23), sauf en boucle
+  enregistrer();
   if (!sec) return startAt(0);
-  S.bouclePartie = { sec, cree: 0, passages: [] };
   armerBoucle();
 }
 
@@ -163,6 +170,8 @@ export function resumeCP() {
   // Une mort après le solo garde la phrase reprise ; une mort avant sa fin efface ce qui a été joué (ADR-0012)
   if (!S.reprise.faite) S.reprise.solo = [];
   const b0 = cp.sec.start * 4;
+  // L'enregistrement garde la partie d'avant la mort jusqu'au début de la section, puis celle d'après (#23)
+  reprendre(S.enregistrement, b0, S.practice, S.auto);
   for (const ev of S.ev) {
     ev.voice = null;
     ev.auto = false;
@@ -173,14 +182,21 @@ export function resumeCP() {
   S.autoQ = [];
   startAt(Math.max(0, b0 - 4));
 }
-export function pause() {
-  if (S.mode !== "play") return;
-  // Les notes tenues et les trilles (#15) en cours sont réussies : la pause ne doit pas faire perdre
+/** Les notes tenues et les trilles (#15) en cours sont réussies : la pause ne doit pas faire perdre */
+export function finirLesTenues() {
   for (const ev of S.ev)
     if (ev.state === "holding" && ev.trille !== undefined) finirTrille(ev, true);
     else if (ev.state === "holding") completeHold(ev, true);
+}
+export function pause() {
+  if (S.mode !== "play") return;
+  // Pendant la réécoute (#23), la pause ne touche pas à la partie rejouée : seules ses pauses à elle comptent
+  if (!S.relecture) {
+    finirLesTenues();
+    S.keys = {};
+    noter(S.enregistrement, { temps: songNow() / spb(), geste: "pause" });
+  }
   S.mode = "pause";
-  S.keys = {};
   AC.suspend();
   show("pause");
 }
@@ -200,10 +216,19 @@ export function die() {
 export function finish() {
   S.mode = "done";
   stopScheduler();
+  // La fin d'une partie se garde pour la réécouter ; la fin d'une réécoute rend le bilan de la partie (#23)
+  if (S.relecture) finirReecoute();
+  else garderLaPartie();
   show("done");
 }
 
-export function update(nb) {
+/** L'avancée du temps, image par image. Pendant la réécoute (#23), les coups enregistrés se rejouent à leur temps. */
+export function update(nb: number) {
+  if (S.relecture) nb = rejouer(nb, avancer);
+  if (S.mode === "play") avancer(nb);
+}
+
+function avancer(nb: number) {
   const song = S.song,
     ns = nb * spb(),
     wg = DIFFS[S.diff].win[1];

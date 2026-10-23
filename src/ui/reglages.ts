@@ -1,12 +1,14 @@
 // Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
-import { B, AC } from "../audio/moteur";
+import { B, AC, songNow } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
 import { buildSong } from "../chanson/generateur";
 import type { Chanson } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { resetRun } from "../jeu/deroulement";
-import { S, type EssaiEnCours, type Mains } from "../jeu/etat";
+import { noter } from "../jeu/enregistrement";
+import { S, spb, type EssaiEnCours, type Mains } from "../jeu/etat";
+import { abandonnerReecoute, mainsDuJoueur } from "../jeu/reecoute";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
@@ -31,6 +33,7 @@ export function load(seed: number, diff: string) {
 // Met une chanson en place, partie neuve, sur l'écran de départ
 function installer(song: Chanson, diff: string) {
   stopScheduler();
+  abandonnerReecoute();
   if (AC && B) {
     const t = AC.currentTime;
     B.master.gain.cancelScheduledValues(t);
@@ -109,10 +112,14 @@ export function setTheme(v: string, choix = true) {
 }
 // Mains jouées : les deux, une seule (l'autre en auto-play, un entraînement), ou le duo local (#6)
 export function setPractice(v: Mains, choix = true) {
-  S.practice = v;
+  // Pendant la réécoute (#23), la partie rejouée garde ses mains : le choix vaudra en la quittant
+  if (!mainsDuJoueur(v)) S.practice = v;
   const r = document.getElementById("h-" + v) as HTMLInputElement;
   if (r) r.checked = true;
   if (S.mode === "play" && (v === "L" || v === "R")) S.autoUsed = true;
+  // Changées en cours de partie, les mains s'enregistrent pour la réécoute
+  if ((S.mode === "play" || S.mode === "pause") && !S.relecture)
+    noter(S.enregistrement, { temps: songNow() / spb(), geste: "mains", mains: v });
   if (choix) retenir("practice", v);
   if (S.mode === "title" && S.song) show("title");
 }

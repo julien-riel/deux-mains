@@ -362,6 +362,27 @@ export const ESSAIS: Essai[] = [
       ]),
     repere: (ev) => ev.relais !== undefined,
   },
+  {
+    id: "reecoute",
+    titre: "Réécouter sa partie",
+    verifier:
+      "Une chanson très courte : joue les deux mains, rate quelques notes exprès, et improvise au solo (J K L ;). À l'écran de fin, « Réécouter ma partie » (R) rejoue ta partie : les mêmes notes aux mêmes moments, sans les ratées, le personnage qui saute et les tirs, et ta phrase du solo reprise au refrain. Échap met la réécoute en pause, Entrée la quitte.",
+    issue: 23,
+    univers: "ville",
+    diff: "facile",
+    mains: "both",
+    // Un couplet, un solo de deux mesures et un refrain de quatre : la phrase du solo revient à ses mesures 3–4
+    chanson: () =>
+      assembler(GRAINE, "facile", [
+        { nom: "Intro", genre: "intro", de: 1, mesures: 1 },
+        couplet(2, 2),
+        { nom: "Solo libre", genre: "pont", de: 18, mesures: 2 },
+        refrain(22, 4),
+        { ...OUTRO, mesures: 1 },
+      ]),
+    // Toutes les notes se réécoutent
+    repere: () => true,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);
