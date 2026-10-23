@@ -33,6 +33,7 @@ export interface Note {
   hand: Main;
   beat: number;
   dur: number;
+  /** Main gauche : 0 glisser, 1 sauter, 2 double saut, 3 écraser (#8). Main droite : le couloir. */
   lane: number;
   bar: number;
   kind: Genre;

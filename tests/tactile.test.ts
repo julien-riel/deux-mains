@@ -29,9 +29,10 @@ async function partieTactile(univers: Univers = "ville", difficulte: Difficulte 
 const spb = () => 60 / nav.jeu.state.song.bpm;
 const temps = (ev: Note) => ev.beat * spb();
 
-// Où poser le doigt : à gauche en haut pour sauter, à gauche en bas pour glisser, à droite dans la bande du couloir
+// Où poser le doigt : à gauche en haut pour sauter, à gauche en bas pour glisser ou écraser une plaque (#8),
+// à droite dans la bande du couloir
 function position(ev: Note): [number, number] {
-  if (ev.hand === "L") return [100, ev.lane ? 100 : 500];
+  if (ev.hand === "L") return [100, ev.lane === 1 || ev.lane === 2 ? 100 : 500];
   return [1000, LANE_Y[ev.lane]];
 }
 

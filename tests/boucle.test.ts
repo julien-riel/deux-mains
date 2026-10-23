@@ -132,9 +132,11 @@ describe("retour en boucle", () => {
     const sons = nav.horloge.sons;
     const sonneA = (b: number) => sons.some((s) => Math.abs(s.debut - timeOfBeat(b)) < 1e-9);
 
-    // Au refrain, la batterie frappe chaque croche : autour de chaque point de boucle, aucune ne manque
+    // Au refrain, la batterie frappe chaque croche : autour de chaque point de boucle, aucune ne manque, sauf
+    // pendant le temps de silence qui précède chaque passage (#8)
     for (const pt of [fin, fin + sec.bars * 4])
-      for (let b = pt - 4; b < pt + 4; b += 0.5) expect(sonneA(b), `croche au temps ${b}`).toBe(true);
+      for (let b = pt - 4; b < pt + 4; b += 0.5)
+        if (b < pt - 1 || b >= pt) expect(sonneA(b), `croche au temps ${b}`).toBe(true);
     // La cymbale du début du refrain (un bruit de 1,9 s) revient à chaque passage, pile sur le temps
     const cymbales = sons.filter((s) => Math.abs(s.fin - s.debut - 1.9) < 1e-9).map((s) => s.debut);
     for (const b of [sec.start * 4, fin, fin + sec.bars * 4])

@@ -31,8 +31,11 @@ export function autoHit(ev: Note) {
   const ns = ev.beat * spb(),
     pnow = performance.now();
   if (ev.hand === "L") {
-    S.keyFlash[ev.lane ? "sauter" : "glisser"] = pnow;
-    if (ev.lane === 2) {
+    S.keyFlash[ev.lane === 3 ? "ecraser" : ev.lane ? "sauter" : "glisser"] = pnow;
+    if (ev.lane === 3) {
+      S.ecraseAt = ns;
+      S.jumpAt = S.doubleAt = -99;
+    } else if (ev.lane === 2) {
       S.doubleAt = ns;
       S.doubleAir = ev.air * spb();
     } else if (ev.lane) {

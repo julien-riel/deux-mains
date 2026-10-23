@@ -5,7 +5,7 @@ import { clamp } from "../outils";
 export type Mode = "title" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
-export type Action = "sauter" | "glisser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
+export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
 export const COULOIRS: Action[] = ["couloir0", "couloir1", "couloir2", "couloir3"];
 
 /** Point de reprise : le début de la section en cours et le score à ce moment-là */
@@ -78,6 +78,8 @@ export interface Etat {
   doubleAt: number;
   doubleAir: number;
   slideUntil: number;
+  /** L'écrasement sur une plaque (#8) */
+  ecraseAt: number;
   hurtAt: number;
   shake: number;
   gun: number[];
@@ -135,6 +137,7 @@ export const S: Etat = {
   doubleAt: -99,
   doubleAir: 0.5,
   slideUntil: -99,
+  ecraseAt: -99,
   hurtAt: -1e9,
   shake: 0,
   gun: [260, 470],

@@ -104,7 +104,10 @@ export function leftPress(lane: number, ns: number) {
   // Près d'un saut ordinaire, un appui en l'air reste un saut simple : on a juste sauté un peu tôt
   if (lane === 1 && enLair(ns) && !(near && near.ev.lane === 1)) lane = 2;
   const air = (near && near.ev.lane === lane ? near.ev.air : 0.8) * spb();
-  if (lane === 2) {
+  if (lane === 3) {
+    S.ecraseAt = ns;
+    S.jumpAt = S.doubleAt = -99;
+  } else if (lane === 2) {
     S.doubleAt = ns;
     S.doubleAir = air;
   } else if (lane === 1) {
