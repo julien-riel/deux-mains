@@ -4,6 +4,7 @@ import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
 import { buildBoss } from "../chanson/boss";
 import { buildSong } from "../chanson/generateur";
+import { composer, type Partition } from "../chanson/partition";
 import type { Chanson } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { resetRun } from "../jeu/deroulement";
@@ -21,6 +22,7 @@ const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 /** Charge la chanson de cette graine dans cette difficulté, ou son niveau de boss de fin (#26) */
 export function load(seed: number, diff: string, boss = false) {
   seed = clamp(Math.round(seed) || 1, 1, 99999);
+  rendreComposition();
   if (S.essai) rendreReglages();
   S.seed = seed;
   installer(boss ? buildBoss(seed, diff) : buildSong(seed, diff), diff);
@@ -53,8 +55,25 @@ function installer(song: Chanson, diff: string) {
   $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
   listerSections();
 }
-/** La difficulté choisie par le joueur : pendant un essai, celle qu'il retrouvera en le quittant */
-export const diffDuJoueur = () => (S.essai ? S.essai.avant.diff : S.diff);
+/** La difficulté choisie par le joueur : pendant un essai ou une composition, celle qu'il retrouvera en les quittant */
+export const diffDuJoueur = () =>
+  S.essai ? S.essai.avant.diff : S.avantComposition ? S.avantComposition.diff : S.diff;
+
+/* ---------- Compositions (#28, ADR-0016) ---------- */
+// Une composition impose sa difficulté sans l'enregistrer, comme un essai, et se joue sans la boucle du joueur : en
+// revenant à sa chanson, il retrouve les deux. Pendant un essai, c'est l'essai qui les garde.
+export function chargerComposition(p: Partition) {
+  S.avantComposition ??= { diff: S.diff, boucle: S.boucle };
+  S.boucle = -1;
+  installer(composer(p), p.diff);
+}
+function rendreComposition() {
+  const a = S.avantComposition;
+  if (!a) return;
+  S.avantComposition = null;
+  S.diff = a.diff;
+  S.boucle = a.boucle;
+}
 /** Une nouvelle chanson générée, dans la difficulté du joueur : quitte l'essai en cours */
 export const nouvelleChanson = () => load(randomSeed(), diffDuJoueur());
 /** Le niveau affiché est-il un boss de fin (#26), hors essai ? Changer de difficulté ou de graine le garde. */
@@ -71,6 +90,7 @@ export const basculerBoss = () => load(S.seed, diffDuJoueur(), !enBoss());
 // Un essai impose son univers, sa difficulté et ses mains sans les enregistrer : en le quittant, le joueur
 // retrouve ses réglages, sa graine et sa boucle. Pendant l'essai, la boucle peut reprendre une de ses sections.
 export function chargerEssai(e: Essai) {
+  rendreComposition();
   S.essai ??= {
     essai: e,
     avant: { diff: S.diff, theme: S.theme, practice: S.practice, vitesse: S.vitesse, boucle: S.boucle },
@@ -88,6 +108,8 @@ export function chargerEssai(e: Essai) {
 function rendreReglages() {
   const a = S.essai.avant;
   S.essai = null;
+  // Le brouillon d'exemple de l'essai de l'éditeur (#28) ne suit pas le joueur hors des essais
+  if (S.editeur?.essai) S.editeur = null;
   S.boucle = a.boucle;
   setTheme(a.theme, false);
   setPractice(a.practice, false);

@@ -21,6 +21,7 @@ Chaque décision structurante du projet est consignée ici, une par fichier. Le 
 | [0013](0013-grille-de-reference-de-douze-pas-par-temps.md)        | Garder le temps en nombre, sur une grille de référence de douze pas par temps                       | Acceptée                                                           | 2026-10-23 |
 | [0014](0014-sauvegarde-versionnee-et-code-de-sauvegarde.md)       | Garder la progression dans un document versionné du navigateur, avec un code de sauvegarde à copier | Acceptée                                                           | 2026-10-23 |
 | [0015](0015-une-mecanique-commune-habillee-par-chaque-univers.md) | Garder chaque mécanique commune aux univers, chacun ne fournissant que son habillage                | Acceptée                                                           | 2026-10-23 |
+| [0016](0016-partitions-ecrites-a-la-main.md)                      | Écrire les chansons à la main en partitions de motifs par mesure, compilées en chanson              | Acceptée                                                           | 2026-10-23 |
 
 ## Écrire un ADR
 

@@ -4,7 +4,7 @@
 import { LIEUX } from "../jeu/carte";
 import { S, progression } from "../jeu/etat";
 import { decoder, encoder } from "../sauvegarde/code";
-import { fusionner, lieuxReussis, noterReussite, type Sauvegarde } from "../sauvegarde/format";
+import { clePartition, fusionner, lieuxReussis, noterReussite, type Sauvegarde } from "../sauvegarde/format";
 import { ECRAN_CODE, carteDisponible } from "./ecran-carte";
 import { show } from "./ecrans";
 import { ecrireSauvegarde, lireSauvegarde } from "./stockage";
@@ -14,8 +14,8 @@ export function chargerSauvegarde() {
   S.sauvegarde = lireSauvegarde();
 }
 
-// La progression qui compte change : celle de l'essai reste en mémoire, celle du joueur est rangée
-function remplacer(doc: Sauvegarde) {
+/** La progression qui compte change : celle de l'essai reste en mémoire, celle du joueur est rangée */
+export function remplacer(doc: Sauvegarde) {
   if (S.essai) S.essai.sauvegarde = doc;
   else {
     S.sauvegarde = doc;
@@ -33,6 +33,19 @@ export function noterFinDePartie() {
   // Le boss de fin (#26) n'est pas la chanson de sa graine : il n'allume pas son lieu et ne garde pas son score
   // (le noter demandera une nouvelle version du format, ADR-0014)
   if (S.bouclePartie || S.jam || S.autoUsed || S.song.boss || (S.essai && !S.essai.sauvegarde)) return;
+  // Une composition (#28, ADR-0016) garde son meilleur score sous l'empreinte de sa partition, jamais sous une clé de
+  // graine, et ne réussit pas de lieu : la carte se gagne avec les chansons du jeu
+  const source = S.song.source;
+  if (source?.genre === "partition") {
+    const { doc, progres } = noterReussite(progression(), {
+      univers: S.theme,
+      cle: clePartition(source.empreinte),
+      score: S.score,
+    });
+    remplacer(doc);
+    S.progres = progres;
+    return;
+  }
   const reussite = { univers: S.theme, lieu: S.song.prog.name };
   const { doc, progres } = noterReussite(
     progression(),

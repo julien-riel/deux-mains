@@ -8,6 +8,7 @@ import { buildBoss } from "../chanson/boss";
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
 import { NOM_CROISEE, NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/generateur";
+import { VERSION_PARTITION, composer, type Partition } from "../chanson/partition";
 import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
 import { sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
@@ -46,6 +47,38 @@ export interface Essai {
    * en auto-play), puis joue sa chanson avec l'harmonie de départ gagnée ; R le recommence. Il ne touche pas à la
    * sauvegarde : le remontage ne vaut que pour la chanson qui le suit. */
   remontage?: boolean;
+  /** L'essai ouvre l'éditeur (#28, ADR-0016) sur cette partition d'exemple, neuve à chaque ouverture ; sa chanson
+   * est la partition composée. Il porte une progression fictive : ce qu'on y range n'atteint pas la sauvegarde. */
+  partition?(): Partition;
+}
+
+/** La partition d'exemple de l'essai de l'éditeur (#28) : une valse de cylindre, en La mineur sur la cadence
+ * andalouse. Elle écrit des notes simples, une note tenue, un tunnel, et une mesure de basse en triolets. */
+export function partitionExemple(): Partition {
+  return {
+    v: VERSION_PARTITION,
+    titre: "Valse du grenier",
+    ton: 9,
+    bpm: 96,
+    diff: "facile",
+    prog: "Cadence andalouse",
+    sections: [
+      { genre: "intro", mesures: 1, basse: ["S......."], melodie: ["........"] },
+      {
+        genre: "couplet",
+        mesures: 4,
+        basse: ["S...W...", "S...W...", "S...W...", "T---W..."],
+        melodie: ["0.1.2...", "2.1.0...", "0.1.2.3.", "2-----.."],
+      },
+      {
+        genre: "refrain",
+        mesures: 4,
+        basse: ["S.W.S.W.", "S.W.S.W.", "S.W.S.W.", "SWS.SWS....."],
+        melodie: ["3.2.1...", "1.2.3...", "3.2.1.0.", "0-------"],
+      },
+      { genre: "outro", mesures: 1, basse: ["S......."], melodie: ["........"] },
+    ],
+  };
 }
 
 // Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
@@ -528,6 +561,21 @@ export const ESSAIS: Essai[] = [
     // Le niveau du boss, avec des phases de quatre mesures : trois phrases en canon par phase, dès la troisième mesure
     chanson: () => buildBoss(GRAINE, "normal", 4),
     repere: (ev) => ev.canon !== undefined,
+  },
+  {
+    id: "editeur",
+    titre: "Éditeur de cylindre",
+    verifier:
+      "L'éditeur s'ouvre sur « Valse du grenier » : touche une case vide pour planter un picot (il sonne dans l'accord de sa mesure), touche-le encore pour le retirer ; l'outil Tenue allonge une note jusqu'à la case touchée, ♪♪ passe une main de la mesure en triolets, + et − ajoutent ou retirent une mesure. Écouter (A) la joue en auto-play, Jouer (Espace) te la fait jouer, puis « Retour : cylindre ». Ranger la garde, et « Mes cylindres et partage » donne un code DMP1.… qui la recrée. Change d'univers : la même grille devient la console de la radio pirate. Ta vraie sauvegarde n'est pas touchée.",
+    issue: 28,
+    univers: "boite",
+    diff: "facile",
+    mains: "both",
+    partition: partitionExemple,
+    chanson: () => composer(partitionExemple()),
+    // La chanson est toute écrite à la main : chaque note vient de la partition
+    repere: () => true,
+    progression: () => sauvegardeVide(),
   },
 ];
 

@@ -3,9 +3,11 @@
 // sous une seule clé du stockage du navigateur par l'adaptateur `ui/stockage.ts`. Ce module crée, lit, répare et
 // migre le document, et y note ce que le joueur gagne. Il ne touche jamais au stockage lui-même.
 import { VERSION_GENERATEUR } from "../chanson/generateur";
+import { empreinteDe, lirePartition, type Partition } from "../chanson/partition";
 
-/** La version du format. Tout changement du format l'augmente et ajoute une migration à MIGRATIONS. */
-export const VERSION = 1;
+/** La version du format. Tout changement du format l'augmente et ajoute une migration à MIGRATIONS.
+ * 2 : les compositions (#28, ADR-0016). */
+export const VERSION = 2;
 
 /** Ce que la sauvegarde garde d'une chanson précise, sous sa clé (voir cleChanson) */
 export interface SuiviChanson {
@@ -19,23 +21,37 @@ export interface Sauvegarde {
   carte: Record<string, string[]>;
   /** Ce qui dépend des notes exactes d'une chanson, sous une clé qui porte la version du générateur */
   chansons: Record<string, SuiviChanson>;
+  /** Les compositions du joueur (#28), par empreinte de leur partition (ADR-0016) ; absent tant qu'il n'y en a pas */
+  compositions?: Record<string, Partition>;
 }
+
+/** Le nombre de compositions qu'une sauvegarde garde au plus : le code de sauvegarde reste copiable */
+export const MAX_COMPOSITIONS = 24;
 
 export const sauvegardeVide = (): Sauvegarde => ({ v: VERSION, carte: {}, chansons: {} });
 
 /**
  * La clé d'une chanson générée : « g » et la version du générateur, la graine, la difficulté (g1:4242:normal).
  * Quand le générateur change (ADR-0005), la clé change avec lui et l'ancien suivi est ignoré. Les chansons écrites
- * à la main (#28) auront leurs clés « p:empreinte ».
+ * à la main ont leur clé « p:empreinte » (`clePartition`).
  */
 export const cleChanson = (graine: number, diff: string, version = VERSION_GENERATEUR) =>
   `g${version}:${graine}:${diff}`;
+
+/**
+ * La clé d'une chanson écrite à la main (#28, ADR-0016) : « p » et l'empreinte de sa partition. Elle ne dépend pas
+ * de la version du générateur : la partition, elle, ne change pas.
+ */
+export const clePartition = (empreinte: string) => `p:${empreinte}`;
 
 /* ---------- Lecture ---------- */
 /** Une migration fait passer un document brut de la version v à la version v + 1 */
 export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
 /** Les migrations, par version de départ : MIGRATIONS[1] fera passer un document de la version 1 à la version 2 */
-export const MIGRATIONS: Record<number, Migration> = {};
+export const MIGRATIONS: Record<number, Migration> = {
+  // 1 → 2 : les compositions (#28) arrivent, facultatives ; un document de la version 1 n'en a pas
+  1: (doc) => doc,
+};
 
 /**
  * Ce qu'on a trouvé dans le stockage :
@@ -90,6 +106,12 @@ function reparer(brut: Record<string, unknown>, version: number): Sauvegarde {
     for (const [cle, suivi] of Object.entries(brut.chansons))
       if (estObjet(suivi) && Number.isFinite(suivi.meilleur) && (suivi.meilleur as number) >= 0)
         doc.chansons[cle] = { meilleur: suivi.meilleur as number };
+  // Une composition illisible est laissée de côté ; les autres sont rangées sous leur empreinte, recalculée
+  if (estObjet(brut.compositions))
+    for (const brute of Object.values(brut.compositions)) {
+      const p = lirePartition(brute);
+      if (p) (doc.compositions ??= {})[empreinteDe(p)] = p;
+    }
   return doc;
 }
 
@@ -112,32 +134,58 @@ export interface Progres {
 
 /**
  * Note une chanson réussie (finie, score classé) : son lieu, la progression jouée, devient réussi dans l'univers ;
- * pour une chanson générée (`graine`), son meilleur score. Renvoie un nouveau document, l'ancien n'est pas touché.
+ * pour une chanson générée (`graine`), son meilleur score. Une chanson écrite à la main (#28) donne sa clé (`cle`,
+ * voir `clePartition`) et pas de lieu : elle garde son meilleur score sans réussir de lieu sur la carte. Renvoie un
+ * nouveau document, l'ancien n'est pas touché.
  */
 export function noterReussite(
   doc: Sauvegarde,
-  r: { univers: string; lieu: string; graine?: number; diff?: string; score?: number },
+  r: { univers: string; lieu?: string; graine?: number; diff?: string; cle?: string; score?: number },
 ): { doc: Sauvegarde; progres: Progres } {
   const avant = lieuxReussis(doc, r.univers),
-    nouveau = !avant.includes(r.lieu),
+    nouveau = r.lieu !== undefined && !avant.includes(r.lieu),
     suivant: Sauvegarde = {
       ...doc,
-      carte: { ...doc.carte, [r.univers]: nouveau ? [...avant, r.lieu] : avant },
+      carte: { ...doc.carte, ...(r.lieu !== undefined && { [r.univers]: nouveau ? [...avant, r.lieu] : avant }) },
       chansons: { ...doc.chansons },
     };
   let record = false;
-  if (r.graine !== undefined && r.score !== undefined) {
-    const cle = cleChanson(r.graine, r.diff),
-      ancien = doc.chansons[cle]?.meilleur;
+  const cle = r.cle ?? (r.graine !== undefined ? cleChanson(r.graine, r.diff) : undefined);
+  if (cle !== undefined && r.score !== undefined) {
+    const ancien = doc.chansons[cle]?.meilleur;
     record = ancien === undefined || r.score > ancien;
     if (record) suivant.chansons[cle] = { meilleur: r.score };
   }
   return { doc: suivant, progres: { lieu: nouveau ? r.lieu : null, record } };
 }
 
+/* ---------- Compositions (#28, ADR-0016) ---------- */
+/** Les compositions rangées, de la plus ancienne à la plus récente */
+export const compositions = (doc: Sauvegarde): Partition[] => Object.values(doc.compositions ?? {});
+
+/**
+ * Range une composition, à la place de celle d'empreinte `remplace` (la version d'où vient le brouillon) s'il y en
+ * a une. Renvoie le nouveau document, ou null si la sauvegarde en garde déjà le maximum.
+ */
+export function rangerComposition(doc: Sauvegarde, p: Partition, remplace?: string): Sauvegarde | null {
+  const empreinte = empreinteDe(p),
+    gardees = Object.entries(doc.compositions ?? {}).filter(([e]) => e !== remplace && e !== empreinte);
+  if (gardees.length >= MAX_COMPOSITIONS) return null;
+  return { ...doc, compositions: Object.fromEntries([...gardees, [empreinte, p]]) };
+}
+
+/** Retire une composition ; son meilleur score reste, sous sa clé, si elle revient */
+export function retirerComposition(doc: Sauvegarde, empreinte: string): Sauvegarde {
+  const gardees = Object.entries(doc.compositions ?? {}).filter(([e]) => e !== empreinte),
+    suivant: Sauvegarde = { ...doc, compositions: Object.fromEntries(gardees) };
+  if (!gardees.length) delete suivant.compositions;
+  return suivant;
+}
+
 /**
  * Réunit deux sauvegardes, par exemple celle du navigateur et un code collé : rien n'est perdu. Les lieux réussis
- * s'additionnent, et chaque chanson garde le meilleur des deux scores.
+ * s'additionnent, chaque chanson garde le meilleur des deux scores, et les compositions s'ajoutent les unes aux
+ * autres (la même partition, de même empreinte, n'est gardée qu'une fois).
  */
 export function fusionner(ici: Sauvegarde, autre: Sauvegarde): Sauvegarde {
   const doc: Sauvegarde = { v: VERSION, carte: {}, chansons: { ...ici.chansons } };
@@ -145,5 +193,6 @@ export function fusionner(ici: Sauvegarde, autre: Sauvegarde): Sauvegarde {
     doc.carte[univers] = [...new Set([...lieuxReussis(ici, univers), ...lieuxReussis(autre, univers)])];
   for (const [cle, suivi] of Object.entries(autre.chansons))
     if (!(cle in doc.chansons) || suivi.meilleur > doc.chansons[cle].meilleur) doc.chansons[cle] = { ...suivi };
+  if (ici.compositions || autre.compositions) doc.compositions = { ...ici.compositions, ...autre.compositions };
   return doc;
 }

@@ -3,6 +3,8 @@ import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
 import { sauvegardeVide, type Progres, type Sauvegarde } from "../sauvegarde/format";
+import type { Partition } from "../chanson/partition";
+import type { Outil } from "./editeur";
 import type { Enregistrement } from "./enregistrement";
 import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
@@ -10,7 +12,18 @@ import type { Remontage } from "./remontage";
 import type { Reprise } from "./variations";
 
 export type Mode =
-  "title" | "essais" | "carte" | "sauvegarde" | "calib" | "remontage" | "play" | "pause" | "dying" | "dead" | "done";
+  | "title"
+  | "essais"
+  | "carte"
+  | "sauvegarde"
+  | "editeur"
+  | "calib"
+  | "remontage"
+  | "play"
+  | "pause"
+  | "dying"
+  | "dead"
+  | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
 export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
@@ -110,6 +123,21 @@ export interface EssaiEnCours {
   sauvegarde?: Sauvegarde;
 }
 
+/** L'éditeur de partitions (#28) : le brouillon, ce qu'on y a choisi, et la version rangée d'où il vient */
+export interface EditeurEnCours {
+  partition: Partition;
+  /** La section montrée sur la grille */
+  section: number;
+  outil: Outil;
+  /** La grille, ou les compositions rangées et le code de partage */
+  vue: "grille" | "rangement";
+  /** L'empreinte de la composition rangée d'où vient le brouillon : la ranger la remplace */
+  rangee: string | null;
+  message: string;
+  /** Le brouillon vient d'un essai (#28) : il disparaît en quittant les essais */
+  essai?: true;
+}
+
 /** L'état de la partie, partagé par tous les modules */
 export interface Etat {
   song: Chanson;
@@ -199,6 +227,11 @@ export interface Etat {
   depart: number | null;
   /** Le boss de fin de la partie (#26), dans un niveau de boss ; null sinon */
   boss: EtatBoss | null;
+  /** L'éditeur de partitions (#28) : son brouillon reste en mémoire entre deux écoutes ; null tant qu'on ne l'a pas ouvert */
+  editeur: EditeurEnCours | null;
+  /** Une composition jouée impose sa difficulté sans l'enregistrer : celle du joueur et sa boucle, à lui rendre quand
+   * il revient à sa chanson ; null quand aucune composition n'est installée */
+  avantComposition: { diff: string; boucle: number } | null;
 }
 
 export const S: Etat = {
@@ -265,6 +298,8 @@ export const S: Etat = {
   remontage: null,
   depart: null,
   boss: null,
+  editeur: null,
+  avantComposition: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
@@ -275,12 +310,16 @@ export const auRepos = () =>
   S.mode === "essais" ||
   S.mode === "carte" ||
   S.mode === "sauvegarde" ||
+  S.mode === "editeur" ||
   S.mode === "calib" ||
   S.mode === "remontage";
 // Pendant un essai, la progression fictive de l'essai, ou une progression vide : un essai se voit toujours pareil,
 // et ne lit ni n'écrit celle du joueur (#25)
 const AUCUNE = sauvegardeVide();
 export const progression = (): Sauvegarde => (S.essai ? (S.essai.sauvegarde ?? AUCUNE) : S.sauvegarde);
+
+/** La chanson installée vient d'une partition écrite à la main (#28, ADR-0016) */
+export const enComposition = () => S.song?.source?.genre === "partition";
 
 // Le combo qui fait le multiplicateur d'une main : en duo, celui de son joueur (#6) ; sinon le combo commun
 export const comboDe = (hand?: Main) => (hand && S.practice === "duo" ? S.parMain[hand].combo : S.combo);

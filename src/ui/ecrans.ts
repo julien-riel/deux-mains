@@ -8,10 +8,11 @@ import { peutReecouter } from "../jeu/reecoute";
 import { resultatRemontage } from "../jeu/remontage";
 import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
 import { CRITERES, conseil } from "../jeu/style";
-import { clamp } from "../outils";
+import { clamp, echapper } from "../outils";
 import { LANE_HUE } from "../rendu/outils";
 import { TH, placeName } from "../univers/univers";
 import { carteDisponible, ecranCarte, ecranSauvegarde, prochainLieu, progresDeFin } from "./ecran-carte";
+import { boutonEditeur, ecranEditeur } from "./ecran-editeur";
 import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
@@ -104,10 +105,14 @@ function ligneDepart() {
     R = TH().remontage;
   return `<p class="meta depart">${R.depart} : ${S.depart} · ${reussis} ${R.tours} sur ${total}</p>`;
 }
+// Le retour à l'éditeur (#28) depuis une composition jouée, ou son ouverture dans l'essai de l'éditeur
+const retourEditeur = () => `Retour : ${TH().editeur.nom.toLowerCase()}`;
 export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff],
-    essai = S.essai && S.essai.essai;
+    essai = S.essai && S.essai.essai,
+    // La composition installée (#28), qu'on joue depuis l'éditeur
+    compo = s.source?.genre === "partition" ? s.source : null;
   // La durée à la vitesse choisie, qui s'appliquera au départ (#4)
   const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse)),
     boucle = s.sections[S.boucle],
@@ -138,7 +143,18 @@ export function show(kind) {
           : ""
       }`
       }
-      ${boutonCarte()}${sortiesEssai()}</div>`;
+      ${essai.partition ? boutonEditeur(retourEditeur()) : ""}${boutonCarte()}${sortiesEssai()}</div>`;
+  } else if (kind === "editeur") {
+    h = ecranEditeur();
+  } else if (kind === "title" && compo) {
+    // Une composition (#28) : son titre, et le retour à l'éditeur
+    h = `<p class="eyebrow">${TH().label} · ${TH().editeur.nom} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}</p>
+      <h2>${echapper(compo.titre.trim() || TH().editeur.sansTitre)}</h2>
+      <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
+      <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      ${boutonEditeur(retourEditeur())}
+      <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   } else if (kind === "carte") {
     h = ecranCarte();
   } else if (kind === "sauvegarde") {
@@ -170,6 +186,7 @@ export function show(kind) {
       <button type="button" data-act="jam">Jam ${kc("KeyJ")}</button>
       ${boutonCarte()}
       ${boutonBoss()}
+      ${boutonEditeur()}
       <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
@@ -245,7 +262,7 @@ export function show(kind) {
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
-      ${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
+      ${compo ? boutonEditeur(retourEditeur()) : ""}${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
   } else if (kind === "done" && essai) {
     h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
       <h2>Essai terminé</h2>
@@ -263,14 +280,17 @@ export function show(kind) {
       <div class="actions"><button class="primary" type="button" data-act="restart">Rejouer l'essai <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter ${k("KeyA")}</button>
-      ${boutonCarte()}${sortiesEssai()}</div>`;
+      ${compo ? boutonEditeur(retourEditeur()) : ""}${boutonCarte()}${sortiesEssai()}</div>`;
   } else if (kind === "done") {
     const acc = precision(S.perfect, S.good, S.miss);
     const rank = acc >= 0.95 ? "Virtuose" : acc >= 0.85 ? "Soliste" : acc >= 0.7 ? "Choriste" : "Élève";
     const tag = S.autoUsed
       ? `${S.auto ? "auto-play" : "entraînement"}, score non classé`
       : `${duo ? "duo · " : ""}précision ${Math.round(acc * 100)} %`;
-    h = `<p class="eyebrow">${placeName()} · ${TH().unit} n° ${S.seed} · ${tag}</p><h2>${S.auto ? "Écoute terminée" : S.autoUsed ? "Entraînement terminé" : rank}</h2>
+    const ou = compo
+      ? `${TH().editeur.nom} · ${echapper(compo.titre.trim() || TH().editeur.sansTitre)}`
+      : `${placeName()} · ${TH().unit} n° ${S.seed}`;
+    h = `<p class="eyebrow">${ou} · ${tag}</p><h2>${S.auto ? "Écoute terminée" : S.autoUsed ? "Entraînement terminé" : rank}</h2>
       ${
         duo
           ? bilanDuo()
@@ -285,7 +305,7 @@ export function show(kind) {
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
-      ${boutonSuivant()}${boutonBoss()}${boutonCarte()}
+      ${compo ? boutonEditeur(retourEditeur()) : `${boutonSuivant()}${boutonBoss()}`}${boutonCarte()}
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;

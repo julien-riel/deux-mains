@@ -56,7 +56,7 @@ describe("document de sauvegarde", () => {
     });
     expect(lireDocument(texte)).toEqual({
       etat: "ok",
-      doc: { v: 1, carte: { ville: ["Royal Road", "Le Port"] }, chansons: { "g1:1:normal": { meilleur: 1200 } } },
+      doc: { v: VERSION, carte: { ville: ["Royal Road", "Le Port"] }, chansons: { "g1:1:normal": { meilleur: 1200 } } },
     });
     expect(lireDocument('{"v":1}').doc).toEqual(sauvegardeVide());
   });
@@ -184,7 +184,7 @@ describe("code de sauvegarde", () => {
       "",
       "bonjour",
       code.slice(0, -6),
-      code.replace(/^DM1\./, "DM2."),
+      code.replace(/^DM\d+\./, `DM${VERSION + 1}.`),
       code.replace(/^DM/, "XX"),
       `DM1.${base64url("pas du json")}`,
       `DM1.${base64url('{"v":1,"carte":[]')}`,

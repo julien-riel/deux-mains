@@ -749,3 +749,269 @@ html.tactile #boucle {
     max-width: 32ch;
   }
 }
+
+/* ---------- Éditeur de partitions (#28) ----------
+   Une seule grille, deux habillages (ADR-0006) : la Boîte la montre en cylindre de laiton où l'on plante des picots,
+   la Ville en console de radio pirate dont les touches s'allument. Les cases font au moins 28 px pour le doigt, et la
+   grille défile à l'horizontale sans emporter l'écran. */
+.editeur {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(1100px, 100%);
+  text-align: left;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.editeur input,
+.editeur select {
+  font: inherit;
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.titre-compo input {
+  width: 100%;
+  font-family: var(--display);
+  font-size: clamp(16px, 2.4vw, 24px);
+  font-weight: 700;
+}
+.reglages-compo,
+.outils-compo,
+.sections-compo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.reglages-compo input[type="number"] {
+  width: 5.5em;
+}
+.editeur button {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+.outils-compo .groupe {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.outils-compo .groupe b {
+  min-width: 2ch;
+  text-align: center;
+  color: var(--fg);
+}
+.outils-compo button[aria-pressed="true"],
+.sections-compo button[aria-selected="true"] {
+  background: var(--fg);
+  color: var(--ink);
+  border-color: var(--fg);
+}
+.sections-compo small {
+  font-family: var(--mono);
+  opacity: 0.7;
+}
+.cylindre {
+  --case: 30px;
+  --haut: 30px;
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding-bottom: 4px;
+}
+.cylindre .etiquettes,
+.cylindre .mesure {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+.cylindre .etiquettes {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 92px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+.cylindre .etiquettes .rangee {
+  align-items: center;
+  padding-left: 8px;
+  border-left: 3px solid var(--teinte);
+}
+.cylindre .mesure {
+  width: calc(var(--n) * var(--case));
+  border-right: 1px solid var(--line);
+}
+.cylindre .numero,
+.cylindre .division {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.cylindre .etiquettes .numero,
+.cylindre .etiquettes .division {
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+.cylindre .division button {
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 18px;
+}
+.cylindre .rangee {
+  display: flex;
+  height: var(--haut);
+}
+.cylindre .rangee.solo {
+  background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, 0.04) 6px 12px);
+}
+.cylindre .case {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  position: relative;
+}
+.cylindre .case.temps {
+  border-left-color: rgba(255, 255, 255, 0.16);
+}
+.cylindre .case::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+/* La Boîte : un tambour de laiton, des picots ronds, une tenue en lame */
+.cylindre.boite {
+  background: linear-gradient(180deg, #4a3520, #2c1f12 50%, #4a3520);
+}
+.cylindre.boite .case::after {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(240, 210, 150, 0.18);
+}
+.cylindre.boite .case.note::after {
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 35% 30%, #fff6d8, var(--teinte) 55%, #6b4a1e);
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+}
+.cylindre.boite .case.suite::after {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--teinte);
+  opacity: 0.75;
+}
+/* La Ville : une console sombre, des touches carrées qui s'allument au néon */
+.cylindre.ville {
+  background: #0d0b19;
+}
+.cylindre.ville .case::after {
+  inset: 3px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cylindre.ville .case.note::after {
+  background: var(--teinte);
+  border-color: transparent;
+  box-shadow: 0 0 10px var(--teinte);
+}
+.cylindre.ville .case.suite::after {
+  inset: 9px 0;
+  border-radius: 0;
+  border: 0;
+  background: var(--teinte);
+  opacity: 0.6;
+}
+.cylindre .case:hover::after {
+  outline: 1px solid var(--muted);
+}
+/* La plaque, le double saut, les pentes et les petites notes, écrits dans un code, se reconnaissent à leur marque */
+.cylindre .case.signe-2::before,
+.cylindre .case.signe-3::before,
+.cylindre .case.signe-11::before,
+.cylindre .case.signe-12::before,
+.cylindre .case.signe-13::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.cylindre .case.signe-2::before {
+  content: "2";
+}
+.cylindre .case.signe-3::before {
+  content: "!";
+}
+.cylindre .case.signe-11::before,
+.cylindre .case.signe-12::before,
+.cylindre .case.signe-13::before {
+  content: "·";
+}
+.compositions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  width: min(640px, 100%);
+  text-align: left;
+}
+.compositions li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.compositions li > span {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.compositions small,
+.compositions .vide {
+  font-size: 12px;
+  color: var(--muted);
+}
+html.tactile .editeur input,
+html.tactile .editeur select {
+  font-size: 16px;
+}
+@media (max-height: 480px) {
+  .cylindre {
+    --haut: 28px;
+  }
+  .editeur .hint {
+    display: none;
+  }
+}

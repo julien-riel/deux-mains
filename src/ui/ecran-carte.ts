@@ -143,7 +143,7 @@ export function ecranSauvegarde() {
         <label for="code-sauvegarde">Ton code</label>
         <textarea id="code-sauvegarde" readonly rows="3" spellcheck="false">${code}</textarea>
         <label for="code-colle">Coller un code (il s'ajoute à ta progression, rien n'est perdu)</label>
-        <textarea id="code-colle" rows="2" spellcheck="false" placeholder="DM1.…"></textarea>
+        <textarea id="code-colle" rows="2" spellcheck="false" placeholder="DM2.…"></textarea>
       </div>
       ${ECRAN_CODE.message ? `<p class="meta" role="status">${ECRAN_CODE.message}</p>` : ""}
       <div class="actions"><button class="primary" type="button" data-act="copier">Copier mon code</button>

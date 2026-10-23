@@ -1,0 +1,22 @@
+{
+  "Valse du grenier": {
+    "empreinte": "035cc704b5f731",
+    "chanson": {
+      "prog": "Cadence andalouse",
+      "tonalite": "La mineur",
+      "bpm": 96,
+      "notes": 50,
+      "empreinte": "ddbf8fa69d18826682aa570a520c29d41012d89e0ad5d5148c6dfdcf209b41ba"
+    }
+  },
+  "Toute la notation": {
+    "empreinte": "01c44d44f095f8",
+    "chanson": {
+      "prog": "Royal Road",
+      "tonalite": "Ré majeur",
+      "bpm": 104,
+      "notes": 99,
+      "empreinte": "88665e80da4aa1b846be2514f590df45927c06a32cbfa395169501b81d5ac52d"
+    }
+  }
+}

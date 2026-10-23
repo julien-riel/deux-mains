@@ -3,6 +3,7 @@ import { ESSAIS, essaiDemande, trouverEssai } from "../essais/registre";
 import { lancerJam, newRun } from "../jeu/deroulement";
 import { S } from "../jeu/etat";
 import { show } from "./ecrans";
+import { ouvrirEditeur } from "./editeur";
 import { chargerEssai } from "./reglages";
 import { lancerRemontage } from "./remontage";
 
@@ -11,8 +12,10 @@ export function ouvrirEssai(id: string, demarrer = false) {
   const e = trouverEssai(id);
   if (!e) return false;
   chargerEssai(e);
+  // L'essai de l'éditeur (#28) l'ouvre sur sa partition d'exemple, depuis le menu comme par l'adresse
+  if (e.partition) ouvrirEditeur(e.partition());
   // L'essai du remontage (#27) commence par le remontage, joué par le joueur
-  if (demarrer && e.remontage) lancerRemontage(false);
+  else if (demarrer && e.remontage) lancerRemontage(false);
   else if (demarrer) (e.jam ? lancerJam : newRun)();
   return true;
 }
