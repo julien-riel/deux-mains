@@ -20,6 +20,8 @@
 // (x une note). Pas de chanteur en Débutant.
 // relaisP : la chance qu'une phrase du couplet (la deuxième) et une du refrain (la troisième) deviennent une phrase
 // en relais entre les deux mains (#20), en Normal et en Difficile (voir `phraseEnRelais` dans le générateur).
+// croiseeP : la chance qu'un pont en mains croisées (#21) précède le solo libre, en Difficile seulement. La scène s'y
+// retourne : les obstacles passent en haut, les ennemis en bas ; les touches et le jugement ne changent pas.
 export interface ReglagesChanteur {
   couloirs: number[];
   rythmes: string[];
@@ -33,6 +35,7 @@ export const DIFFS = {
     chanteur: null as ReglagesChanteur | null,
     escalierP: 0,
     relaisP: 0,
+    croiseeP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -66,6 +69,7 @@ export const DIFFS = {
     chanteur: { couloirs: [0, 2], rythmes: ["x.x.x.x."] },
     escalierP: 0,
     relaisP: 0,
+    croiseeP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -98,6 +102,7 @@ export const DIFFS = {
     chanteur: { couloirs: [0, 1, 2], rythmes: ["x.x.x.x.", "x.x.xx..", "xx..x.x."] },
     escalierP: 0,
     relaisP: 0.6,
+    croiseeP: 0,
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -130,6 +135,7 @@ export const DIFFS = {
     chanteur: { couloirs: [0, 1, 2, 3], rythmes: ["x.x.x.x.", "x.xx..x.", "xx.x..x.", "x..x.xx."] },
     escalierP: 0.6,
     relaisP: 0.75,
+    croiseeP: 0.5,
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],

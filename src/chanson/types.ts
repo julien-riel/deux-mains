@@ -30,6 +30,9 @@ export interface Section {
   kind: Genre;
   bars: number;
   start: number;
+  /** Un pont en mains croisées (#21) : la scène s'y retourne, mais les touches et le jugement restent les mêmes.
+   * Ce pont a une mélodie écrite : ce n'est pas un solo libre. */
+  croisee?: true;
 }
 
 /** Un événement de note : un obstacle (main gauche) ou un ennemi (main droite). */

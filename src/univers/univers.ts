@@ -10,6 +10,8 @@ export interface Univers {
   /** Le lieu de chaque progression */
   places: Record<string, string>;
   solo: string;
+  /** Sous le nom du pont en mains croisées (#21), quand la scène se retourne */
+  croisee: string;
   deadTag: string;
   deadTitle: string;
   rail: string;
@@ -32,6 +34,7 @@ export const THEMES: Record<string, Univers> = {
       "Canon de Pachelbel": "La Cathédrale",
     },
     solo: "En ondes : la radio pirate est à toi",
+    croisee: "La ville à l'envers : tes touches ne changent pas",
     deadTag: "Coupure de courant",
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
@@ -51,6 +54,7 @@ export const THEMES: Record<string, Univers> = {
       "Canon de Pachelbel": "Un mariage",
     },
     solo: "La figurine se souvient : joue ce que tu veux",
+    croisee: "La boîte se renverse : tes touches ne changent pas",
     deadTag: "Ressort détendu",
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",
