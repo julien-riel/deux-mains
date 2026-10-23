@@ -173,6 +173,7 @@ beforeEach(() => {
       "solo",
       "vibrato",
       "tir",
+      "phrase",
       "mourir",
     ].map((k) => [k, vi.fn()]),
   ) as typeof effets;

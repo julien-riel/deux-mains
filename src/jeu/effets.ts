@@ -93,6 +93,11 @@ export const effets: Effets = {
     popup(parfait ? "Parfait" : "Bien", HITX + 30, y, parfait ? COL.good : COL.fg);
     burst(HITX, LANE_Y[lane], LANE_HUE[lane], 10);
   },
+  phrase(notes, points) {
+    // La réponse au chanteur (#18) entièrement juste : une gerbe dans chaque couloir de la phrase
+    popup(`Phrase juste +${points}`, HITX + 30, LANE_Y[3] - 40, COL.good);
+    for (const lane of new Set(notes.map((n) => n.lane))) burst(HITX, LANE_Y[lane], LANE_HUE[lane], 14);
+  },
   tir(lane, ok) {
     const at = performance.now();
     S.laneFlash[lane] = at;

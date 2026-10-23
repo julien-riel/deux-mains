@@ -4,7 +4,15 @@
 // (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés, et au
 // besoin la mélodie.
 import { DIFFS } from "../chanson/difficultes";
-import { buildSong, couloirsDuSerpent, notesDeBasse, noteDeMelodie, voisin } from "../chanson/generateur";
+import { mulberry32 } from "../chanson/aleatoire";
+import {
+  buildSong,
+  couloirsDuSerpent,
+  notesDeBasse,
+  noteDeMelodie,
+  phraseDuChanteur,
+  voisin,
+} from "../chanson/generateur";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
 /** Des mesures de la chanson générée, recopiées dans la chanson d'essai comme une section */
@@ -73,13 +81,40 @@ export function assembler(
       ev.push(...mesureDeMelodie(chant[i % chant.length], bar + i, chords[bar + i], m.genre));
     for (const e of chant ? [] : source.ev)
       if (e.hand === "R" && e.bar >= m.de && e.bar < m.de + m.mesures)
-        ev.push({ ...e, beat: e.beat + 4 * decale, bar: e.bar + decale, kind: m.genre, grp: undefined });
+        // Une réponse au chanteur (#18) recopiée sans lui redevient une note de mélodie ordinaire
+        ev.push({
+          ...e,
+          beat: e.beat + 4 * decale,
+          bar: e.bar + decale,
+          kind: m.genre,
+          grp: undefined,
+          reponse: undefined,
+        });
     const a = motifs[m.genre];
     for (let i = 0; a && i < m.mesures; i++)
       ev.push(...notesDeBasse(a[i % a.length], bar + i, chords[bar + i], m.genre, m.genre === "refrain" && i === 0));
     bar += m.mesures;
   }
-  return finaliser({ ...source, sections, totalBars: bar, chords, ev, endBeat: bar * 4 });
+  // Les chanteurs de la chanson générée ne sont pas recopiés : `chanter` en pose où l'on veut
+  return finaliser({ ...source, sections, totalBars: bar, chords, ev, chanteurs: [], endBeat: bar * 4 });
+}
+
+/**
+ * Pose un chanteur (#18) sur chacune des `mesures` : il y chante sa phrase, construite comme dans le générateur
+ * avec les réglages de la difficulté, et la mélodie de la mesure suivante devient sa réponse. La graine fixe le
+ * tirage des phrases (ADR-0005).
+ */
+export function chanter(chanson: Chanson, diff: string, mesures: number[], graine = chanson.seed): Chanson {
+  const rng = mulberry32(graine * 6151 + 811);
+  for (const bar of mesures) {
+    const sec = chanson.sections.find((s) => bar >= s.start && bar < s.start + s.bars),
+      { chanteur, reponse } = phraseDuChanteur(rng, DIFFS[diff].chanteur, bar, chanson.chords, sec.kind);
+    // Le chanteur chante seul, et la réponse remplace la mélodie de sa mesure
+    chanson.ev = chanson.ev.filter((e) => e.hand === "L" || (e.bar !== bar && e.bar !== bar + 1));
+    chanson.ev.push(...reponse);
+    chanson.chanteurs = [...chanson.chanteurs.filter((c) => c.bar !== bar), chanteur].sort((a, b) => a.bar - b.bar);
+  }
+  return finaliser(chanson);
 }
 
 /**

@@ -21,6 +21,7 @@ interface NoteBrute {
   midiTrille?: number;
   serpent?: number[];
   midiSerpent?: number[];
+  reponse?: true;
   harm?: number;
   vel?: number;
   air?: number;
@@ -48,6 +49,7 @@ interface ChansonBrute {
     hue: number;
   }[];
   ev: NoteBrute[];
+  chanteurs?: { bar: number; notes: { beat: number; lane: number; midi: number }[] }[];
 }
 
 // Seuls les champs produits par le générateur comptent : l'état de jeu (voice, auto…) est ignoré
@@ -80,7 +82,13 @@ function canonique(s: ChansonBrute) {
       ...(e.trille !== undefined ? [e.trille, e.midiTrille] : []),
       // De même pour les serpents (#16)
       ...(e.serpent ? [e.serpent, e.midiSerpent] : []),
+      // De même pour les réponses au chanteur (#18)
+      ...(e.reponse ? ["reponse"] : []),
     ]),
+    // Les chanteurs (#18) ne comptent que dans les chansons qui en ont : Débutant garde son empreinte
+    ...(s.chanteurs?.length
+      ? { chanteurs: s.chanteurs.map((c) => [c.bar, c.notes.map((n) => [n.beat, n.lane, n.midi])]) }
+      : {}),
   };
 }
 

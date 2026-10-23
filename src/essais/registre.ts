@@ -6,7 +6,7 @@
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
-import { accorder, assembler, type Morceau } from "./fabrique";
+import { accorder, assembler, chanter, type Morceau } from "./fabrique";
 
 export interface Essai {
   /** Court, en minuscules avec des tirets : il sert dans l'adresse (?essai=double-saut) */
@@ -241,6 +241,24 @@ export const ESSAIS: Essai[] = [
         },
       ),
     repere: (ev) => ev.hand === "R" && ev.serpent !== undefined,
+  },
+  {
+    id: "chanteur",
+    titre: "Chanteur",
+    verifier:
+      "Une mesure sur deux, un chanteur chante quatre notes (écoute : aucun couloir n'est montré), puis quatre silhouettes grises arrivent : rejoue la phrase de mémoire (J K L), au même rythme. Le couloir de chaque silhouette ne se révèle qu'au coup ; un mauvais couloir la rate. Une phrase entièrement juste affiche « Phrase juste ».",
+    issue: 18,
+    univers: "boite",
+    diff: "normal",
+    mains: "R",
+    // Une mesure de décompte, puis un couplet où un chanteur chante toutes les deux mesures, dès la première
+    chanson: () =>
+      chanter(
+        assembler(GRAINE, "normal", [{ nom: "Intro", genre: "intro", de: 1, mesures: 1 }, couplet(2, 8), OUTRO]),
+        "normal",
+        [1, 3, 5, 7],
+      ),
+    repere: (ev) => ev.hand === "R" && !!ev.reponse,
   },
 ];
 

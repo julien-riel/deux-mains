@@ -281,3 +281,71 @@ export function boiteSerpent(troncons: { lane: number; pts: [number, number][] }
     });
   g.restore();
 }
+// Le chanteur (#18) : un oiseau mécanique sur son perchoir, remonté par une clé. `ouvert` : de 0 à 1, la note
+// chantée en ce moment ; le bec s'ouvre et la tête se lève.
+export function boiteChanteur(x, y, ouvert, a, nb, hsl) {
+  // Perchoir et anneau
+  g.strokeStyle = hsl(40, 45, 62, 0.8 * a);
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.arc(x, y - 4, 26, Math.PI * 1.1, Math.PI * 1.9);
+  g.stroke();
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(x - 20, y + 14);
+  g.lineTo(x + 20, y + 14);
+  g.stroke();
+  // Clé de remontoir qui tourne
+  const ang = nb * Math.PI;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(x + 12, y);
+  g.lineTo(x + 20, y);
+  g.stroke();
+  g.beginPath();
+  g.ellipse(x + 23, y, 3, 6 * Math.abs(Math.cos(ang)) + 1, 0, 0, Math.PI * 2);
+  g.stroke();
+  // Corps et queue
+  g.fillStyle = hsl(40, 55, 58, a);
+  g.beginPath();
+  g.ellipse(x + 2, y + 2, 13, 9, -0.2, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.moveTo(x + 12, y + 2);
+  g.lineTo(x + 24, y + 10);
+  g.lineTo(x + 20, y - 2);
+  g.closePath();
+  g.fill();
+  // Tête, qui se lève sur la note, et bec ouvert
+  const hy = y - 9 - 3 * ouvert;
+  g.beginPath();
+  g.arc(x - 9, hy, 7, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = hsl(30, 80, 70, a);
+  g.beginPath();
+  g.moveTo(x - 14, hy - 2);
+  g.lineTo(x - 23, hy - 1 - 4 * ouvert);
+  g.lineTo(x - 15, hy + 1);
+  g.lineTo(x - 23, hy + 2 + 4 * ouvert);
+  g.lineTo(x - 14, hy + 3);
+  g.closePath();
+  g.fill();
+  g.beginPath();
+  g.arc(x - 10, hy - 2, 1.5, 0, Math.PI * 2);
+  g.fillStyle = hsl(250, 30, 15, a);
+  g.fill();
+  // Aile, qui bat sur la note
+  g.fillStyle = hsl(40, 40, 72, a);
+  g.beginPath();
+  g.ellipse(x + 4, y - 1 - 3 * ouvert, 8, 4, -0.5 - 0.5 * ouvert, 0, Math.PI * 2);
+  g.fill();
+  if (ouvert > 0) {
+    g.strokeStyle = hsl(40, 90, 85, ouvert * a);
+    g.lineWidth = 1.5;
+    for (let k = 1; k <= 3; k++) {
+      g.beginPath();
+      g.arc(x - 23, hy, 4 + 6 * k * ouvert, Math.PI * 0.75, Math.PI * 1.25);
+      g.stroke();
+    }
+  }
+}

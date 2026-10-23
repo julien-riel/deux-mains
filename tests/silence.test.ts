@@ -12,6 +12,7 @@ vi.mock("../src/audio/instruments", () =>
   Object.fromEntries(
     [
       "arpV",
+      "chantV",
       "click",
       "crash",
       "harmV",

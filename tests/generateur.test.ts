@@ -256,6 +256,81 @@ describe("serpents (#16)", () => {
   });
 });
 
+describe("chanteur (#18)", () => {
+  const reponse = (c: Chanson) => droite(c).filter((ev) => ev.reponse);
+
+  it("en Débutant, ni chanteur ni réponse", () => {
+    for (const c of dans("debutant")) expect([c.chanteurs, reponse(c)]).toEqual([[], []]);
+  });
+
+  it.each(["facile", "normal", "difficile"])(
+    "en %s, un chanteur à l'avant-dernière phrase du couplet, et sa réponse sur la mesure suivante",
+    (diff) => {
+      for (const c of dans(diff)) {
+        const couplet = c.sections.find((s) => s.kind === "couplet");
+        expect(c.chanteurs.map((ch) => ch.bar)).toEqual([couplet.start + couplet.bars - 4]);
+        const [ch] = c.chanteurs;
+        // Pas d'autre note de la main droite pendant qu'il chante : on écoute
+        expect(droite(c).filter((ev) => ev.bar === ch.bar)).toEqual([]);
+        expect(droite(c).filter((ev) => ev.bar === ch.bar + 1)).toEqual(reponse(c));
+      }
+    },
+  );
+
+  it("le chanteur chante quatre degrés de l'accord de sa mesure, que la réponse rejoue au même rythme", () => {
+    for (const { diff, chanson: c } of CHANSONS)
+      for (const ch of c.chanteurs) {
+        const rep = reponse(c);
+        expect(ch.notes).toHaveLength(4);
+        expect(rep.map((ev) => [ev.beat - 4, ev.lane])).toEqual(ch.notes.map((n) => [n.beat, n.lane]));
+        for (const n of ch.notes) {
+          expect(Math.floor(n.beat / 4)).toBe(ch.bar);
+          expect(n.midi).toBe(c.chords[ch.bar].lanes[n.lane]);
+        }
+        // Des notes brèves, qui jouent le degré de l'accord de leur mesure (ADR-0003)
+        for (const ev of rep) {
+          expect([ev.dur, ev.trille, ev.midi]).toEqual([0, undefined, c.chords[ev.bar].lanes[ev.lane]]);
+          expect(genre(c, ev)).toBe("couplet");
+        }
+        // Le rythme est un de ceux de la difficulté
+        const rythme = [..."........"].map((_, k) => (ch.notes.some((n) => n.beat === ch.bar * 4 + k / 2) ? "x" : "."));
+        expect(DIFFS[diff].chanteur.rythmes).toContain(rythme.join(""));
+      }
+  });
+
+  it.each([
+    ["facile", [0, 2]],
+    ["normal", [0, 1, 2]],
+    ["difficile", [0, 1, 2, 3]],
+  ])("en %s, la phrase utilise tous les couloirs %j, et eux seuls", (diff, couloirs) => {
+    for (const c of dans(diff)) expect([...new Set(c.chanteurs[0].notes.map((n) => n.lane))].sort()).toEqual(couloirs);
+  });
+
+  it("les phrases varient d'une graine à l'autre", () => {
+    for (const diff of ["normal", "difficile"])
+      expect(new Set(dans(diff).map((c) => c.chanteurs[0].notes.map((n) => n.lane).join(""))).size).toBeGreaterThan(5);
+  });
+
+  it("hors des deux mesures du chanteur, la chanson est celle d'avant lui : il a son propre tirage", () => {
+    const resume = (c: Chanson, sauf: number) =>
+      c.ev.filter((ev) => ev.bar !== sauf && ev.bar !== sauf + 1).map((ev) => [ev.hand, ev.beat, ev.lane, ev.dur]);
+    for (const diff of ["facile", "normal", "difficile"]) {
+      const reglages = DIFFS[diff].chanteur;
+      try {
+        for (const graine of GRAINES.slice(0, 6)) {
+          const avec = buildSong(graine, diff);
+          DIFFS[diff].chanteur = null;
+          const sans = buildSong(graine, diff);
+          DIFFS[diff].chanteur = reglages;
+          expect(resume(avec, avec.chanteurs[0].bar)).toEqual(resume(sans, avec.chanteurs[0].bar));
+        }
+      } finally {
+        DIFFS[diff].chanteur = reglages;
+      }
+    }
+  });
+});
+
 describe("Débutant", () => {
   it("la main droite joue sur les temps uniquement, refrain compris", () => {
     for (const c of dans("debutant")) for (const ev of droite(c)) expect(ev.beat % 1).toBe(0);
@@ -296,9 +371,11 @@ describe("Facile", () => {
   });
 
   it("les deux mains ne jouent ensemble qu'au premier temps de chaque phrase de deux mesures", () => {
+    // La réponse au chanteur (#18) est une phrase d'une mesure : elle commence avec la basse, sur son premier temps
     for (const c of dans("facile"))
       for (const grp of accords(c))
-        if (grp.some((ev) => ev.hand === "L") && grp.some((ev) => ev.hand === "R")) expect(grp[0].beat % 8).toBe(0);
+        if (grp.some((ev) => ev.hand === "L") && grp.some((ev) => ev.hand === "R"))
+          expect([grp[0].beat % (grp.some((ev) => ev.reponse) ? 4 : 8)]).toEqual([0]);
   });
 });
 
