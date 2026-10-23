@@ -7,7 +7,9 @@
 // seulement : le double saut ne change pas la main droite. Le générateur remplace la première note de chaque
 // refrain par une plaque à écraser (#8).
 // Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant). trilleP : la chance
-// qu'une note longue devienne une trille (#15), en Normal et en Difficile.
+// qu'une note longue devienne une trille (#15), en Normal et en Difficile. serpentP : la chance qu'une suite de
+// notes régulières qui montent ou descendent couloir par couloir devienne un serpent (#16), espacées d'un des
+// serpentPas (en croches) : une croche ou un temps en Difficile, un temps seulement en Normal.
 export const DIFFS = {
   debutant: {
     label: "Débutant",
@@ -28,6 +30,8 @@ export const DIFFS = {
       avoid: "all",
       holdP: 0,
       trilleP: 0,
+      serpentP: 0,
+      serpentPas: [],
       max: 5,
       dyadP: 0,
       dyadStrong: true,
@@ -54,6 +58,8 @@ export const DIFFS = {
       avoid: "all",
       holdP: 0,
       trilleP: 0,
+      serpentP: 0,
+      serpentPas: [],
       max: 6,
       dyadP: 0.12,
       dyadStrong: true,
@@ -80,6 +86,8 @@ export const DIFFS = {
       avoid: "mostly",
       holdP: 0.12,
       trilleP: 0.5,
+      serpentP: 0.6,
+      serpentPas: [1, 2],
       max: 9,
       dyadP: 0.16,
       dyadStrong: false,
@@ -106,6 +114,8 @@ export const DIFFS = {
       avoid: "none",
       holdP: 0.15,
       trilleP: 0.7,
+      serpentP: 0.7,
+      serpentPas: [1, 2],
       max: 11,
       dyadP: 0.22,
       dyadStrong: false,

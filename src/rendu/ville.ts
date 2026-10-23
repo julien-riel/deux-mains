@@ -250,3 +250,39 @@ export function villeEnemy(x, y, ev, col, a, nb, hsl) {
     g.fill();
   }
 }
+// Le serpent (#16) : un câble lumineux tendu d'un couloir à l'autre, avec un halo, une âme claire et des
+// étincelles qui courent le long du fil
+export function villeSerpent(troncons: { lane: number; pts: [number, number][] }[], couleur, nb) {
+  const tracer = (pts: [number, number][]) => {
+    g.beginPath();
+    for (const [x, y] of pts) g.lineTo(x, y);
+  };
+  g.save();
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  for (const [largeur, alpha] of [
+    [12, 0.16],
+    [4, 0.95],
+  ])
+    for (const { lane, pts } of troncons) {
+      tracer(pts);
+      g.strokeStyle = couleur(lane, alpha);
+      g.lineWidth = largeur;
+      g.stroke();
+    }
+  for (const { pts } of troncons) {
+    tracer(pts);
+    g.strokeStyle = hexA(COL.fg, 0.5);
+    g.lineWidth = 1.2;
+    g.stroke();
+  }
+  // Les étincelles avancent d'un point par double-croche
+  const decale = Math.floor(nb * 4);
+  for (const { lane, pts } of troncons)
+    pts.forEach(([x, y], i) => {
+      if ((i + decale) % 7) return;
+      g.fillStyle = couleur(lane, 1);
+      g.fillRect(x - 2, y - 2, 4, 4);
+    });
+  g.restore();
+}

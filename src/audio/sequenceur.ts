@@ -1,7 +1,21 @@
 /* ---------- Séquenceur (double-croches) ---------- */
-import { autoNotes, autoSolo, autoTrilles } from "../jeu/autoplay";
+import { autoNotes, autoSerpents, autoSolo, autoTrilles } from "../jeu/autoplay";
 import { S, layers, mesureDeLaChanson, sectionAtBar, spb, uneMain } from "../jeu/etat";
-import { arpV, click, crash, harmV, hat, kick, leadTimbre, leadV, padV, playHit, snare, stringsV } from "./instruments";
+import {
+  arpV,
+  click,
+  crash,
+  glisserVoix,
+  harmV,
+  hat,
+  kick,
+  leadTimbre,
+  leadV,
+  padV,
+  playHit,
+  snare,
+  stringsV,
+} from "./instruments";
 import { AC, timeOfBeat } from "./moteur";
 
 export function startScheduler() {
@@ -87,6 +101,7 @@ function autoStep(step, t, sec, ch) {
   if (S.auto || uneMain()) {
     for (const ev of autoNotes(step)) playHit(ev, t);
     for (const { ev, lane } of autoTrilles(step)) playHit(ev, t, lane);
+    for (const { ev, k } of autoSerpents(step)) glisserVoix(ev, k, t);
     const lane = autoSolo(step, sec);
     if (lane !== null) {
       leadV(t, ch.lanes[lane], 0, leadTimbre("refrain"));

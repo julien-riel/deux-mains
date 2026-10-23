@@ -4,7 +4,7 @@
 // (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés, et au
 // besoin la mélodie.
 import { DIFFS } from "../chanson/difficultes";
-import { buildSong, notesDeBasse, noteDeMelodie, voisin } from "../chanson/generateur";
+import { buildSong, couloirsDuSerpent, notesDeBasse, noteDeMelodie, voisin } from "../chanson/generateur";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
 /** Des mesures de la chanson générée, recopiées dans la chanson d'essai comme une section */
@@ -22,7 +22,8 @@ export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
 
 /** Les motifs de mélodie par genre de section, une mesure en huit croches : 0 à 3 le couloir, - prolonge la note
  * en note tenue, ~ en trille (#15) avec le couloir au-dessus et _ avec celui au-dessous (retournés au bord),
- * . silence */
+ * / et \ en serpent (#16) qui monte ou descend d'un couloir à chacun (ses couloirs se partagent également sa
+ * durée : « 1// » monte de 1 à 3 en trois croches, « 3-\-\- » descend de 3 à 1 en trois temps), . silence */
 export type MotifsDeMelodie = Partial<Record<Genre, string[]>>;
 
 // Les notes de mélodie d'une mesure, construites comme celles du générateur (ADR-0003)
@@ -33,9 +34,14 @@ function mesureDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre): N
     const lane = +motif[k],
       suite = motif[k + 1];
     let n = 1;
-    while (k + n < 8 && "-~_".includes(motif[k + n])) n++;
+    while (k + n < 8 && "-~_/\\".includes(motif[k + n])) n++;
     const trille = suite === "~" ? voisin(lane, 1) : suite === "_" ? voisin(lane, -1) : undefined;
-    notes.push(noteDeMelodie(lane, bar * 4 + k / 2, n > 1 ? n / 2 : 0, bar, ch, kind, 1, trille));
+    // Un serpent (#16) : un couloir de plus par / (en montant) ou par \ (en descendant)
+    const passages = [...motif.slice(k + 1, k + n)].filter((c) => c === "/" || c === "\\"),
+      serpent = passages.length
+        ? couloirsDuSerpent(lane, passages[0] === "/" ? 1 : -1, passages.length + 1)
+        : undefined;
+    notes.push(noteDeMelodie(lane, bar * 4 + k / 2, n > 1 ? n / 2 : 0, bar, ch, kind, 1, trille, serpent));
   }
   return notes;
 }

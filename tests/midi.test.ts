@@ -15,6 +15,7 @@ import {
   nomDeNote,
   touchesMidi,
 } from "../src/jeu/midi";
+import { appuis, coupsAttendus } from "./support/appuis";
 import { Navigateur, type Difficulte, type Options } from "./support/navigateur";
 
 // Graine fixe (ADR-0005) : la même chanson à chaque passage, avec des accords de la main droite en Normal
@@ -138,6 +139,10 @@ const TOUCHE_CLAVIER: Record<string, string> = { glisser: "KeyS", sauter: "KeyW"
 function jouer(maxSecondes: number, auClavier: (ev: Note) => boolean = () => false) {
   const S = nav.jeu.state;
   const relaches: { at: number; fn: (retard: number) => void }[] = [];
+  // Un serpent (#16) se suit touche par touche, en appuis qui se chevauchent
+  const gestes = S.song.ev
+    .flatMap((ev) => appuis(ev).map((a) => ({ ev: { ...ev, lane: a.lane }, at: a.beat * spb(), fin: a.fin })))
+    .sort((a, b) => a.at - b.at);
   let i = 0,
     tour = 0;
   const fin = nav.horloge.secondes + maxSecondes;
@@ -146,11 +151,11 @@ function jouer(maxSecondes: number, auClavier: (ev: Note) => boolean = () => fal
     const t = nav.jeu.songNow();
     for (const r of relaches.filter((r) => r.at <= t)) r.fn(t - r.at);
     relaches.splice(0, relaches.length, ...relaches.filter((r) => r.at > t));
-    while (i < S.song.ev.length && temps(S.song.ev[i]) <= t) {
-      const ev = S.song.ev[i++],
+    while (i < gestes.length && gestes[i].at <= t) {
+      const { ev, at: debut, fin: finGeste } = gestes[i++],
         a = ACTION_DE_NOTE(ev),
-        retard = t - temps(ev),
-        at = temps(ev) + (ev.dur > 0 ? ev.dur * spb() : 0.05);
+        retard = t - debut,
+        at = finGeste === null ? debut + 0.05 : finGeste * spb();
       if (auClavier(ev)) {
         nav.presser(TOUCHE_CLAVIER[a]);
         relaches.push({ at, fn: () => nav.relacher(TOUCHE_CLAVIER[a]) });
@@ -257,7 +262,7 @@ describe("jouer au clavier MIDI", () => {
 
     expect(S.mode).toBe("done");
     expect(S.miss).toBe(0);
-    expect(S.perfect).toBe(S.song.ev.length);
+    expect(S.perfect).toBe(coupsAttendus(S.song.ev));
   });
 
   it("juge à l'heure du message, pas à l'heure où il est traité", async () => {
@@ -435,6 +440,6 @@ describe("essai midi", () => {
     jouer(S.song.endBeat * spb() + 10);
     expect(S.mode).toBe("done");
     expect(S.miss).toBe(0);
-    expect(S.perfect).toBe(S.song.ev.length);
+    expect(S.perfect).toBe(coupsAttendus(S.song.ev));
   });
 });

@@ -1,6 +1,10 @@
 // Les appuis d'un joueur parfait sur une note, pour les tests qui jouent une chanson entière à la main.
 
 import type { Note } from "../../src/chanson/types";
+import { tempsDuPassage } from "../../src/jeu/jugement";
+
+/** Les coups jugés d'une chanson jouée sans faute : un par note, plus un par passage de serpent (#16) */
+export const coupsAttendus = (notes: Note[]) => notes.reduce((n, ev) => n + (ev.serpent?.length ?? 1), 0);
 
 export interface Appui {
   /** Le temps de l'appui, et le couloir (ou le geste de la main gauche) appuyé */
@@ -12,11 +16,22 @@ export interface Appui {
   trille?: true;
 }
 
+/** Un serpent (#16) : la touche d'un couloir reste enfoncée un peu après le passage au suivant, en temps */
+export const CHEVAUCHEMENT = 0.1;
+
 /**
  * Un seul appui par note, tenu jusqu'au bout d'une note tenue. Une trille (#15) se joue comme l'auto-play : le
- * premier appui sur le temps, puis une alternance des deux couloirs à chaque double-croche, en appuis brefs.
+ * premier appui sur le temps, puis une alternance des deux couloirs à chaque double-croche, en appuis brefs. Un
+ * serpent (#16) se suit touche par touche : chaque couloir est enfoncé au temps de son passage et relâché un peu
+ * après le passage suivant (les touches se chevauchent), le dernier à la fin du serpent.
  */
 export function appuis(ev: Note): Appui[] {
+  if (ev.serpent)
+    return ev.serpent.map((lane, k) => ({
+      beat: tempsDuPassage(ev, k),
+      lane,
+      fin: k < ev.serpent.length - 1 ? tempsDuPassage(ev, k + 1) + CHEVAUCHEMENT : ev.beat + ev.dur,
+    }));
   if (ev.trille === undefined) return [{ beat: ev.beat, lane: ev.lane, fin: ev.dur > 0 ? ev.beat + ev.dur : null }];
   return Array.from({ length: 4 * ev.dur }, (_, k) => ({
     beat: ev.beat + k / 4,

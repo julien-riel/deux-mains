@@ -164,7 +164,7 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     gn.gain.setTargetAtTime(0.14 * vel, t + 0.01, 0.12);
     gn.gain.setTargetAtTime(0, end, 0.08);
   } else gn.gain.setTargetAtTime(0, t + 0.01, timbre === "box" ? 0.4 : timbre === "bell" ? 0.22 : 0.14);
-  // Les oscillateurs de la voix : le vibrato fait osciller leur hauteur ensemble
+  // Les oscillateurs de la voix : le vibrato fait osciller leur hauteur ensemble, le serpent la fait glisser
   const os: OscillatorNode[] = [],
     o = (type, fr, fin, det = 0) => {
       const n = osc(type, fr, t, fin, det);
@@ -207,6 +207,8 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     lp.connect(gn);
   }
   send(gn, 0.28, 0.32);
+  // Les fréquences de départ des oscillateurs : le glissando du serpent (#16) les déplace toutes du même rapport
+  const bases = os.map((n) => n.frequency.value);
   // Le vibrato (#17) : un oscillateur lent, créé au premier tapotement, module la hauteur de quelques centièmes
   // de demi-ton autour de la note, qui ne change pas de degré (ADR-0003). Chaque tapotement le ravive, puis il s'éteint.
   let vib: GainNode = null;
@@ -226,7 +228,22 @@ export function leadV(t, m, dur, timbre, vel = 1) {
       vib.gain.setTargetAtTime(VIBRATO_CENTS, at, 0.03);
       vib.gain.setTargetAtTime(0, at + 0.35, 0.25);
     },
+    // Le glissando (#16) : la hauteur glisse en quelques centièmes de seconde jusqu'à la note du nouveau couloir,
+    // sans couper la voix, et un léger regain d'attaque fait entendre le passage
+    glisser(midi, at) {
+      const r = mtof(midi) / f;
+      os.forEach((n, i) => n.frequency.setTargetAtTime(bases[i] * r, at, GLISSANDO));
+      if (!hold || at >= end) return;
+      gn.gain.setTargetAtTime(0.2 * vel, at, 0.01);
+      gn.gain.setTargetAtTime(0.14 * vel, at + 0.04, 0.1);
+    },
   };
+}
+// Le temps du glissando d'un serpent (#16) : la constante de temps de la montée vers la nouvelle note, en secondes
+export const GLISSANDO = 0.035;
+/** Fait glisser la voix d'un serpent (#16) jusqu'à la note de son couloir `k`, à l'heure `t` */
+export function glisserVoix(ev, k, t) {
+  ev.voice?.glisser?.(ev.midiSerpent[k], t);
 }
 export function harmV(t, m) {
   const gn = AC.createGain();

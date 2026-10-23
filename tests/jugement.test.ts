@@ -5,17 +5,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Main, Note } from "../src/chanson/types";
-import { S, mult } from "../src/jeu/etat";
+import { COULOIRS, S, mult } from "../src/jeu/etat";
 import {
   TRILLE,
   VIBRATO,
   brancherEffets,
+  couloirDe,
   finirTrille,
   leftPress,
   missEv,
+  pasDuSerpent,
   release,
   rightPress,
+  serpentEnCours,
   seuilTrille,
+  suivreSerpent,
+  tempsDuPassage,
   type Effets,
 } from "../src/jeu/jugement";
 
@@ -35,6 +40,8 @@ beforeEach(() => {
     solo: vi.fn(),
     vibrato: vi.fn(),
     trille: vi.fn(),
+    glisser: vi.fn(),
+    passage: vi.fn(),
     tir: vi.fn(),
     mourir: vi.fn(),
   };
@@ -498,6 +505,186 @@ describe("trilles (#15)", () => {
     expect([basse2.state, b.state]).toEqual(["hit", "miss"]);
     expect(effets.accord).toHaveBeenCalledTimes(1);
     expect(S.accordsDuo).toEqual({ reussis: 1, total: 2 });
+  });
+});
+
+describe("serpent (#16)", () => {
+  /** Un serpent qui traverse ces couloirs, `pas` temps chacun ; chaque couloir joue sa note (60 + couloir) */
+  function serpent(beat: number, lanes: number[], pas = 1): Note {
+    return {
+      ...note("R", beat, lanes[0], lanes.length * pas),
+      serpent: lanes,
+      midiSerpent: lanes.map((l) => 60 + l),
+    };
+  }
+  // Le joueur au clavier : la touche est enfoncée (ou levée) puis l'action est jugée
+  function appuyer(lane: number, ns: number) {
+    S.keys[COULOIRS[lane]] = true;
+    return rightPress(lane, ns);
+  }
+  function lever(lane: number, ns: number) {
+    S.keys[COULOIRS[lane]] = false;
+    release("R", lane, ns);
+  }
+
+  it("ses couloirs se partagent également sa durée : un passage à chaque pas", () => {
+    const ev = serpent(4, [3, 2, 1, 0], 0.5);
+    expect([pasDuSerpent(ev), tempsDuPassage(ev, 1), tempsDuPassage(ev, 3)]).toEqual([0.5, 4.5, 5.5]);
+    expect(couloirDe(ev)).toBe(3);
+    expect(couloirDe(note("R", 0, 2))).toBe(2);
+  });
+
+  it("suivi touche par touche, la tête puis chaque passage sont jugés, et la voix glisse jusqu'à chaque note", () => {
+    const [ev] = partie([serpent(4, [0, 1, 2])]);
+    appuyer(0, 4);
+    expect([ev.state, ev.troncon, serpentEnCours(4.5)]).toEqual(["holding", 0, ev]);
+    // En retard, la voix glisse tout de suite ; en avance, pile au temps du passage
+    expect(appuyer(1, 5.02)).toEqual([]);
+    expect([ev.troncon, couloirDe(ev)]).toEqual([1, 1]);
+    appuyer(2, 6 - DIFFS.normal.win[1] * 0.9);
+    expect(effets.glisser.mock.calls).toEqual([
+      [ev, 1, null],
+      [ev, 2, 6],
+    ]);
+    expect(effets.passage.mock.calls).toEqual([
+      [ev, 1, true],
+      [ev, 2, false],
+    ]);
+    expect([S.perfect, S.good, S.combo, S.miss]).toEqual([2, 1, 3, 0]);
+    expect(effets.tir.mock.calls.map(([l, ok]) => [l, ok])).toEqual([
+      [0, true],
+      [1, true],
+      [2, true],
+    ]);
+    // Au bout, il est réussi, même sans lâcher
+    suivreSerpent(ev, 6.9);
+    expect(ev.state).toBe("holding");
+    suivreSerpent(ev, 7);
+    expect(ev.state).toBe("done");
+    expect(effets.couper).not.toHaveBeenCalled();
+  });
+
+  it("l'appui sur le couloir suivant est un passage, pas un vibrato ni un mauvais couloir", () => {
+    const [ev] = partie([serpent(4, [1, 2]), note("R", 7, 3)]);
+    appuyer(1, 4);
+    appuyer(2, 5);
+    expect([effets.vibrato, effets.mauvaisCouloir].map((f) => f.mock.calls.length)).toEqual([0, 0]);
+    expect([ev.troncon, S.combo]).toEqual([1, 2]);
+  });
+
+  it("un autre couloir ne le casse pas et ne compte pas : ni erreur, ni vibrato ; la note qui suit se joue", () => {
+    const [ev, apres] = partie([serpent(4, [0, 1, 2]), note("R", 7, 3)]);
+    appuyer(0, 4);
+    appuyer(3, 4.5);
+    appuyer(0, 4.6);
+    expect([ev.state, ev.troncon, S.combo, S.score > 0]).toEqual(["holding", 0, 1, true]);
+    expect([effets.vibrato, effets.mauvaisCouloir].map((f) => f.mock.calls.length)).toEqual([0, 0]);
+    expect(effets.tir).toHaveBeenLastCalledWith(0, null);
+    // La note qui suit le serpent, jouée un peu en avance pendant qu'il finit
+    appuyer(1, 5);
+    appuyer(2, 6);
+    appuyer(3, 7 - 0.05);
+    expect(apres.state).toBe("hit");
+  });
+
+  it("un passage trop tôt n'est pas pris ; non joué à temps, il est raté : combo à zéro, dégâts, le serpent continue", () => {
+    const [ev] = partie([serpent(4, [0, 1, 2])]);
+    appuyer(0, 4);
+    appuyer(1, 5 - DIFFS.normal.win[1] * 1.5);
+    expect([ev.troncon, effets.tir.mock.lastCall]).toEqual([0, [1, null]]);
+    suivreSerpent(ev, 5 + DIFFS.normal.win[1] * 0.9);
+    expect(ev.troncon).toBe(0);
+    suivreSerpent(ev, 5 + DIFFS.normal.win[1] * 1.1);
+    expect([ev.state, ev.troncon, S.combo, S.miss, S.health]).toEqual(["holding", 1, 0, 1, 100 - DIFFS.normal.dmgR]);
+    expect(effets.passage).toHaveBeenLastCalledWith(ev, 1, null);
+    expect(effets.glisser).not.toHaveBeenCalled();
+    // Le passage suivant se joue encore
+    appuyer(2, 6);
+    expect([ev.troncon, S.combo]).toEqual([2, 1]);
+  });
+
+  it("le chevauchement des touches est toléré : la nouvelle enfoncée avant de lever l'ancienne", () => {
+    const [ev] = partie([serpent(4, [2, 1, 0])]);
+    appuyer(2, 4);
+    appuyer(1, 4.98);
+    lever(2, 5.05);
+    appuyer(0, 6);
+    lever(1, 6.1);
+    expect([ev.state, ev.troncon, S.health]).toEqual(["holding", 2, 100]);
+  });
+
+  it("relâcher toutes les touches le casse, avec les mêmes dégâts qu'une note tenue lâchée", () => {
+    const [tenue, ev] = partie([note("R", 2, 3, 1.5), serpent(4, [0, 1, 2])]);
+    appuyer(3, 2);
+    lever(3, 2.5);
+    const degats = 100 - S.health;
+    expect([tenue.state, degats]).toEqual(["broken", 6]);
+    appuyer(0, 4);
+    appuyer(1, 5);
+    lever(0, 5.1);
+    expect(ev.state).toBe("holding");
+    lever(1, 5.5);
+    expect([ev.state, S.combo, 100 - S.health]).toEqual(["broken", 0, 2 * degats]);
+    expect(effets.couper).toHaveBeenLastCalledWith(ev);
+    expect(effets.lache).toHaveBeenLastCalledWith(ev);
+    // Cassé, il ne juge plus ses passages
+    suivreSerpent(ev, 7);
+    expect([ev.state, S.miss]).toEqual(["broken", 0]);
+  });
+
+  it("lever l'ancienne touche juste avant le passage : joué à temps, le passage le rattrape ; sinon il casse", () => {
+    const [a, b] = partie([serpent(4, [0, 1]), serpent(8, [3, 2])]);
+    appuyer(0, 4);
+    lever(0, 5 - DIFFS.normal.win[1] * 0.9);
+    expect(a.state).toBe("holding");
+    appuyer(1, 5.02);
+    expect([a.state, a.troncon, a.lacheAt]).toEqual(["holding", 1, undefined]);
+    lever(1, 6);
+    expect(a.state).toBe("done");
+
+    appuyer(3, 8);
+    lever(3, 9 - DIFFS.normal.win[1] * 0.9);
+    suivreSerpent(b, 9 + DIFFS.normal.win[1] * 1.1);
+    expect([b.state, S.miss, 100 - S.health]).toEqual(["broken", 0, 6]);
+  });
+
+  it("une touche enfoncée de nouveau avant le passage le fait tenir : le passage manqué n'est qu'un raté", () => {
+    const [ev] = partie([serpent(4, [0, 1, 2])]);
+    appuyer(0, 4);
+    lever(0, 4.95);
+    appuyer(0, 4.97);
+    suivreSerpent(ev, 5.2);
+    expect([ev.state, ev.troncon, S.miss]).toEqual(["holding", 1, 1]);
+  });
+
+  it("à la fin, lâcher dans la fenêtre le réussit ; trop tôt après le dernier passage, il casse", () => {
+    const [a, b] = partie([serpent(4, [1, 2]), serpent(8, [1, 2])]);
+    appuyer(1, 4);
+    appuyer(2, 5);
+    lever(1, 5.05);
+    lever(2, 6 - DIFFS.normal.win[1] * 0.9);
+    expect(a.state).toBe("done");
+    appuyer(1, 8);
+    appuyer(2, 9);
+    lever(1, 9.05);
+    lever(2, 9.5);
+    expect(b.state).toBe("broken");
+  });
+
+  it("une note tenue d'une autre main, ou la main gauche qui lâche, ne touchent pas au serpent", () => {
+    const [ev] = partie([serpent(4, [0, 1])]);
+    appuyer(0, 4);
+    release("L", 0, 4.5);
+    expect(ev.state).toBe("holding");
+  });
+
+  it("raté jusqu'à zéro d'harmonie, il s'arrête avec la partie", () => {
+    const [ev] = partie([serpent(4, [0, 1, 2, 3], 0.5)]);
+    appuyer(0, 4);
+    S.health = DIFFS.normal.dmgR;
+    effets.mourir.mockImplementation(() => (S.mode = "dying"));
+    suivreSerpent(ev, 6);
+    expect([S.health, ev.troncon, S.miss]).toEqual([0, 1, 1]);
   });
 });
 

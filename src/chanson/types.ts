@@ -5,6 +5,8 @@ export interface Voix {
   stop(at: number): void;
   /** Fait osciller la hauteur de la voix autour de sa note, un instant (vibrato, #17) */
   vibrer?(at: number): void;
+  /** Fait glisser la voix jusqu'à cette note, sans la couper (serpent, #16) */
+  glisser?(midi: number, at: number): void;
 }
 
 export type Main = "L" | "R";
@@ -45,6 +47,10 @@ export interface Note {
   /** Une trille (#15) de la main droite : le couloir voisin avec lequel on alterne pendant `dur`, et sa note */
   trille?: number;
   midiTrille?: number;
+  /** Un serpent (#16) de la main droite : les couloirs voisins qu'il traverse, le premier compris (`lane`), dans un
+   * seul sens, et leurs notes. Chaque couloir dure la même part de `dur`. */
+  serpent?: number[];
+  midiSerpent?: number[];
   harm?: number;
   vel?: number;
   air?: number;
@@ -64,6 +70,11 @@ export interface Note {
   dernier?: number;
   alternances?: number;
   trilleAt?: number;
+  /** Un serpent en cours (#16) : le rang du dernier couloir atteint, l'heure (en secondes de la chanson) où toutes
+   * les touches ont été lâchées juste avant un passage, et l'heure du dernier passage pour l'image */
+  troncon?: number;
+  lacheAt?: number;
+  passeAt?: number;
   /** Le passage de la boucle auquel appartient cette copie de la note (ADR-0009) */
   passage?: number;
   /** Une note de la phrase du solo reprise au dernier refrain (#9, ADR-0012) : elle n'existe que dans la partie */

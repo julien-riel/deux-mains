@@ -66,6 +66,45 @@ export function genMotif(rng, P, occ, refrain) {
     { s: 14, lane: 2, dur: 0 },
   ];
 }
+/**
+ * Les serpents (#16) : dans une phrase, une suite de deux à quatre notes régulières qui montent ou descendent
+ * couloir par couloir peut se fondre en un seul serpent, qu'on suit au rayon d'une touche à l'autre. Ses notes
+ * gardent leurs temps ; il peut glisser un couloir ou deux plus loin, dans le silence qui suit. Il reste dans sa
+ * mesure (un seul accord), son dernier couloir dure un pas, et il laisse au moins une croche avant la note
+ * suivante. La dernière note de la phrase, qui la conclut, n'en fait jamais partie, ni les notes tenues, les
+ * trilles ou les accords. Renvoie une copie de la phrase ; le hasard n'est tiré que pour une suite qui convient.
+ */
+export function fondreSerpents(rng, phrase, P) {
+  const notes = phrase.map((n) => ({ ...n }));
+  for (let i = 0; i < notes.length - 2; i++) {
+    const a = notes[i],
+      pas = notes[i + 1].s - a.s,
+      sens = notes[i + 1].lane - a.lane;
+    if (Math.abs(sens) !== 1 || !P.serpentPas.includes(pas)) continue;
+    let j = i;
+    while (j < i + 3 && j + 1 < notes.length - 1) {
+      const n = notes[j + 1];
+      if (n.s - notes[j].s !== pas || n.lane - notes[j].lane !== sens || n.cross) break;
+      j++;
+    }
+    const suite = notes.slice(i, j + 1),
+      mesure = Math.floor(a.s / 8),
+      // Le serpent de nb couloirs tient dans sa mesure et laisse une croche avant la note suivante
+      tient = (nb: number) => {
+        const fin = a.s + nb * pas;
+        return Math.floor((fin - 1) / 8) === mesure && notes[j + 1].s >= fin + 1;
+      };
+    if (j === i || !tient(j - i + 1) || suite.some((n) => n.dur > 0 || n.extra) || rng() >= P.serpentP) continue;
+    // Il peut glisser plus loin, d'un couloir de l'accord à la fois, s'il a la place avant la note suivante
+    let nb = j - i + 1;
+    const dans = (lane: number) => lane >= 0 && lane <= 3;
+    while (nb < 4 && tient(nb + 1) && dans(a.lane + nb * sens) && rng() < P.serpentP) nb++;
+    a.sp = { sens, nb, pas };
+    a.dur = nb * pas;
+    notes.splice(i + 1, j - i);
+  }
+  return notes;
+}
 export function vary(rng, m, nMut) {
   const c = m.map((n) => ({ ...n }));
   for (let k = 0; k < nMut && c.length > 1; k++) {
@@ -129,8 +168,19 @@ export function voisin(lane: number, sens: number) {
 }
 
 /**
+ * Les couloirs d'un serpent (#16) de `nb` couloirs à partir de `lane`, dans le sens `sens` (1 monte, -1 descend).
+ * S'il n'a pas la place, il part dans l'autre sens, ou raccourcit (quatre couloirs ne partent que d'un bord).
+ */
+export function couloirsDuSerpent(lane: number, sens: number, nb: number) {
+  const place = (s: number) => (s > 0 ? 3 - lane : lane) + 1;
+  if (place(sens) < nb && place(-sens) > place(sens)) sens = -sens;
+  return Array.from({ length: Math.min(nb, place(sens)) }, (_, k) => lane + k * sens);
+}
+
+/**
  * Une note de la mélodie : le couloir joue son degré de l'accord, avec l'harmonie au degré au-dessus (ADR-0003).
  * `trille` : la note longue devient une trille (#15) avec ce couloir voisin, qui joue lui aussi son degré.
+ * `serpent` : la note longue devient un serpent (#16) qui traverse ces couloirs, chacun sur son degré.
  */
 export function noteDeMelodie(
   lane: number,
@@ -141,6 +191,7 @@ export function noteDeMelodie(
   kind: Genre,
   vel = 1,
   trille?: number,
+  serpent?: number[],
 ): Note {
   const note: Note = {
     hand: "R",
@@ -155,6 +206,8 @@ export function noteDeMelodie(
     state: "pending",
   };
   if (trille !== undefined && dur > 0) [note.trille, note.midiTrille] = [trille, ch.lanes[trille]];
+  if (serpent && serpent.length > 1 && dur > 0)
+    [note.serpent, note.midiSerpent] = [serpent, serpent.map((l) => ch.lanes[l])];
   return note;
 }
 
@@ -201,6 +254,17 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     couplet: [M, vary(rng, M, 1), M, answer(rng, M, D.mel)],
     refrain: [R, vary(rng, R, 2), R, answer(rng, R, D.mel)],
   };
+  // Les serpents (#16) se tirent avec leur propre suite de nombres, une fois par phrase (une phrase répétée garde
+  // les siens) : le reste de la chanson ne change pas, et Débutant et Facile, qui n'en ont pas, n'y tirent rien
+  if (D.mel.serpentP) {
+    const rngSerpents = mulberry32(seed * 7919 + 104729),
+      fondues = new Map();
+    for (const k of Object.keys(phrases))
+      phrases[k] = phrases[k].map((p) => {
+        if (!fondues.has(p)) fondues.set(p, fondreSerpents(rngSerpents, p, D.mel));
+        return fondues.get(p);
+      });
+  }
 
   const ev = [];
   for (const s of sections) {
@@ -220,7 +284,10 @@ export function buildSong(seed: number, diffKey: string): Chanson {
         const vel = extra.length ? 0.75 : 1;
         // Pas de trille sur une note qui fait partie d'un accord de la main droite
         const trille = n.tr && !extra.length ? voisin(n.lane, n.tr) : undefined;
-        ev.push(noteDeMelodie(n.lane, beat, n.dur / 2, barIdx, ch, s.kind, vel, trille));
+        // Le serpent (#16) garde son sens s'il a la place ; ses couloirs durent chacun un pas
+        const serpent = n.sp && couloirsDuSerpent(n.lane, n.sp.sens, n.sp.nb);
+        const dur = serpent ? (serpent.length * n.sp.pas) / 2 : n.dur / 2;
+        ev.push(noteDeMelodie(n.lane, beat, dur, barIdx, ch, s.kind, vel, trille, serpent));
         for (const l of extra)
           ev.push({ hand: "R", beat, dur: n.dur / 2, lane: l, bar: barIdx, kind: s.kind, vel, midi: ch.lanes[l] });
       }

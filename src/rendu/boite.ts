@@ -246,3 +246,38 @@ export function boiteEnemy(x, y, ev, col, a, nb, hsl) {
   g.lineTo(x + 5, y - 15);
   g.stroke();
 }
+// Le serpent (#16) : un ruban de papier cousu, porté par une file de papillons de nuit qui battent des ailes
+export function boiteSerpent(troncons: { lane: number; pts: [number, number][] }[], couleur, nb) {
+  const tracer = (pts: [number, number][]) => {
+    g.beginPath();
+    for (const [x, y] of pts) g.lineTo(x, y);
+  };
+  g.save();
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  for (const { lane, pts } of troncons) {
+    tracer(pts);
+    g.strokeStyle = couleur(lane, 0.35);
+    g.lineWidth = 8;
+    g.stroke();
+    g.setLineDash([3, 4]);
+    g.strokeStyle = couleur(lane, 0.9);
+    g.lineWidth = 1.5;
+    g.stroke();
+    g.setLineDash([]);
+  }
+  for (const { lane, pts } of troncons)
+    pts.forEach(([x, y], i) => {
+      if (i % 7 !== 3) return;
+      const flap = 0.35 + 0.65 * Math.abs(Math.sin(nb * Math.PI * 2 + x / 40));
+      g.fillStyle = couleur(lane, 0.85);
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.ellipse(x + s * 4, y - 3, 4, 5 * flap, s * 0.5, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = hexA(COL.ink, 0.8);
+      g.fillRect(x - 1, y - 6, 2, 7);
+    });
+  g.restore();
+}
