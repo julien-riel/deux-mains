@@ -14,7 +14,7 @@ import { noter, reprendre } from "./enregistrement";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
 import { enregistrer, finirReecoute, garderLaPartie, rejouer } from "./reecoute";
 import { pointsDeStyle } from "./style";
-import { repriseNeuve, reprendreLeSolo } from "./variations";
+import { estSolo, repriseNeuve, reprendreLeSolo } from "./variations";
 
 /* ---------- Partie ---------- */
 export function resetRun() {
@@ -257,8 +257,13 @@ function avancer(nb: number) {
         accordsDuo: { ...S.accordsDuo },
         relais: { ...S.relais },
       };
+      // Le pont en mains croisées (#21) rappelle que les touches ne changent pas
       if (sec.kind !== "intro")
-        S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };
+        S.banner = {
+          text: sec.name,
+          sub: estSolo(sec) ? TH().solo : sec.croisee ? TH().croisee : "",
+          at: performance.now(),
+        };
     }
   }
   if (phrase)

@@ -69,7 +69,8 @@ describe("générateur", () => {
   });
 
   it("la forme est fixe : Intro 2, Couplet 8, Refrain 8, Solo libre 4, Refrain 8, Outro 2 mesures", () => {
-    for (const { chanson } of CHANSONS) {
+    // Le pont en mains croisées (#21), en Difficile, allonge la forme : il est testé dans croisement.test.ts
+    for (const { chanson } of CHANSONS.filter((c) => !c.chanson.sections.some((s) => s.croisee))) {
       expect(chanson.sections.map((s) => [s.name, s.bars, s.start])).toEqual([
         ["Intro", 2, 0],
         ["Couplet", 8, 2],
@@ -112,7 +113,10 @@ describe("générateur", () => {
   });
 
   it("le solo libre n'a aucun ennemi : on y joue ce qu'on veut", () => {
-    for (const { chanson } of CHANSONS) expect(droite(chanson).filter((ev) => ev.kind === "pont")).toEqual([]);
+    for (const { chanson } of CHANSONS) {
+      const solo = chanson.sections.find((s) => s.name === "Solo libre");
+      expect(droite(chanson).filter((ev) => ev.bar >= solo.start && ev.bar < solo.start + solo.bars)).toEqual([]);
+    }
   });
 
   it("les sauts durent moins que l'écart avec l'obstacle suivant, sauf celui qui précède un double saut", () => {

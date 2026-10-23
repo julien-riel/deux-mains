@@ -168,13 +168,15 @@ export function show(kind) {
   } else if (kind === "dead") {
     const bar = clamp(mesureDeLaChanson(Math.floor(S.deathBeat / 4)), 0, s.totalBars - 1),
       sec = sectionAtBar(bar);
-    const where = {
-      intro: "au début",
-      couplet: "au couplet",
-      refrain: "au refrain",
-      pont: "au solo",
-      outro: "à l'outro",
-    }[S.cp ? S.cp.sec.kind : "intro"];
+    const where = S.cp?.sec.croisee
+      ? "aux mains croisées"
+      : {
+          intro: "au début",
+          couplet: "au couplet",
+          refrain: "au refrain",
+          pont: "au solo",
+          outro: "à l'outro",
+        }[S.cp ? S.cp.sec.kind : "intro"];
     h = `<p class="eyebrow">${TH().deadTag}</p><h2>${TH().deadTitle}</h2>
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>

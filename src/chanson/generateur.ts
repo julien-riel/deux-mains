@@ -389,6 +389,14 @@ export function phraseEnRelais(monte: boolean, bar: number, chords: Accord[], ki
   return notes;
 }
 
+/* ---------- Pont en mains croisées (#21) ---------- */
+
+export const NOM_CROISEE = "Mains croisées";
+
+/** La mélodie du pont en mains croisées : le thème du couplet, puis sa réponse qui se pose sur la fondamentale.
+ * Une mélodie déjà entendue, pour que le joueur n'ait à réapprendre que la lecture de la scène retournée. */
+export const phrasesCroisees = <T>(couplet: T[]): T[] => [couplet[0], couplet[3]];
+
 export function buildSong(seed: number, diffKey: string): Chanson {
   const rng = mulberry32(seed * 9301 + 49297);
   // Les chanteurs (#18) ont leur propre tirage : le reste de la chanson ne change pas avec eux
@@ -397,14 +405,18 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   const prog = PROGS[Math.floor(rng() * PROGS.length)];
   const keyPc = Math.floor(rng() * 12);
   const bpm = 88 + 4 * Math.floor(rng() * 7);
+  // Le pont en mains croisées (#21) a son propre tirage : sans lui, la chanson ne change pas, et avec lui, elle
+  // ne fait que s'allonger de ses mesures
+  const croisee = D.croiseeP > 0 && mulberry32(seed * 2749 + 3001)() < D.croiseeP;
   const sections = [
     ["Intro", "intro", 2],
     ["Couplet", "couplet", 8],
     ["Refrain", "refrain", 8],
+    ...(croisee ? [[NOM_CROISEE, "pont", 4]] : []),
     ["Solo libre", "pont", 4],
     ["Refrain", "refrain", 8],
     ["Outro", "outro", 2],
-  ].map(([name, kind, bars]) => ({ name, kind, bars }) as Section);
+  ].map(([name, kind, bars]) => ({ name, kind, bars, ...(name === NOM_CROISEE ? { croisee: true } : {}) }) as Section);
   let bar = 0;
   for (const s of sections) {
     s.start = bar;
@@ -487,7 +499,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
       if (p) ev.push(...notesDeBasse(p, bar, chords[bar], s.kind, plaque, marches));
     }
-    const ph = phrases[s.kind];
+    const ph = s.croisee ? phrasesCroisees(phrases.couplet) : phrases[s.kind];
     if (!ph) continue;
     for (let k = 0; k < s.bars / 2; k++) {
       // La phrase en relais (#20) : les deux mains se passent l'arpège
@@ -504,7 +516,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
         ev.push(...reponse);
         continue;
       }
-      for (const n of ph[k % 4]) {
+      for (const n of ph[k % ph.length]) {
         const barIdx = s.start + 2 * k + Math.floor(n.s / 8),
           ch = chords[barIdx];
         const beat = (s.start + 2 * k) * 4 + n.s / 2;

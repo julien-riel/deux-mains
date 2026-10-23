@@ -3,7 +3,7 @@
 import type { Note, Section } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, spb } from "./etat";
 import { alterner, hitEv, pasDuSerpent, passer, tempsDuPassage } from "./jugement";
-import { improviser, noterAuSolo } from "./variations";
+import { estSolo, improviser, noterAuSolo } from "./variations";
 
 /** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
 export function autoNotes(step: number) {
@@ -60,7 +60,7 @@ function improvisation(graine: number, croches: number) {
   return impro.couloirs;
 }
 export function autoSolo(step: number, sec: Section) {
-  if (!(autoFor("R") && sec.kind === "pont" && step % 2 === 0)) return null;
+  if (!(autoFor("R") && estSolo(sec) && step % 2 === 0)) return null;
   // La croche dans le solo : en boucle, chaque passage rejoue la même improvisation (ADR-0009)
   const croche = (mesureDeLaChanson(Math.floor(step / 16)) - sec.start) * 8 + (step % 16) / 2,
     couloir = improvisation(S.song.seed, sec.bars * 8).get(croche);

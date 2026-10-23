@@ -19,9 +19,10 @@ import {
   spb,
   type Action,
 } from "../jeu/etat";
+import { retournement } from "../jeu/croisement";
 import { couloirDe, notesDuRelais, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
 import { CRITERES, conseil } from "../jeu/style";
-import { soloEtRefrain } from "../jeu/variations";
+import { estSolo, soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
@@ -42,6 +43,7 @@ import {
   drawComb,
 } from "./boite";
 import {
+  AXE,
   COL,
   DEG,
   FONT,
@@ -65,7 +67,9 @@ import {
   rr,
   teinteDeCouloir,
   txt,
+  VUE,
   yDeCouloir,
+  yVu,
 } from "./outils";
 import {
   villeBack,
@@ -138,6 +142,19 @@ export function render(nb, dt) {
   g.save();
   g.translate(shx, shy);
 
+  // Mains croisées (#21) : toute la scène, rail compris, se retourne autour de son axe ; les textes s'y redressent.
+  // Pendant la bascule, elle s'aplatit sur l'axe, devant le fond de l'univers.
+  const vue = playing ? retournement(song.sections, nb, S.bouclePartie?.sec) : { k: 1, annonce: null };
+  VUE.k = Math.sign(vue.k || 1) * Math.max(0.02, Math.abs(vue.k));
+  if (VUE.k < 1) {
+    g.fillStyle = TH().under;
+    g.fillRect(-12, -12, W + 24, H + 24);
+    g.translate(0, AXE);
+    g.scale(1, VUE.k);
+    g.translate(0, -AXE);
+  }
+  VUE.dedans = true;
+
   // Décor de l'univers choisi
   if (S.theme === "boite") boiteBack(nb, hsl, bp);
   else villeBack(nb, hsl, bp);
@@ -160,7 +177,7 @@ export function render(nb, dt) {
     g.fillRect(HITX + (b - nb) * PPB, 134, 1, 286);
   }
   // Couloirs et ligne de tir
-  const solo = playing && curSec.kind === "pont";
+  const solo = playing && estSolo(curSec);
   for (let i = 0; i < 4; i++) {
     g.fillStyle = hsl(LANE_HUE[i], 60, 70, solo ? 0.14 + 0.1 * bp : 0.08);
     g.fillRect(HITX, LANE_Y[i] - 1, W - HITX, 2);
@@ -288,7 +305,9 @@ export function render(nb, dt) {
     txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
   }
 
+  VUE.dedans = false;
   g.restore();
+  croisement(vue.annonce, bp);
 
   // HUD
   txt(
@@ -346,6 +365,7 @@ export function render(nb, dt) {
     S.auto ? "AUTO-PLAY" : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
     S.bouclePartie ? "BOUCLE" : "",
+    VUE.k < 0 ? "MAINS CROISÉES" : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -476,9 +496,33 @@ export function render(nb, dt) {
   for (const p of S.pops) {
     const k = (pnow - p.at) / 650;
     g.globalAlpha = 1 - k;
-    txt(p.text, p.x, p.y - k * 28, `700 15px ${FONT.display}`, p.color, "center");
+    // Le jugement s'affiche près de sa note, dans la scène retournée ou non (#21)
+    txt(p.text, p.x, yVu(p.y) - k * 28, `700 15px ${FONT.display}`, p.color, "center");
     g.globalAlpha = 1;
   }
+}
+
+/**
+ * Les mains croisées (#21) : pendant la bascule, l'axe de la scène s'allume aux couleurs des deux mains, qui se
+ * croisent (la basse passe en haut, la mélodie en bas) ; une mesure avant l'entrée et pendant la sortie, une annonce.
+ */
+function croisement(annonce: "entree" | "sortie" | null, bp: number) {
+  const a = 1 - Math.abs(VUE.k);
+  if (a > 0.01) {
+    g.fillStyle = hexA(COL.bass, a);
+    g.fillRect(0, AXE - 1.5, W / 2, 3);
+    g.fillStyle = hexA(COL.mel, a);
+    g.fillRect(W / 2, AXE - 1.5, W / 2, 3);
+  }
+  if (!annonce) return;
+  txt(
+    annonce === "entree" ? "⇅  MAINS CROISÉES : LES TOUCHES NE CHANGENT PAS" : "⇅  RETOUR À L'ENDROIT",
+    W / 2 + 60,
+    226,
+    `600 15px ${FONT.mono}`,
+    hexA(COL.fg, 0.55 + 0.45 * bp),
+    "center",
+  );
 }
 
 export function keycap(x, y, label, color, down) {

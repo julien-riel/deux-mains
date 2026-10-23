@@ -4,7 +4,7 @@
 import { DIFFS } from "../chanson/difficultes";
 import type { Main, Note } from "../chanson/types";
 import { COULOIRS, S, compterPassage, mult, sectionAtBar, spb } from "./etat";
-import { noterAuSolo } from "./variations";
+import { estSolo, noterAuSolo } from "./variations";
 
 export interface Effets {
   /** Fait sonner la note : sur son temps `beat` (coup en avance, quantifié), ou tout de suite (`null`).
@@ -363,7 +363,7 @@ export function leftPress(lane: number, ns: number) {
 export function rightPress(lane: number, ns: number, accordEntier = false): Note[] {
   const nb = ns / spb(),
     sec = sectionAtBar(Math.floor(nb / 4));
-  if (sec.kind === "pont") {
+  if (estSolo(sec)) {
     // La note est gardée : la meilleure phrase du solo revient au dernier refrain (#9)
     noterAuSolo(sec, nb, lane);
     effets.solo(lane, nb);
