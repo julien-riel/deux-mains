@@ -18,7 +18,7 @@ export interface InterfaceJeu {
   state: Etat;
   load(seed: number, diff: Difficulte): void;
   setTheme(v: Univers): void;
-  setPractice(v: "both" | "L" | "R"): void;
+  setPractice(v: "both" | "L" | "R" | "duo"): void;
   setVitesse(v: number): void;
   setBoucle(i: number): void;
   setCommandes(v: "auto" | "clavier" | "tactile"): void;

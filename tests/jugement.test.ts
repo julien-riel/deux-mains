@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFFS } from "../src/chanson/difficultes";
 import type { Chanson, Main, Note } from "../src/chanson/types";
-import { S } from "../src/jeu/etat";
+import { S, mult } from "../src/jeu/etat";
 import { VIBRATO, brancherEffets, leftPress, missEv, release, rightPress, type Effets } from "../src/jeu/jugement";
 
 const DIFFICULTES = ["debutant", "facile", "normal", "difficile"] as const;
@@ -400,5 +400,106 @@ describe("quantification (ADR-0004)", () => {
     rightPress(0, 4);
     expect(ev.state).toBe("hit");
     expect(effets.jouer).not.toHaveBeenCalled();
+  });
+});
+
+describe("duo local (#6)", () => {
+  /** Une partie en duo : chaque joueur tient une main */
+  const duo = (ev: Note[], diff = "normal") => {
+    const notes = partie(ev, diff);
+    S.practice = "duo";
+    return notes;
+  };
+
+  it("chaque main compte ses coups à part : score, combo, parfaits, bien, ratés, combo max", () => {
+    const [r1, , , r3] = duo([note("R", 4, 0), note("L", 5, 0), note("R", 6, 1), note("R", 7, 2), note("L", 8, 1)]);
+    rightPress(0, 4);
+    leftPress(0, 5.1);
+    rightPress(1, 6);
+    missEv(r3);
+    leftPress(1, 8);
+    expect(r1.state).toBe("hit");
+    expect(S.parMain.R).toEqual({ score: 600, combo: 0, maxCombo: 2, perfect: 2, good: 0, miss: 1 });
+    expect(S.parMain.L).toEqual({ score: 420, combo: 2, maxCombo: 2, perfect: 1, good: 1, miss: 0 });
+    // Le total est la somme des deux joueurs, hors bonus d'accord
+    expect([S.score, S.perfect, S.good, S.miss]).toEqual([1020, 3, 1, 1]);
+  });
+
+  it("une erreur de la basse ne remet à zéro que le combo de la basse, et inversement", () => {
+    const [, , l1, , r2] = duo([
+      note("R", 4, 0),
+      note("L", 4.5, 0),
+      note("L", 5, 0),
+      note("R", 5.5, 1),
+      note("R", 6, 2),
+      note("L", 7, 0),
+    ]);
+    rightPress(0, 4);
+    leftPress(0, 4.5);
+    missEv(l1);
+    expect([S.parMain.L.combo, S.parMain.R.combo]).toEqual([0, 1]);
+    rightPress(1, 5.5);
+    missEv(r2);
+    expect([S.parMain.L.combo, S.parMain.R.combo]).toEqual([0, 0]);
+    leftPress(0, 7);
+    expect([S.parMain.L.combo, S.parMain.R.combo]).toEqual([1, 0]);
+  });
+
+  it("le mauvais couloir et une note tenue lâchée cassent aussi le combo de leur seul joueur", () => {
+    duo([note("L", 4, 0), note("R", 5, 0), note("R", 6, 1, 2), note("L", 6.5, 1)]);
+    leftPress(0, 4);
+    rightPress(0, 5);
+    rightPress(3, 5.95);
+    expect([S.parMain.L.combo, S.parMain.R.combo]).toEqual([1, 0]);
+    rightPress(1, 6);
+    leftPress(1, 6.5);
+    release("R", 1, 6.6);
+    expect([S.parMain.L.combo, S.parMain.R.combo]).toEqual([2, 0]);
+  });
+
+  it("l'harmonie est commune : une erreur de n'importe quel joueur la fait baisser", () => {
+    const D = DIFFS.normal;
+    const [l, r] = duo([note("L", 4, 0), note("R", 5, 0)]);
+    missEv(l);
+    expect(S.health).toBe(100 - D.dmgL);
+    missEv(r);
+    expect(S.health).toBe(100 - D.dmgL - D.dmgR);
+  });
+
+  it("en duo, le multiplicateur suit le combo de chaque joueur ; hors duo, le combo commun", () => {
+    duo([note("L", 4, 0), note("R", 4, 0)]);
+    S.parMain.L.combo = 10;
+    leftPress(0, 4);
+    rightPress(0, 4);
+    expect([S.parMain.L.score, S.parMain.R.score]).toEqual([450, 300]);
+    expect([mult("L"), mult("R")]).toEqual([1.5, 1]);
+    S.practice = "both";
+    S.combo = 20;
+    expect([mult("L"), mult("R"), mult()]).toEqual([2, 2, 2]);
+  });
+
+  it("les accords à deux mains sont comptés à part : réussis, et jugés", () => {
+    const notes = duo([
+      ...accord(note("L", 4, 0), note("R", 4, 0), note("R", 4, 2)),
+      ...accord(note("L", 5, 1), note("R", 5, 1)),
+      ...accord(note("R", 6, 0), note("R", 6, 2)),
+    ]);
+    rightPress(0, 4, true);
+    expect(S.accordsDuo).toEqual({ reussis: 0, total: 0 });
+    leftPress(0, 4);
+    expect(S.accordsDuo).toEqual({ reussis: 1, total: 1 });
+    rightPress(1, 5);
+    missEv(notes.find((ev) => ev.hand === "L" && ev.beat === 5));
+    expect(S.accordsDuo).toEqual({ reussis: 1, total: 2 });
+    // Un accord de la main droite seule n'est pas un accord en duo
+    rightPress(0, 6, true);
+    expect(S.accordsDuo).toEqual({ reussis: 1, total: 2 });
+  });
+
+  it("le bonus d'un accord à deux mains va au score total, pas à l'un des joueurs", () => {
+    duo(accord(note("L", 4, 0), note("R", 4, 0)));
+    rightPress(0, 4);
+    leftPress(0, 4);
+    expect([S.parMain.L.score, S.parMain.R.score, S.score]).toEqual([300, 300, 800]);
   });
 });

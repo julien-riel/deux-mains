@@ -77,6 +77,24 @@ export function visualBeat() {
   return songNow() / spb();
 }
 
+// Duo local (#6) : le score et le combo de chaque joueur, aux couleurs de sa main, la mélodie à droite
+function scoresDuo() {
+  for (const hand of ["L", "R"] as const) {
+    const m = S.parMain[hand],
+      x = hand === "R" ? W - 24 : W - 214,
+      col = hand === "R" ? COL.mel : COL.bass;
+    txt(hand === "R" ? "MÉLODIE" : "BASSE", x, 22, `600 11px ${FONT.mono}`, col, "right");
+    txt(m.score.toLocaleString("fr-CA"), x, 48, `600 24px ${FONT.mono}`, col, "right");
+    txt(
+      `COMBO ${m.combo}  ×${mult(hand).toLocaleString("fr-CA")}`,
+      x,
+      70,
+      `600 12px ${FONT.mono}`,
+      m.combo >= 8 ? col : hexA(col, 0.6),
+      "right",
+    );
+  }
+}
 export function render(nb, dt) {
   const song = S.song;
   if (!song) return;
@@ -280,30 +298,45 @@ export function render(nb, dt) {
       g.fill();
       txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, 0.6));
     });
-  txt(S.score.toLocaleString("fr-CA"), W - 24, 46, `600 30px ${FONT.mono}`, COL.fg, "right");
-  txt(
-    `COMBO ${S.combo}  ×${mult().toLocaleString("fr-CA")}`,
-    W - 24,
-    70,
-    `600 12px ${FONT.mono}`,
-    S.combo >= 8 ? COL.good : COL.muted,
-    "right",
-  );
+  const duo = S.practice === "duo";
+  if (duo) scoresDuo();
+  else {
+    txt(S.score.toLocaleString("fr-CA"), W - 24, 46, `600 30px ${FONT.mono}`, COL.fg, "right");
+    txt(
+      `COMBO ${S.combo}  ×${mult().toLocaleString("fr-CA")}`,
+      W - 24,
+      70,
+      `600 12px ${FONT.mono}`,
+      S.combo >= 8 ? COL.good : COL.muted,
+      "right",
+    );
+  }
   const badge = [
-    S.auto ? "AUTO-PLAY" : S.practice === "L" ? "MAIN GAUCHE SEULE" : S.practice === "R" ? "MAIN DROITE SEULE" : "",
+    S.auto ? "AUTO-PLAY" : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
     S.bouclePartie ? "BOUCLE" : "",
   ]
     .filter(Boolean)
     .join(" · ");
+  let bw = 0;
   if (badge && playing) {
     g.font = `600 11px ${FONT.mono}`;
-    const bw = g.measureText(badge).width + 24;
+    bw = g.measureText(badge).width + 24;
     rr(W - 24 - bw, 82, bw, 20, 10);
-    g.fillStyle = !S.auto && S.practice === "L" ? COL.bass : COL.mel;
+    g.fillStyle = S.auto ? COL.mel : S.practice === "L" ? COL.bass : duo ? COL.fg : COL.mel;
     g.fill();
     txt(badge, W - 24 - bw / 2, 96, `600 11px ${FONT.mono}`, COL.ink, "center");
   }
+  // En duo, le score total reste affiché, discrètement, pour le comparer aux parties en solo
+  if (duo)
+    txt(
+      `TOTAL ${S.score.toLocaleString("fr-CA")}`,
+      W - 24 - (bw && bw + 10),
+      96,
+      `600 11px ${FONT.mono}`,
+      COL.muted,
+      "right",
+    );
 
   // Forme de la chanson, avec la section en boucle mise en évidence : celle de la partie, ou celle choisie au repos
   const fx0 = 24,

@@ -4,7 +4,7 @@ import { randomSeed } from "./chanson/aleatoire";
 import { DIFFS } from "./chanson/difficultes";
 import { update } from "./jeu/deroulement";
 import { effets } from "./jeu/effets";
-import { S, VITESSES } from "./jeu/etat";
+import { S, VITESSES, type Mains } from "./jeu/etat";
 import { brancherEffets } from "./jeu/jugement";
 import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
@@ -20,7 +20,7 @@ import { THEMES } from "./univers/univers";
 interface Reglages {
   seed?: number;
   diff?: string;
-  practice?: string;
+  practice?: Mains;
   vitesse?: number;
   theme?: string;
 }
@@ -79,7 +79,7 @@ try {
 } catch {
   /* stockage indisponible */
 }
-const HANDS = ["both", "L", "R"],
+const HANDS = ["both", "L", "R", "duo"],
   COMMANDES = ["auto", "clavier", "tactile"];
 const hot = window.claude && window.claude.hot;
 // Pendant un essai, on garde les réglages du joueur, pas ceux de l'essai

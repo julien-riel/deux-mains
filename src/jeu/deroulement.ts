@@ -8,8 +8,8 @@ import { overlay, show } from "../ui/ecrans";
 import { TH } from "../univers/univers";
 import { autoHit } from "./autoplay";
 import type { Note } from "../chanson/types";
-import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb } from "./etat";
-import { completeHold, missEv } from "./jugement";
+import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
+import { completeHold, gagner, missEv } from "./jugement";
 
 /* ---------- Partie ---------- */
 export function resetRun() {
@@ -21,6 +21,8 @@ export function resetRun() {
     perfect: 0,
     good: 0,
     miss: 0,
+    parMain: statsNeuves(),
+    accordsDuo: { reussis: 0, total: 0 },
     cp: null,
     curSec: null,
     banner: null,
@@ -70,7 +72,7 @@ export function startAt(beat) {
 export function newRun(auto = false) {
   resetRun();
   S.auto = auto;
-  S.autoUsed = auto || S.practice !== "both";
+  S.autoUsed = auto || uneMain();
   const sec = S.song.sections[S.boucle];
   if (!sec) return startAt(0);
   S.bouclePartie = { sec, cree: 0, passages: [] };
@@ -129,6 +131,9 @@ export function resumeCP() {
     good: cp.good,
     miss: cp.miss,
     maxCombo: cp.maxCombo,
+    // En duo, chaque joueur retrouve ses coups du point de reprise, avec un combo neuf
+    parMain: { L: { ...cp.parMain.L, combo: 0 }, R: { ...cp.parMain.R, combo: 0 } },
+    accordsDuo: { ...cp.accordsDuo },
     health: 100,
     combo: 0,
     keys: {},
@@ -185,7 +190,16 @@ export function update(nb) {
     const sec = sectionAtBar(bar);
     if (sec !== S.curSec) {
       S.curSec = sec;
-      S.cp = { sec, score: S.score, perfect: S.perfect, good: S.good, miss: S.miss, maxCombo: S.maxCombo };
+      S.cp = {
+        sec,
+        score: S.score,
+        perfect: S.perfect,
+        good: S.good,
+        miss: S.miss,
+        maxCombo: S.maxCombo,
+        parMain: structuredClone(S.parMain),
+        accordsDuo: { ...S.accordsDuo },
+      };
       if (sec.kind !== "intro")
         S.banner = { text: sec.name, sub: sec.kind === "pont" ? TH().solo : "", at: performance.now() };
     }
@@ -203,7 +217,7 @@ export function update(nb) {
       S.laneFlash[q.solo] = pnow;
       S.beams.push({ lane: q.solo, at: pnow, ok: true });
       burst(HITX + 40, LANE_Y[q.solo], LANE_HUE[q.solo], 10);
-      S.score += 25;
+      gagner(25, "R");
     }
   }
   if (S.bouclePartie) entretenirBoucle(nb);

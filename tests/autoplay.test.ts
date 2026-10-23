@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSong } from "../src/chanson/generateur";
 import type { Note } from "../src/chanson/types";
-import { S, sectionAtBar } from "../src/jeu/etat";
+import { S, autoFor, sectionAtBar } from "../src/jeu/etat";
 import { autoHit, autoNotes, autoSolo } from "../src/jeu/autoplay";
 import { brancherEffets, type Effets } from "../src/jeu/jugement";
 
@@ -109,6 +109,12 @@ describe("entraînement", () => {
     partie("normal");
     expect(parcourir()).toEqual([]);
   });
+
+  it("en duo (#6), aucune note n'est jouée automatiquement : chaque main a son joueur", () => {
+    partie("normal", { practice: "duo" });
+    expect([autoFor("L"), autoFor("R")]).toEqual([false, false]);
+    expect(parcourir()).toEqual([]);
+  });
 });
 
 describe("solo libre", () => {
@@ -141,6 +147,11 @@ describe("solo libre", () => {
 
   it("en « Main droite seule », le joueur improvise lui-même", () => {
     partie("normal", { practice: "R" });
+    expect(improviser()).toEqual([]);
+  });
+
+  it("en duo, le joueur de la mélodie improvise lui-même", () => {
+    partie("normal", { practice: "duo" });
     expect(improviser()).toEqual([]);
   });
 });
