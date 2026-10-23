@@ -9,6 +9,7 @@ import {
   buildSong,
   couloirsDuSerpent,
   escalier,
+  melodieEnPolyrythmie,
   notesDeBasse,
   noteDeMelodie,
   petiteNote,
@@ -16,6 +17,7 @@ import {
   phraseEnRelais,
   voisin,
 } from "../chanson/generateur";
+import { memeTemps, relierAccords } from "../chanson/temps";
 import { gammeDe, makeChord } from "../chanson/theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 
@@ -23,7 +25,8 @@ import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
 export interface Morceau {
   nom: string;
   genre: Genre;
-  /** La première mesure recopiée, dans la chanson générée (à partir de 0) */
+  /** La première mesure recopiée, dans la chanson générée (à partir de 0, ou depuis la fin si négative : -2 pour
+   * les deux dernières, l'outro, quelles que soient les sections ajoutées avant elle) */
   de: number;
   mesures: number;
   /** Des accords à la place de ceux de la chanson générée, en boucle (décalage depuis la tonique, qualité) : la
@@ -34,7 +37,8 @@ export interface Morceau {
 }
 
 /** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel,
- * M pente montante, B pente descendante. La plaque remplace la première note de la mesure qui ouvre un refrain (#8). */
+ * M pente montante, B pente descendante. La plaque remplace la première note de la mesure qui ouvre un refrain (#8).
+ * Un motif de 8 signes joue des croches, un motif de 12 signes des triolets (#19, ADR-0013). */
 export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
 
 /** Les motifs de mélodie par genre de section, une mesure en huit croches : 0 à 3 le couloir, - prolonge la note
@@ -93,9 +97,10 @@ export function assembler(
   let bar = 0;
   for (const m of morceaux) {
     sections.push({ name: m.nom, kind: m.genre, bars: m.mesures, start: bar, ...(m.croisee && { croisee: true }) });
-    const decale = bar - m.de;
+    const de = m.de < 0 ? source.totalBars + m.de : m.de,
+      decale = bar - de;
     for (let i = 0; i < m.mesures; i++)
-      chords.push(m.accords ? makeChord(source.keyPc, m.accords[i % m.accords.length]) : source.chords[m.de + i]);
+      chords.push(m.accords ? makeChord(source.keyPc, m.accords[i % m.accords.length]) : source.chords[de + i]);
     const chant = melodie[m.genre];
     if (m.accords && !chant) throw new Error(`Morceau « ${m.nom} » : de nouveaux accords demandent une mélodie`);
     for (let i = 0; chant && i < m.mesures; i++) {
@@ -105,7 +110,7 @@ export function assembler(
       );
     }
     for (const e of chant ? [] : source.ev)
-      if (e.hand === "R" && e.bar >= m.de && e.bar < m.de + m.mesures)
+      if (e.hand === "R" && e.bar >= de && e.bar < de + m.mesures)
         // Une réponse au chanteur (#18) recopiée sans lui redevient une note de mélodie ordinaire, et une note de
         // relais (#20) sans la basse qui le finit aussi : `relayer` en pose où l'on veut
         ev.push({
@@ -159,6 +164,21 @@ export function relayer(chanson: Chanson, relais: [number, boolean][]): Chanson 
 }
 
 /**
+ * Écrit la mélodie des sections en 3 contre 2 (#19) comme le générateur : en croches, aux places de la difficulté,
+ * par degrés voisins tirés de la graine (ADR-0005). Leur basse en triolets vient déjà des motifs (`assembler`).
+ */
+export function polyrythmer(chanson: Chanson, diff: string, graine = chanson.seed): Chanson {
+  const rng = mulberry32(graine * 1693 + 2903);
+  for (const sec of chanson.sections) {
+    if (sec.kind !== "polyrythmie") continue;
+    const dedans = (e: Note) => e.bar >= sec.start && e.bar < sec.start + sec.bars;
+    chanson.ev = chanson.ev.filter((e) => e.hand === "L" || !dedans(e));
+    chanson.ev.push(...melodieEnPolyrythmie(rng, DIFFS[diff].polyrythmie, sec.start, sec.bars, chanson.chords));
+  }
+  return finaliser(chanson);
+}
+
+/**
  * Ajoute un accord à deux mains sur les `temps` de chaque mesure des couplets et refrains (le premier, par
  * défaut), là où la basse joue déjà : la main droite y joue la fondamentale et la quinte (ou complète sa note
  * d'un degré à deux pas).
@@ -170,7 +190,7 @@ export function accorder(chanson: Chanson, temps: number[] = [0]): Chanson {
       for (const t of temps) {
         const beat = bar * 4 + t,
           ch = chanson.chords[bar],
-          ici = chanson.ev.filter((e) => e.beat === beat),
+          ici = chanson.ev.filter((e) => memeTemps(e.beat, beat)),
           droite = ici.filter((e) => e.hand === "R");
         // Pas d'accord sans basse, ni pendant une note tenue de la main droite
         const tenue = chanson.ev.some((e) => e.hand === "R" && e.beat < beat && e.beat + e.dur > beat);
@@ -253,14 +273,6 @@ export function finaliser(chanson: Chanson): Chanson {
     const nx = Ls[i + 1];
     e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
   });
-  for (let i = 0; i < ev.length;) {
-    let j = i;
-    while (j < ev.length && ev[j].beat === ev[i].beat) j++;
-    if (j - i > 1) {
-      const grp = ev.slice(i, j);
-      grp.forEach((e) => (e.grp = grp));
-    }
-    i = j;
-  }
+  relierAccords(ev);
   return chanson;
 }

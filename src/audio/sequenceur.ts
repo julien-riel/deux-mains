@@ -18,6 +18,7 @@ import {
   stringsV,
 } from "./instruments";
 import { AC, timeOfBeat } from "./moteur";
+import { PAS_PAR_TEMPS, pas } from "../chanson/temps";
 
 export function startScheduler() {
   stopScheduler();
@@ -85,6 +86,14 @@ export function playStep(step, t) {
       if (s === 0) kick(t, 0.6);
       if (s % 2 === 0) hat(t, 0.06, false);
       break;
+    case "polyrythmie":
+      // En 3 contre 2 (#19), la batterie ne marque que ce que les deux mains partagent : la grosse caisse sur chaque
+      // temps, la caisse claire légère sur 2 et 4, et le charleston discret sur les croches de la mélodie. Les
+      // triolets, seule la basse les joue.
+      if (s % 4 === 0) kick(t, s === 0 ? 0.85 : 0.55);
+      if (s === 4 || s === 12) snare(t, 0.22);
+      if (s % 2 === 0) hat(t, s % 4 === 2 ? 0.09 : 0.05, false);
+      break;
     case "outro":
       if (s === 0 && bar === sec.start) {
         crash(t, 0.24);
@@ -94,7 +103,9 @@ export function playStep(step, t) {
   }
   if (sec.kind !== "intro" && sec.kind !== "outro") {
     const L = layers();
-    if (L.arp && s % 2 === 0) arpV(t, ch.lanes[ARP[(s / 2) % 8]] + 12);
+    // En 3 contre 2, l'arpège ne joue que sur les temps, pour ne pas brouiller les deux grilles
+    const pasArp = sec.kind === "polyrythmie" ? 4 : 2;
+    if (L.arp && s % pasArp === 0) arpV(t, ch.lanes[ARP[(s / 2) % 8]] + 12);
     if (L.strings && s === 0) stringsV(t, ch, avant ? 3 * beat - 0.8 : 4 * beat);
   }
   autoStep(step, t, sec, ch);
@@ -105,7 +116,7 @@ function chanter(bar: number, s: number, t: number) {
   const c = S.song.chanteurs?.find((ch) => ch.bar === bar);
   if (!c) return;
   const notes = c.notes,
-    i = notes.findIndex((n) => n.beat === bar * 4 + s / 4);
+    i = notes.findIndex((n) => pas(n.beat) === pas(bar * 4) + (s * PAS_PAR_TEMPS) / 4);
   if (i < 0) return;
   const suite = i + 1 < notes.length ? notes[i + 1].beat : (bar + 1) * 4;
   chantV(t, notes[i].midi, 0.85 * (suite - notes[i].beat) * spb());
@@ -114,7 +125,8 @@ function chanter(bar: number, s: number, t: number) {
 function autoStep(step, t, sec, ch) {
   // En duo comme avec les deux mains, personne n'est joué automatiquement (#6)
   if (S.auto || uneMain()) {
-    for (const ev of autoNotes(step)) playHit(ev, t);
+    // Chaque note sonne à son heure (ADR-0013) : un triolet (#19) tombe entre deux pas du séquenceur
+    for (const ev of autoNotes(step)) playHit(ev, timeOfBeat(ev.beat));
     for (const { ev, lane } of autoTrilles(step)) playHit(ev, t, lane);
     for (const { ev, k } of autoSerpents(step)) glisserVoix(ev, k, t);
     const lane = autoSolo(step, sec);

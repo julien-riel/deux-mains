@@ -18,6 +18,7 @@ Chaque décision structurante du projet est consignée ici, une par fichier. Le 
 | [0010](0010-notes-hors-accord-ecrites-par-le-generateur.md)     | Faire écrire les notes hors accord par le générateur, la touche ne choisissant qu'un geste          | Acceptée                                                           | 2026-10-22 |
 | [0011](0011-touches-midi-en-position-fixe.md)                   | Traduire les touches MIDI en position fixe, avec un mode pianiste à venir                           | Acceptée                                                           | 2026-10-22 |
 | [0012](0012-variations-de-la-partie-et-reprise-du-solo.md)      | Garder le solo comme variation de la partie, et tirer l'improvisation de l'auto-play de la graine   | Acceptée                                                           | 2026-10-22 |
+| [0013](0013-grille-de-reference-de-douze-pas-par-temps.md)      | Garder le temps en nombre, sur une grille de référence de douze pas par temps                       | Acceptée                                                           | 2026-10-23 |
 | [0014](0014-sauvegarde-versionnee-et-code-de-sauvegarde.md)     | Garder la progression dans un document versionné du navigateur, avec un code de sauvegarde à copier | Acceptée                                                           | 2026-10-23 |
 
 ## Écrire un ADR

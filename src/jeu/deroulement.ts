@@ -302,11 +302,18 @@ function avancer(nb: number) {
         accordsDuo: { ...S.accordsDuo },
         relais: { ...S.relais },
       };
-      // Le pont en mains croisées (#21) rappelle que les touches ne changent pas
+      // Le pont en mains croisées (#21) rappelle que les touches ne changent pas, la section en 3 contre 2 (#19) dit
+      // ce que joue chaque main
       if (sec.kind !== "intro")
         S.banner = {
           text: sec.name,
-          sub: estSolo(sec) ? TH().solo : sec.croisee ? TH().croisee : "",
+          sub: estSolo(sec)
+            ? TH().solo
+            : sec.croisee
+              ? TH().croisee
+              : sec.kind === "polyrythmie"
+                ? TH().polyrythmie
+                : "",
           at: performance.now(),
         };
     }

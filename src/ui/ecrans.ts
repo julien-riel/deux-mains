@@ -196,6 +196,7 @@ export function show(kind) {
           couplet: "au couplet",
           refrain: "au refrain",
           pont: "au solo",
+          polyrythmie: "au 3 contre 2",
           outro: "à l'outro",
         }[S.cp ? S.cp.sec.kind : "intro"];
     h = `<p class="eyebrow">${TH().deadTag}</p><h2>${TH().deadTitle}</h2>

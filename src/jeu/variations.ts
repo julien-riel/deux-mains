@@ -4,6 +4,7 @@
 // refrain qui suit le solo, dans les notes de la partie (`S.ev`), comme les passages d'une boucle (ADR-0009).
 // L'auto-play improvise à partir de la graine : sa phrase revient aussi, toujours la même.
 import { mulberry32 } from "../chanson/aleatoire";
+import { relierAccords } from "../chanson/temps";
 import type { Accord, Note, Section } from "../chanson/types";
 import { clamp } from "../outils";
 import { S } from "./etat";
@@ -148,15 +149,7 @@ export function reprendre(ev: Note[], chords: Accord[], refrain: Section, phrase
     }
   neuves.sort(memeTemps);
   // Les notes du même temps forment un accord, comme dans le générateur
-  for (let i = 0; i < neuves.length;) {
-    let j = i;
-    while (j < neuves.length && neuves[j].beat === neuves[i].beat) j++;
-    if (j - i > 1) {
-      const grp = neuves.slice(i, j);
-      grp.forEach((e) => (e.grp = grp));
-    }
-    i = j;
-  }
+  relierAccords(neuves);
   return [...ev.filter((e) => !dedans(e.beat)), ...neuves].sort(memeTemps);
 }
 

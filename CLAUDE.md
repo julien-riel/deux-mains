@@ -13,7 +13,7 @@ Tout est en français : issues, pull requests, messages de commit, ADR, commenta
 
 - `index.html` : la structure de la page, qui charge `src/styles.css` et `src/main.ts`.
 - `src/` : le code TypeScript, organisé par domaine (ADR-0007) :
-  - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire et générateur ;
+  - `chanson/` : théorie (notes, accords, progressions), difficultés, aléatoire, temps (la grille de 12 pas par temps, ADR-0013) et générateur ;
   - `jeu/` : état de la partie, couche d'actions, jugement des coups, table des touches MIDI, auto-play, variations de la partie (reprise du solo), enregistrement des coups et réécoute de fin de partie (#23), jam sans obstacles ni ennemis (#24), lieux de la carte du monde (#25), déroulement (départ, pause, mort, reprise), et les effets du jugement sur le son et l'image ;
   - `audio/` : moteur Web Audio, instruments, séquenceur ;
   - `rendu/` : outils de dessin, scène et HUD, décors de la Ville et de la Boîte ;
@@ -48,7 +48,7 @@ Décidée par ADR-0014. La progression est un seul document JSON versionné, sou
 
 Un essai fait tomber directement sur une fonctionnalité : une chanson courte (une douzaine de mesures) où elle revient dès les premières mesures, dans l'univers et la difficulté choisis, l'autre main en auto-play si besoin. La phrase « à vérifier » reste affichée sur la scène.
 
-- **Où** : le registre `ESSAIS` dans `src/essais/registre.ts`. La fabrique `src/essais/fabrique.ts` assemble des mesures d'une chanson générée (`assembler`), réécrit la basse avec des motifs (même notation que `DIFFS`), peut changer les accords d'un morceau (`accords`), faire marcher la basse en escaliers (`marcher`), poser des phrases en relais entre les deux mains (`relayer`) et ajouter des événements (`accorder`, puis `finaliser`). Le générateur n'est jamais modifié pour un essai.
+- **Où** : le registre `ESSAIS` dans `src/essais/registre.ts`. La fabrique `src/essais/fabrique.ts` assemble des mesures d'une chanson générée (`assembler`), réécrit la basse avec des motifs (même notation que `DIFFS`, 8 signes pour des croches, 12 pour des triolets), peut changer les accords d'un morceau (`accords`), faire marcher la basse en escaliers (`marcher`), poser des phrases en relais entre les deux mains (`relayer`), écrire la mélodie des sections en 3 contre 2 (`polyrythmer`) et ajouter des événements (`accorder`, puis `finaliser`). Le générateur n'est jamais modifié pour un essai.
 - **Ajouter un essai** : une entrée dans `ESSAIS` avec `id` (minuscules et tirets), `titre`, `verifier` (ce qu'on doit voir ou entendre), `issue`, `univers`, `diff`, `mains` (`both`, `L`, `R` ou `duo`, un joueur par main), `chanson()` et `repere(ev)` (les notes qui portent la fonctionnalité) ; `jam: true` ouvre la jam (#24) sur la chanson de l'essai, sans notes à jouer ; `progression()`, une sauvegarde fictive que la carte, le décor et le code de l'essai utilisent à la place de celle du joueur (essais `carte` et `album`). `tests/essais.test.ts` vérifie automatiquement que la chanson est valide, que le repère apparaît dans les quatre premières mesures et au moins quatre fois, et que l'auto-play la joue sans faute.
 - **Ouvrir un essai** : `npm run dev` puis `http://localhost:5173/?essai=<id>` (ou `#essai=<id>`) ; dans `dist/deux-mains.html` ou l'artefact publié, le bouton « Essais » de l'écran titre (touche `E`), puis le numéro de l'essai. Échap quitte les essais et rend les réglages du joueur.
 

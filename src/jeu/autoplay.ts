@@ -1,17 +1,22 @@
 // Auto-play : le son part du séquenceur à l'heure exacte, l'animation suit au moment où on l'entend (ADR-0004).
 // Ce module décide quoi jouer ; le séquenceur fait sonner les notes.
+import { PAS_PAR_TEMPS, pas } from "../chanson/temps";
 import type { Note, Section } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, spb } from "./etat";
 import { alterner, hitEv, pasDuSerpent, passer, tempsDuPassage } from "./jugement";
 import { estSolo, improviser, noterAuSolo } from "./variations";
 
-/** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour l'animation. */
+/** Les notes de ce pas (double-croche) que l'auto-play fait sonner : elles sont marquées et mises en file pour
+ * l'animation. Ce sont celles qui tombent entre ce pas du séquenceur et le suivant, comparées sur la grille de 12 pas
+ * par temps (ADR-0013) : un triolet (#19) en fait partie, et le séquenceur le fait sonner à son heure, pas à celle
+ * du pas. */
 export function autoNotes(step: number) {
-  const b = step / 4,
+  const debut = (step * PAS_PAR_TEMPS) / 4,
+    fin = debut + PAS_PAR_TEMPS / 4,
     notes: Note[] = [];
   for (const ev of S.ev) {
-    if (ev.beat >= b + 0.25) break;
-    if (ev.beat < b || ev.state !== "pending" || ev.auto || !autoFor(ev.hand)) continue;
+    if (pas(ev.beat) >= fin) break;
+    if (pas(ev.beat) < debut || ev.state !== "pending" || ev.auto || !autoFor(ev.hand)) continue;
     ev.auto = true;
     notes.push(ev);
     S.autoQ.push({ at: ev.beat * spb(), ev });

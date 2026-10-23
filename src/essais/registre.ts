@@ -6,10 +6,11 @@
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
-import { NOM_CROISEE, estPetiteNote, progressionDe } from "../chanson/generateur";
+import { NOM_CROISEE, NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/generateur";
+import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
 import { sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
-import { accorder, assembler, chanter, marcher, relayer, type Morceau } from "./fabrique";
+import { accorder, assembler, chanter, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
 
 export interface Essai {
   /** Court, en minuscules avec des tirets : il sert dans l'adresse (?essai=double-saut) */
@@ -46,13 +47,17 @@ export interface Essai {
 const GRAINE = 4242;
 
 // Les sections de la chanson générée, dans les quatre difficultés : intro 0–1, couplet 2–9, refrain 10–17,
-// solo 18–21, refrain 22–29, outro 30–31
+// solo 18–21, refrain 22–29, puis en Difficile la section en 3 contre 2 (#19) 30–33, et l'outro : les deux
+// dernières mesures
 const INTRO: Morceau = { nom: "Intro", genre: "intro", de: 0, mesures: 2 },
-  OUTRO: Morceau = { nom: "Outro", genre: "outro", de: 30, mesures: 2 };
+  OUTRO: Morceau = { nom: "Outro", genre: "outro", de: -2, mesures: 2 };
 const couplet = (de: number, mesures: number): Morceau => ({ nom: "Couplet", genre: "couplet", de, mesures }),
   refrain = (de: number, mesures: number): Morceau => ({ nom: "Refrain", genre: "refrain", de, mesures }),
   // Un pont en mains croisées (#21) de quatre mesures, qui recopie la mélodie de la chanson générée à partir de `de`
-  pontCroise = (de: number): Morceau => ({ nom: NOM_CROISEE, genre: "pont", de, mesures: 4, croisee: true });
+  pontCroise = (de: number): Morceau => ({ nom: NOM_CROISEE, genre: "pont", de, mesures: 4, croisee: true }),
+  // Une section en 3 contre 2 (#19) de quatre mesures, sur les accords de la chanson générée à partir de `de` : sa
+  // basse vient des motifs en triolets de Difficile, sa mélodie de `polyrythmer`
+  polyrythmie = (de: number): Morceau => ({ nom: NOM_POLYRYTHMIE, genre: "polyrythmie", de, mesures: 4 });
 
 // La progression fictive des essais de la carte (#25) : des lieux déjà réussis, trois dans la Ville et deux dans la
 // Boîte, mais jamais celui de la chanson d'essai, qu'on réussit en la jouant
@@ -460,6 +465,24 @@ export const ESSAIS: Essai[] = [
     chanson: () => assembler(GRAINE, "facile", [INTRO, couplet(2, 8), OUTRO]),
     repere: () => true,
     progression: progressionFictive,
+  },
+  {
+    id: "polyrythmie",
+    titre: "3 contre 2",
+    verifier:
+      "Après l'intro, « 3 contre 2 » : sur les temps 1 et 3, la basse joue trois notes par temps (triolets, W et S) pendant que la mélodie en joue deux (croches), puis trois temps de suite à la dernière mesure. Sur le sol, deux repères et un « 3 » marquent les triolets ; dans le ciel, une ligne par croche. La grosse caisse marque chaque temps. En auto-play, les triolets tombent régulièrement entre les croches, jamais en avance sur elles. Pour apprendre une main à la fois, choisis une seule main dans les réglages.",
+    issue: 19,
+    univers: "ville",
+    diff: "difficile",
+    mains: "both",
+    // Deux sections en 3 contre 2, séparées par deux mesures de couplet en croches pour sentir la différence
+    chanson: () =>
+      polyrythmer(
+        assembler(GRAINE, "difficile", [INTRO, polyrythmie(10), couplet(2, 2), polyrythmie(14), OUTRO]),
+        "difficile",
+      ),
+    // Les triolets de la basse, hors de la grille des croches
+    repere: (ev) => ev.kind === "polyrythmie" && ev.hand === "L" && !surLaCroche(ev.beat),
   },
 ];
 

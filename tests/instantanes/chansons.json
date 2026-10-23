@@ -444,8 +444,8 @@
     "prog": "vi–IV–I–V",
     "tonalite": "La♭ mineur",
     "bpm": 88,
-    "notes": 221,
-    "empreinte": "081072801f544867f9f3fea28dc7856bf3507a8c275b4bf6460711da0ca71d58"
+    "notes": 272,
+    "empreinte": "c76478f3e86fc5f21227a97f2ba686596edfc2d3783504f1040f9590f7c47914"
   },
   "42 difficile": {
     "prog": "Royal Road",
@@ -458,8 +458,8 @@
     "prog": "Vamp dorien",
     "tonalite": "La mineur",
     "bpm": 104,
-    "notes": 214,
-    "empreinte": "bb18b2f75663c84f3d119acdb6dfc9617aa842d69605a0b1ee703409b4c94174"
+    "notes": 265,
+    "empreinte": "0a3d1811d95ef2d4bab6728b39bc51786b8c9597c277e4774d9217ec8893e5ca"
   },
   "123 difficile": {
     "prog": "Canon de Pachelbel",
@@ -472,8 +472,8 @@
     "prog": "I–V–vi–IV",
     "tonalite": "La♭ majeur",
     "bpm": 104,
-    "notes": 220,
-    "empreinte": "e19d5e6f52cd3912d1d1f2c63a17a29780d3371e7b4b57fe72e8f131701e5be5"
+    "notes": 271,
+    "empreinte": "47c3db2f6aca1963e82f9fd791ba58e96bc93709c54c8fa658228df93d5f4bc6"
   },
   "1000 difficile": {
     "prog": "Vamp dorien",
@@ -486,15 +486,15 @@
     "prog": "I–V–vi–IV",
     "tonalite": "La majeur",
     "bpm": 104,
-    "notes": 226,
-    "empreinte": "795347c71f45d086d05bec7a33fc99ae12aabde1df51a21b080da589d81eb31b"
+    "notes": 277,
+    "empreinte": "ab76386a64dd37935669fdfcebe21bc8ca02273ef5d439fcadbca3795c315ced"
   },
   "4242 difficile": {
     "prog": "Cadence andalouse",
     "tonalite": "Sol mineur",
     "bpm": 96,
-    "notes": 218,
-    "empreinte": "ffc6a062ade511ba81dde97ef0af7c2a2644119693be3cbf4c071f5bb3eb3f08"
+    "notes": 269,
+    "empreinte": "874199bbd0fd4fba109dfca58e50bf8dbcfdadac639b3d6bf551dd5374c9c021"
   },
   "5000 difficile": {
     "prog": "vi–IV–I–V",
@@ -514,8 +514,8 @@
     "prog": "I–V–vi–IV",
     "tonalite": "Do♯ majeur",
     "bpm": 92,
-    "notes": 224,
-    "empreinte": "47b08d8d23700ae65f014d119bdf1d92a59b00c1e63061710e5893282903765c"
+    "notes": 275,
+    "empreinte": "580008c0a83a2c53b72942ec4a1d589bea4aafda0b1d94610a0e8763bf5ade81"
   },
   "31415 difficile": {
     "prog": "I–V–vi–IV",
@@ -528,15 +528,15 @@
     "prog": "Vamp dorien",
     "tonalite": "Si mineur",
     "bpm": 96,
-    "notes": 228,
-    "empreinte": "0f6e52e9848e88c755269dedf79080d561c857f642a076f33df23982c9d0c371"
+    "notes": 279,
+    "empreinte": "4246188cde95503fb5bf6d55f881e968b806e906b26804d28c42fe4cbdfbcdb4"
   },
   "65536 difficile": {
     "prog": "vi–IV–I–V",
     "tonalite": "Mi♭ mineur",
     "bpm": 112,
-    "notes": 242,
-    "empreinte": "9d2915214eebd1995d166056172fcaa44a4eb7c96c9d77bcdb1d1af3bffa4270"
+    "notes": 293,
+    "empreinte": "2a6c43a24cfe646137e8ca817291136b4da35118cccc361ffc99f94d350d9db4"
   },
   "77777 difficile": {
     "prog": "I–V–vi–IV",
@@ -549,14 +549,14 @@
     "prog": "I–V–vi–IV",
     "tonalite": "Do♯ majeur",
     "bpm": 112,
-    "notes": 238,
-    "empreinte": "e843a95bb7d002bf3d0ee34feffa80c631f1d286b34bdfcf721f6a7253a0769c"
+    "notes": 289,
+    "empreinte": "b3ac3f0d9ffdf570371b7323328710ed5b0c2a27d66e20508175d171ad35dd97"
   },
   "99999 difficile": {
     "prog": "Canon de Pachelbel",
     "tonalite": "Mi majeur",
     "bpm": 96,
-    "notes": 245,
-    "empreinte": "6415e52d677c37d8edb49d9a65f81c4804f43a0b65732d5970be1ac0aec41537"
+    "notes": 296,
+    "empreinte": "86c6c540295f0e8c2e7daa09c39de0a53809848a7e2980a2adf10b553385612c"
   }
 }

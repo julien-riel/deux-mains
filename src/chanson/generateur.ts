@@ -1,7 +1,8 @@
 /* ---------- Générateur de chanson ---------- */
 import { clamp } from "../outils";
 import { mulberry32 } from "./aleatoire";
-import { DIFFS, type ReglagesChanteur } from "./difficultes";
+import { DIFFS, type ReglagesChanteur, type ReglagesPolyrythmie } from "./difficultes";
+import { PAS_PAR_MESURE, enTemps, relierAccords } from "./temps";
 import { NOTE_FR, PROGS, dansLAccord, gammeDe, makeChord, notesEntre } from "./theorie";
 import type { Accord, Chanson, Chanteur, Genre, Note, Section } from "./types";
 
@@ -151,7 +152,10 @@ export function answer(rng, m, P) {
 }
 
 /**
- * Les notes de basse d'une mesure, d'après un motif de `DIFFS`. Glisser joue la fondamentale, sauter l'octave,
+ * Les notes de basse d'une mesure, d'après un motif de `DIFFS`. La longueur du motif donne sa division (ADR-0013) :
+ * 8 signes pour des croches, 12 pour des triolets (#19) ; chaque position se calcule en pas de la grille de 12 par
+ * temps (`enTemps`), pour que toutes les notes d'un même temps tombent sur le même nombre. Glisser joue la
+ * fondamentale, sauter l'octave,
  * le double saut la quinte au-dessus de l'octave, et l'écrasement la fondamentale accentuée (ADR-0003). Le
  * tunnel et les pentes (#12) se tiennent sur les « - » : la pente montante glisse de la fondamentale à
  * l'octave, la descendante de l'octave à la fondamentale. `plaque` : la première note devient une plaque (#8).
@@ -166,21 +170,23 @@ export function notesDeBasse(
   plaque: boolean,
   marches: number[] = [],
 ): Note[] {
+  if (PAS_PAR_MESURE % motif.length) throw new Error(`Motif de basse « ${motif} » : ${motif.length} signes`);
+  const signe = PAS_PAR_MESURE / motif.length;
   let marche = 0;
   const notes: Note[] = [];
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < motif.length; k++) {
     const c = plaque && k === 0 ? "P" : motif[k];
     if (c === "." || c === "-") continue;
     let dur = 0;
     if (c === "T" || c === "M" || c === "B") {
       let n = 1;
-      while (k + n < 8 && motif[k + n] === "-") n++;
-      dur = n / 2;
+      while (k + n < motif.length && motif[k + n] === "-") n++;
+      dur = enTemps(n * signe);
     }
     const lane = { P: 3, W: 1, D: 2, "/": 4, "\\": 5 }[c] ?? 0;
     const note: Note = {
       hand: "L",
-      beat: bar * 4 + k / 2,
+      beat: enTemps(bar * PAS_PAR_MESURE + k * signe),
       dur,
       lane,
       bar,
@@ -397,12 +403,48 @@ export const NOM_CROISEE = "Mains croisées";
  * Une mélodie déjà entendue, pour que le joueur n'ait à réapprendre que la lecture de la scène retournée. */
 export const phrasesCroisees = <T>(couplet: T[]): T[] => [couplet[0], couplet[3]];
 
+/* ---------- Section en 3 contre 2 (#19, ADR-0013) ---------- */
+
+export const NOM_POLYRYTHMIE = "3 contre 2";
+
+/**
+ * La mélodie d'une section en 3 contre 2 (#19) : elle reste en croches, aux places de `R.melodie` (une mesure en
+ * huit croches, x une note), pendant que la basse joue ses triolets. Ses couloirs marchent par degrés voisins dans
+ * l'accord de chaque mesure (ADR-0003), tirés de `rng`, et la dernière note se pose sur la fondamentale.
+ */
+export function melodieEnPolyrythmie(
+  rng: () => number,
+  R: ReglagesPolyrythmie,
+  start: number,
+  bars: number,
+  chords: Accord[],
+): Note[] {
+  const notes: Note[] = [];
+  let lane = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < bars; i++) {
+    const bar = start + i,
+      rythme = R.melodie[i % R.melodie.length];
+    for (let k = 0; k < 8; k++) {
+      if (rythme[k] !== "x") continue;
+      if (notes.length) {
+        const r = rng();
+        lane = clamp(lane + (r < 0.45 ? -1 : r < 0.9 ? 1 : 0), 0, 3);
+      }
+      notes.push(noteDeMelodie(lane, bar * 4 + k / 2, 0, bar, chords[bar], "polyrythmie"));
+    }
+  }
+  const derniere = notes.at(-1);
+  if (derniere)
+    notes[notes.length - 1] = noteDeMelodie(0, derniere.beat, 0, derniere.bar, chords[derniere.bar], "polyrythmie");
+  return notes;
+}
+
 /**
  * La version du générateur (ADR-0014) : on l'augmente à chaque changement voulu des chansons, c'est-à-dire à chaque
  * régénération de l'instantané (ADR-0005). Ce que la sauvegarde range sur les notes exactes d'une chanson (meilleur
  * score, tags, fantôme) porte cette version dans sa clé, et celui d'une autre version est ignoré.
  */
-export const VERSION_GENERATEUR = 1;
+export const VERSION_GENERATEUR = 2;
 
 // Le tirage d'une chanson : sa progression est le premier nombre tiré, avant la tonalité et le tempo
 const tirage = (seed: number) => mulberry32(seed * 9301 + 49297);
@@ -421,6 +463,10 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   // Le pont en mains croisées (#21) a son propre tirage : sans lui, la chanson ne change pas, et avec lui, elle
   // ne fait que s'allonger de ses mesures
   const croisee = D.croiseeP > 0 && mulberry32(seed * 2749 + 3001)() < D.croiseeP;
+  // La section en 3 contre 2 (#19) aussi, présence et mélodie : elle s'ajoute entre le dernier refrain et l'outro,
+  // après la reprise du solo (ADR-0012), et Débutant, Facile et Normal, qui n'en ont pas, n'y tirent rien
+  const rngPoly = D.polyrythmie ? mulberry32(seed * 1693 + 2903) : null,
+    polyrythmie = rngPoly !== null && rngPoly() < D.polyrythmie.p;
   const sections = [
     ["Intro", "intro", 2],
     ["Couplet", "couplet", 8],
@@ -428,6 +474,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     ...(croisee ? [[NOM_CROISEE, "pont", 4]] : []),
     ["Solo libre", "pont", 4],
     ["Refrain", "refrain", 8],
+    ...(polyrythmie ? [[NOM_POLYRYTHMIE, "polyrythmie", 4]] : []),
     ["Outro", "outro", 2],
   ].map(([name, kind, bars]) => ({ name, kind, bars, ...(name === NOM_CROISEE ? { croisee: true } : {}) }) as Section);
   let bar = 0;
@@ -512,6 +559,11 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
       if (p) ev.push(...notesDeBasse(p, bar, chords[bar], s.kind, plaque, marches));
     }
+    // La section en 3 contre 2 (#19) : la basse en triolets vient de son motif, la mélodie reste en croches
+    if (s.kind === "polyrythmie") {
+      ev.push(...melodieEnPolyrythmie(rngPoly, D.polyrythmie, s.start, s.bars, chords));
+      continue;
+    }
     const ph = s.croisee ? phrasesCroisees(phrases.couplet) : phrases[s.kind];
     if (!ph) continue;
     for (let k = 0; k < s.bars / 2; k++) {
@@ -559,16 +611,8 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     e.air = nx && nx.lane === 2 ? 1 : Math.min(0.85, (nx ? nx.beat - e.beat : 2) * 0.8);
   });
   ev.forEach((e) => (e.state = "pending"));
-  // Notes simultanées = un accord : reliées à l'écran, bonus quand l'accord est complet
-  for (let i = 0; i < ev.length;) {
-    let j = i;
-    while (j < ev.length && ev[j].beat === ev[i].beat) j++;
-    if (j - i > 1) {
-      const grp = ev.slice(i, j);
-      grp.forEach((e) => (e.grp = grp));
-    }
-    i = j;
-  }
+  // Notes simultanées (du même pas, ADR-0013) = un accord : reliées à l'écran, bonus quand l'accord est complet
+  relierAccords(ev);
   const names = prog.chords.map((c) => makeChord(keyPc, c).name);
   return {
     seed,
