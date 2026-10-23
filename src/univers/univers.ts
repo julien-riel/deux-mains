@@ -16,6 +16,20 @@ export interface Univers {
   deadTitle: string;
   rail: string;
   under: string;
+  /** La carte du monde (#25) : ses noms et ses états, dans les mots de l'univers */
+  carte: {
+    /** Le nom du bouton et de l'écran */
+    nom: string;
+    titre: string;
+    aFaire: string;
+    reussi: string;
+    /** Le pluriel de `reussi`, pour le compte : « 3 sur 6 rallumés » */
+    reussis: string;
+    /** Ce que dit l'écran de fin quand la chanson vient de réussir son lieu */
+    gagne: string;
+    /** Ce que la progression change dans les niveaux */
+    effet: string;
+  };
 }
 
 // Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
@@ -39,6 +53,15 @@ export const THEMES: Record<string, Univers> = {
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
     under: "#0b0916",
+    carte: {
+      nom: "Carte",
+      titre: "La carte de la ville",
+      aFaire: "Éteint",
+      reussi: "Rallumé",
+      reussis: "rallumés",
+      gagne: "Le quartier se rallume : ses habitants resteront aux fenêtres.",
+      effet: "Chaque quartier rallumé garde des fenêtres allumées au départ des niveaux suivants.",
+    },
   },
   boite: {
     label: "La Boîte à musique",
@@ -59,6 +82,15 @@ export const THEMES: Record<string, Univers> = {
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",
     under: "#120c08",
+    carte: {
+      nom: "Album",
+      titre: "L'album des souvenirs",
+      aFaire: "À retrouver",
+      reussi: "Retrouvé",
+      reussis: "retrouvés",
+      gagne: "Le souvenir revient : son illustration rejoint l'album.",
+      effet: "Chaque souvenir retrouvé révèle son illustration, et sa photographie reste accrochée au mur du grenier.",
+    },
   },
 };
 

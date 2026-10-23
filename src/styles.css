@@ -88,12 +88,20 @@ h1 .r {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   padding: 20px;
   text-align: center;
   background: var(--scrim);
   overflow: auto;
+}
+/* Centré quand il tient dans la scène ; plus haut qu'elle (la carte de #25 sur un téléphone), il défile depuis son
+   haut au lieu d'être rogné des deux côtés comme avec justify-content: center */
+.overlay > :first-child {
+  margin-top: auto;
+}
+.overlay > :last-child {
+  margin-bottom: auto;
 }
 /* Hors de l'artefact, rien d'autre ne cache un écran marqué hidden : display: flex l'emporterait */
 .overlay[hidden] {
@@ -320,6 +328,85 @@ button kbd {
 }
 .essai-bandeau[hidden] {
   display: none;
+}
+/* ---------- Carte du monde (#25) et code de sauvegarde ---------- */
+.carte {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(720px, 100%);
+  text-align: left;
+}
+.carte .lieu {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+}
+/* Les esquisses rapetissent sur une scène basse (téléphone à l'horizontale) : elles sont rognées, pas déformées */
+.carte .lieu svg {
+  display: block;
+  width: 100%;
+  height: clamp(44px, 17vh, 148px);
+  border-radius: 6px;
+}
+.carte .lieu span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-inline: 4px;
+}
+.carte .lieu small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.carte .lieu.a-faire svg {
+  opacity: 0.75;
+}
+.carte .lieu.reussi small {
+  color: var(--good);
+}
+.carte .lieu.prochain {
+  border-color: var(--mel);
+}
+.carte .lieu:disabled {
+  cursor: default;
+}
+.carte.boite .lieu.reussi svg {
+  outline: 3px solid #a07a3c;
+  outline-offset: -3px;
+}
+.code {
+  display: grid;
+  gap: 4px;
+  width: min(560px, 100%);
+  text-align: left;
+}
+.code label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.code textarea {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  resize: vertical;
+  word-break: break-all;
+}
+.progres {
+  color: var(--good);
+}
+@media (max-width: 520px) {
+  .carte {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .bar {
   display: flex;

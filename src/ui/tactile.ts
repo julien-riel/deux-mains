@@ -50,9 +50,16 @@ function lever(e: PointerEvent) {
 }
 scene.addEventListener("pointerup", lever);
 scene.addEventListener("pointercancel", lever);
-// Pas de zoom ni de défilement pendant la partie (Safari ignore une partie de touch-action)
+// Pas de zoom ni de défilement pendant la partie (Safari ignore une partie de touch-action). Un écran affiché par
+// dessus la scène (la carte de #25, la liste des essais) défile quand il dépasse la hauteur de la scène.
 for (const type of ["touchmove", "gesturestart", "dblclick"])
-  scene.addEventListener(type, (e) => COMMANDES.tactile && e.preventDefault(), { passive: false });
+  scene.addEventListener(
+    type,
+    (e) => {
+      if (COMMANDES.tactile && !(e.target as HTMLElement).closest?.(".overlay:not([hidden])")) e.preventDefault();
+    },
+    { passive: false },
+  );
 
 document.querySelector("#pause").addEventListener("click", pause);
 

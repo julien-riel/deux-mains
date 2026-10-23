@@ -6,6 +6,7 @@ import { DIFFS } from "../chanson/difficultes";
 import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { COMMANDES } from "../ui/touches";
+import { noterFinDePartie } from "../ui/progression";
 import { TH } from "../univers/univers";
 import { oublierTouches } from "./actions";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
@@ -258,7 +259,11 @@ export function finish() {
   stopScheduler();
   // La fin d'une partie se garde pour la réécouter ; la fin d'une réécoute rend le bilan de la partie (#23)
   if (S.relecture) finirReecoute();
-  else garderLaPartie();
+  else {
+    garderLaPartie();
+    // La progression (#25) est notée avant l'écran de fin, qui dit ce qu'elle a gagné ; pas après une réécoute
+    noterFinDePartie();
+  }
   show("done");
 }
 

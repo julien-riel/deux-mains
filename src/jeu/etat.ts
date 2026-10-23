@@ -2,12 +2,13 @@
 import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
+import { sauvegardeVide, type Progres, type Sauvegarde } from "../sauvegarde/format";
 import type { Enregistrement } from "./enregistrement";
 import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
 import type { Reprise } from "./variations";
 
-export type Mode = "title" | "essais" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
+export type Mode = "title" | "essais" | "carte" | "sauvegarde" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
 
 /** Ce que le joueur fait, quelle que soit la commande : clavier, tactile ou MIDI (ADR-0008) */
 export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
@@ -79,6 +80,8 @@ export interface Calibrage {
 export interface EssaiEnCours {
   essai: Essai;
   avant: { diff: string; theme: string; practice: Mains; vitesse: number; boucle: number };
+  /** La progression fictive de l'essai (#25), en mémoire seulement : ce qu'il gagne n'atteint jamais le stockage */
+  sauvegarde?: Sauvegarde;
 }
 
 /** L'état de la partie, partagé par tous les modules */
@@ -160,6 +163,10 @@ export interface Etat {
   relecture: Relecture | null;
   /** La jam en cours (#24) : les mesures qu'elle rejoue sans fin, sans notes à jouer ; null hors jam */
   jam: Jam | null;
+  /** La progression du joueur (ADR-0014), lue au démarrage ; `progression()` donne celle qui compte en ce moment */
+  sauvegarde: Sauvegarde;
+  /** Ce que la dernière chanson finie a changé dans la progression (#25), pour l'écran de fin ; null sinon */
+  progres: Progres | null;
 }
 
 export const S: Etat = {
@@ -221,12 +228,19 @@ export const S: Etat = {
   enregistrement: null,
   relecture: null,
   jam: null,
+  sauvegarde: sauvegardeVide(),
+  progres: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.
 export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
 // Sur l'écran de départ, dans la liste des essais et pendant le calibrage, la scène tourne au repos
-export const auRepos = () => S.mode === "title" || S.mode === "essais" || S.mode === "calib";
+export const auRepos = () =>
+  S.mode === "title" || S.mode === "essais" || S.mode === "carte" || S.mode === "sauvegarde" || S.mode === "calib";
+// Pendant un essai, la progression fictive de l'essai, ou une progression vide : un essai se voit toujours pareil,
+// et ne lit ni n'écrit celle du joueur (#25)
+const AUCUNE = sauvegardeVide();
+export const progression = (): Sauvegarde => (S.essai ? (S.essai.sauvegarde ?? AUCUNE) : S.sauvegarde);
 
 // Le combo qui fait le multiplicateur d'une main : en duo, celui de son joueur (#6) ; sinon le combo commun
 export const comboDe = (hand?: Main) => (hand && S.practice === "duo" ? S.parMain[hand].combo : S.combo);

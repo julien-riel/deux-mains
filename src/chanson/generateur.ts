@@ -397,12 +397,25 @@ export const NOM_CROISEE = "Mains croisées";
  * Une mélodie déjà entendue, pour que le joueur n'ait à réapprendre que la lecture de la scène retournée. */
 export const phrasesCroisees = <T>(couplet: T[]): T[] => [couplet[0], couplet[3]];
 
+/**
+ * La version du générateur (ADR-0014) : on l'augmente à chaque changement voulu des chansons, c'est-à-dire à chaque
+ * régénération de l'instantané (ADR-0005). Ce que la sauvegarde range sur les notes exactes d'une chanson (meilleur
+ * score, tags, fantôme) porte cette version dans sa clé, et celui d'une autre version est ignoré.
+ */
+export const VERSION_GENERATEUR = 1;
+
+// Le tirage d'une chanson : sa progression est le premier nombre tiré, avant la tonalité et le tempo
+const tirage = (seed: number) => mulberry32(seed * 9301 + 49297);
+const tirerProgression = (rng: () => number) => PROGS[Math.floor(rng() * PROGS.length)];
+/** La progression de la chanson d'une graine, sans construire la chanson (même tirage que buildSong) */
+export const progressionDe = (seed: number) => tirerProgression(tirage(seed));
+
 export function buildSong(seed: number, diffKey: string): Chanson {
-  const rng = mulberry32(seed * 9301 + 49297);
+  const rng = tirage(seed);
   // Les chanteurs (#18) ont leur propre tirage : le reste de la chanson ne change pas avec eux
   const rngChant = mulberry32(seed * 6151 + 811);
   const D = DIFFS[diffKey];
-  const prog = PROGS[Math.floor(rng() * PROGS.length)];
+  const prog = tirerProgression(rng);
   const keyPc = Math.floor(rng() * 12);
   const bpm = 88 + 4 * Math.floor(rng() * 7);
   // Le pont en mains croisées (#21) a son propre tirage : sans lui, la chanson ne change pas, et avec lui, elle

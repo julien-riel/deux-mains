@@ -16,6 +16,8 @@ export default defineConfig([
     files: [
       "src/chanson/**/*.ts",
       "src/essais/**/*.ts",
+      "src/sauvegarde/**/*.ts",
+      "src/jeu/carte.ts",
       "src/jeu/jugement.ts",
       "src/jeu/calibrage.ts",
       "src/jeu/midi.ts",

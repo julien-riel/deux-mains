@@ -5,8 +5,10 @@ import { noter } from "../jeu/enregistrement";
 import { S, spb } from "../jeu/etat";
 import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
+import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./carte";
 import { overlay, show } from "./ecrans";
 import { essaiNumero, fermerMenuEssais, menuEssais, ouvrirEssai } from "./essais";
+import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
 import { nouvelleChanson, quitterEssai } from "./reglages";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
@@ -28,6 +30,12 @@ overlay.addEventListener("click", (e) => {
   else if (act === "essai") ouvrirEssai(b.dataset.essai, true);
   else if (act === "titre") fermerMenuEssais();
   else if (act === "quitter-essai") quitterEssai();
+  else if (act === "carte") ouvrirCarte();
+  else if (act === "lieu") choisirLieu(b.dataset.lieu);
+  else if (act === "suivant") enchainer();
+  else if (act === "sauvegarde") ouvrirSauvegarde();
+  else if (act === "copier") copierCode();
+  else if (act === "coller") collerCode(document.querySelector<HTMLTextAreaElement>("#code-colle")?.value ?? "");
 });
 
 /* ---------- Entrées ---------- */
@@ -75,6 +83,15 @@ addEventListener("keydown", (e) => {
       id = n && essaiNumero(+n[1]);
     if (id) ouvrirEssai(id, true);
     else if (c === "Escape") fermerMenuEssais();
+  } else if (S.mode === "carte") {
+    // La carte (#25) : un chiffre prépare la chanson du lieu de ce numéro
+    const n = /^Digit([1-9])$/.exec(c),
+      lieu = n && lieuNumero(+n[1]);
+    if (lieu) choisirLieu(lieu);
+    else if (c === "KeyS") ouvrirSauvegarde();
+    else if (c === "Escape") fermerCarte();
+  } else if (S.mode === "sauvegarde") {
+    if (c === "Escape") ouvrirCarte();
   } else if (S.mode === "title") {
     // L'essai de la jam (#24) n'a qu'un départ : la jam
     const jam = !!S.essai?.essai.jam;
@@ -86,6 +103,7 @@ addEventListener("keydown", (e) => {
     else if (c === "KeyA" && !jam) newRun(true);
     else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyE") menuEssais();
+    else if (c === "KeyC") ouvrirCarte();
     else if (c === "Escape" && S.essai) quitterEssai();
   } else if (S.mode === "pause" && S.jam) {
     if (c === "Space") {
@@ -111,6 +129,8 @@ addEventListener("keydown", (e) => {
     } else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyE" && S.essai) menuEssais();
     else if (c === "Escape" && S.essai) quitterEssai();
+    else if (c === "KeyC") ouvrirCarte();
+    else if (c === "ArrowRight" && S.mode === "done" && !S.essai) enchainer();
   }
 });
 addEventListener("keyup", (e) => {
