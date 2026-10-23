@@ -14,6 +14,20 @@ export const GY = 505,
   HITX = 300,
   PPB = 150;
 export const LANE_Y = [395, 315, 235, 155];
+/** Le boss de fin (#26) plane à droite de la scène, derrière les couloirs d'où sortent ses ennemis */
+export const BOSS_X = W - 130,
+  BOSS_Y = 275;
+/** La pose d'un boss de fin (#26) pour son dessin : la note qu'il joue (de 0 à 1), le coup qu'il vient de recevoir
+ * (de 0 à 1), sa phase (1 à 3), s'il est tombé, son opacité, l'heure en secondes et son inclinaison en radians */
+export interface PoseDuBoss {
+  ouvert: number;
+  touche: number;
+  phase: number;
+  vaincu: boolean;
+  a: number;
+  t: number;
+  rot: number;
+}
 /**
  * Le retournement de la scène en mains croisées (#21) : son échelle verticale autour de l'axe `AXE` (1 à l'endroit,
  * -1 retournée), et si l'on dessine en ce moment dans la scène retournée, où `txt` redresse les textes. L'axe est

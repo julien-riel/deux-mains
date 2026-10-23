@@ -26,6 +26,8 @@ interface Reglages {
   practice?: Mains;
   vitesse?: number;
   theme?: string;
+  /** Le niveau du boss de fin de la graine (#26) */
+  boss?: boolean;
 }
 interface Chaud {
   data?: Reglages;
@@ -90,7 +92,14 @@ const hot = window.claude && window.claude.hot;
 if (hot && hot.snapshot)
   hot.snapshot(() => {
     const r = S.essai ? S.essai.avant : S;
-    return { seed: S.seed, diff: r.diff, practice: r.practice, vitesse: r.vitesse, theme: r.theme };
+    return {
+      seed: S.seed,
+      diff: r.diff,
+      practice: r.practice,
+      vitesse: r.vitesse,
+      theme: r.theme,
+      boss: !S.essai && !!S.song?.boss,
+    };
   });
 const boot = (data) => {
   data = data || {};
@@ -103,7 +112,7 @@ const boot = (data) => {
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");
   setVitesse(VITESSES.includes(data.vitesse) ? data.vitesse : VITESSES.includes(savedVitesse) ? savedVitesse : 1);
-  load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal");
+  load(data.seed || randomSeed(), DIFFS[data.diff] ? data.diff : DIFFS[savedDiff] ? savedDiff : "normal", !!data.boss);
   essaiDeLAdresse();
   requestAnimationFrame(frame);
 };

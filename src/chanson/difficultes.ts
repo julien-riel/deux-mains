@@ -31,9 +31,19 @@ export interface ReglagesPolyrythmie {
   p: number;
   melodie: string[];
 }
+// Boss de fin (#26) : un niveau à part (voir `buildBoss`), dont le boss joue des phrases d'une mesure que le joueur
+// rejoue en canon, une mesure plus tard. `couloirs` : les degrés joués ; `basse` : les motifs de basse du niveau, en
+// boucle ; `phases` : les rythmes des phrases de chaque phase (x une note), de plus en plus serrés. Sur la mesure de
+// la réponse, la phrase évite les notes de basse comme la mélodie (`avoid` : toutes, toutes sauf le premier temps,
+// aucune), et garde au moins deux notes.
 export interface ReglagesChanteur {
   couloirs: number[];
   rythmes: string[];
+}
+export interface ReglagesBoss {
+  couloirs: number[];
+  basse: string[];
+  phases: string[][];
 }
 export const DIFFS = {
   debutant: {
@@ -46,6 +56,11 @@ export const DIFFS = {
     relaisP: 0,
     croiseeP: 0,
     polyrythmie: null as ReglagesPolyrythmie | null,
+    boss: {
+      couloirs: [0, 1, 2],
+      basse: ["S.......", "........"],
+      phases: [["..x...x.", "....x.x."], ["..x.x.x.", "x.x.x..."], ["x.x.x.x."]],
+    },
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -81,6 +96,11 @@ export const DIFFS = {
     relaisP: 0,
     croiseeP: 0,
     polyrythmie: null as ReglagesPolyrythmie | null,
+    boss: {
+      couloirs: [0, 1, 2],
+      basse: ["S.......", "W......."],
+      phases: [["..x...x.", "....x.x."], ["..x.x.x."], ["..x.xxx.", "..xxx.x."]],
+    },
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -115,6 +135,15 @@ export const DIFFS = {
     relaisP: 0.6,
     croiseeP: 0,
     polyrythmie: null as ReglagesPolyrythmie | null,
+    boss: {
+      couloirs: [0, 1, 2, 3],
+      basse: ["S...W...", "S......."],
+      phases: [
+        ["x.x.x.x.", "x...x.x."],
+        ["x.x.xx..", "xx..x.x.", "x.xx..x."],
+        ["x.xx.xx.", "xx.x.xx.", "x.xxx.xx"],
+      ],
+    },
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -149,6 +178,15 @@ export const DIFFS = {
     relaisP: 0.75,
     croiseeP: 0.5,
     polyrythmie: { p: 0.6, melodie: ["xx..xx..", "xx..xx..", "xx..xx..", "xxxxxx.."] } as ReglagesPolyrythmie | null,
+    boss: {
+      couloirs: [0, 1, 2, 3],
+      basse: ["S..W..S.", "S.W....."],
+      phases: [
+        ["x.x.xx..", "xx..x.x."],
+        ["x.xx.xx.", "xx.x..xx"],
+        ["xxx.x.xx", "x.xxxx.x", "xx.xx.xx"],
+      ],
+    },
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],

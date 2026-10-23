@@ -23,6 +23,7 @@ interface NoteBrute {
   midiSerpent?: number[];
   reponse?: true;
   relais?: number;
+  canon?: number;
   harm?: number;
   vel?: number;
   air?: number;
@@ -38,7 +39,7 @@ interface ChansonBrute {
   endBeat: number;
   keyName: string;
   progLabel: string;
-  sections: { name: string; kind: string; bars: number; start: number }[];
+  sections: { name: string; kind: string; bars: number; start: number; boss?: number }[];
   chords: {
     pc: number;
     q: string;
@@ -51,6 +52,7 @@ interface ChansonBrute {
   }[];
   ev: NoteBrute[];
   chanteurs?: { bar: number; notes: { beat: number; lane: number; midi: number }[] }[];
+  boss?: { vie: number; phrases: { bar: number; notes: { beat: number; lane: number; midi: number }[] }[] };
 }
 
 // Seuls les champs produits par le générateur comptent : l'état de jeu (voice, auto…) est ignoré
@@ -64,7 +66,8 @@ function canonique(s: ChansonBrute) {
     endBeat: s.endBeat,
     keyName: s.keyName,
     progLabel: s.progLabel,
-    sections: s.sections.map((x) => [x.name, x.kind, x.bars, x.start]),
+    // Les phases du boss de fin (#26) ne comptent que dans ses niveaux : les chansons gardent leur empreinte
+    sections: s.sections.map((x) => [x.name, x.kind, x.bars, x.start, ...(x.boss ? [x.boss] : [])]),
     chords: s.chords.map((c) => [c.pc, c.q, c.name, c.ints, c.root, c.bass, c.lanes, c.hue]),
     ev: s.ev.map((e) => [
       e.hand,
@@ -87,10 +90,15 @@ function canonique(s: ChansonBrute) {
       ...(e.reponse ? ["reponse"] : []),
       // De même pour les phrases en relais (#20)
       ...(e.relais !== undefined ? ["relais", e.relais] : []),
+      // De même pour le canon contre le boss (#26)
+      ...(e.canon !== undefined ? ["canon", e.canon] : []),
     ]),
     // Les chanteurs (#18) ne comptent que dans les chansons qui en ont : Débutant garde son empreinte
     ...(s.chanteurs?.length
       ? { chanteurs: s.chanteurs.map((c) => [c.bar, c.notes.map((n) => [n.beat, n.lane, n.midi])]) }
+      : {}),
+    ...(s.boss
+      ? { boss: [s.boss.vie, s.boss.phrases.map((p) => [p.bar, p.notes.map((n) => [n.beat, n.lane, n.midi])])] }
       : {}),
   };
 }

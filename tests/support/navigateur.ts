@@ -17,7 +17,7 @@ export type Univers = "ville" | "boite";
 
 export interface InterfaceJeu {
   state: Etat;
-  load(seed: number, diff: Difficulte): void;
+  load(seed: number, diff: Difficulte, boss?: boolean): void;
   setTheme(v: Univers): void;
   setPractice(v: "both" | "L" | "R" | "duo"): void;
   setVitesse(v: number): void;

@@ -474,3 +474,50 @@ export function tourRate(t) {
   lp.connect(gn);
   gn.connect(B.dry);
 }
+/**
+ * Le boss de fin (#26) joue une note de sa phrase pendant `dur` secondes, une octave sous la mélodie. Ville : le
+ * Grand Drone, deux dents de scie désaccordées dans un pavillon de haut-parleur qui grogne. Boîte : la Mite reine,
+ * un harmonium poussiéreux dont l'anche tremble au battement de ses ailes.
+ */
+export function bossV(t, m, dur) {
+  const f = mtof(m),
+    end = t + dur,
+    stop = end + 0.4;
+  const gn = AC.createGain();
+  gn.gain.setValueAtTime(0, t);
+  gn.gain.linearRampToValueAtTime(0.2, t + 0.02);
+  gn.gain.setTargetAtTime(0.13, t + 0.03, 0.1);
+  gn.gain.setTargetAtTime(0, end, 0.05);
+  const lp = AC.createBiquadFilter();
+  lp.type = "lowpass";
+  if (boite()) {
+    // Deux anches carrées à l'octave, et un tremolo au rythme des ailes
+    lp.frequency.value = 1800;
+    for (const [mul, v] of [
+      [1, 0.5],
+      [2, 0.22],
+    ]) {
+      const anche = AC.createGain();
+      anche.gain.value = v;
+      osc("square", f * mul, t, stop, mul === 2 ? 6 : 0).connect(anche);
+      anche.connect(lp);
+    }
+    const trem = AC.createGain();
+    trem.gain.value = 0.35;
+    osc("sine", 7, t, stop).connect(trem);
+    trem.connect(gn.gain);
+  } else {
+    // Le pavillon : une attaque de filtre qui grogne, puis une voix nasillarde
+    lp.frequency.setValueAtTime(400, t);
+    lp.frequency.exponentialRampToValueAtTime(2600, t + 0.06);
+    lp.frequency.setTargetAtTime(1100, t + 0.08, 0.15);
+    lp.Q.value = 6;
+    for (const det of [-9, 9]) osc("sawtooth", f, t, stop, det).connect(lp);
+    const sub = AC.createGain();
+    sub.gain.value = 0.4;
+    osc("square", f / 2, t, stop).connect(sub);
+    sub.connect(lp);
+  }
+  lp.connect(gn);
+  send(gn, 0.25, 0.2);
+}

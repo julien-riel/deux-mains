@@ -3,6 +3,7 @@ import { autoNotes, autoSerpents, autoSolo, autoTrilles } from "../jeu/autoplay"
 import { S, layers, mesureDeLaChanson, sansFin, sectionAtBar, spb, uneMain } from "../jeu/etat";
 import {
   arpV,
+  bossV,
   chantV,
   click,
   crash,
@@ -57,6 +58,7 @@ export function playStep(step, t) {
     beat = spb(),
     avant = avantRefrain(Math.floor(step / 16));
   chanter(bar, s, t);
+  jouerLeBoss(bar, s, t);
   if (s === 0) {
     // La nappe s'éteint avant le dernier temps, sa queue comprise
     if (sec.kind !== "outro") padV(t, ch, avant ? 3 * beat - 0.5 : 4 * beat);
@@ -120,6 +122,17 @@ function chanter(bar: number, s: number, t: number) {
   if (i < 0) return;
   const suite = i + 1 < notes.length ? notes[i + 1].beat : (bar + 1) * 4;
   chantV(t, notes[i].midi, 0.85 * (suite - notes[i].beat) * spb());
+}
+// Le boss de fin (#26) joue ses phrases en canon quoi qu'on joue, tant qu'il tient : tombé, il se tait, et le joueur
+// finit le canon seul. Chaque note tient presque jusqu'à la suivante. `bar` est une mesure de la chanson.
+function jouerLeBoss(bar: number, s: number, t: number) {
+  if (!S.boss || S.boss.vaincu !== null) return;
+  const p = S.song.boss.phrases.find((ph) => ph.bar === bar),
+    notes = p?.notes ?? [],
+    i = notes.findIndex((n) => pas(n.beat) === pas(bar * 4) + (s * PAS_PAR_TEMPS) / 4);
+  if (i < 0) return;
+  const suite = i + 1 < notes.length ? notes[i + 1].beat : (bar + 1) * 4;
+  bossV(t, notes[i].midi, 0.8 * (suite - notes[i].beat) * spb());
 }
 // Ce que l'auto-play joue à ce pas : les notes de la chanson, et l'improvisation du solo
 function autoStep(step, t, sec, ch) {

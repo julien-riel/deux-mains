@@ -14,6 +14,8 @@ export interface Univers {
   croisee: string;
   /** Sous le nom de la section en 3 contre 2 (#19) : ce que joue chaque main */
   polyrythmie: string;
+  /** Le boss de fin (#26) : son nom, ce que dit la bannière de chaque phase, à sa chute, et quand il s'enfuit */
+  boss: { nom: string; phases: string[]; vaincu: string; fuite: string };
   deadTag: string;
   deadTitle: string;
   rail: string;
@@ -62,6 +64,16 @@ export const THEMES: Record<string, Univers> = {
     solo: "En ondes : la radio pirate est à toi",
     croisee: "La ville à l'envers : tes touches ne changent pas",
     polyrythmie: "Trois pas par temps, deux tirs : la grosse caisse garde le temps",
+    boss: {
+      nom: "Le Grand Drone",
+      phases: [
+        "Il joue une phrase : rejoue-la une mesure plus tard",
+        "Il accélère : ses phrases se serrent",
+        "Dernière phase : il s'emballe",
+      ],
+      vaincu: "Le drone s'écrase : finis le canon seul",
+      fuite: "Le drone s'enfuit, encore debout",
+    },
     deadTag: "Coupure de courant",
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
@@ -98,6 +110,16 @@ export const THEMES: Record<string, Univers> = {
     solo: "La figurine se souvient : joue ce que tu veux",
     croisee: "La boîte se renverse : tes touches ne changent pas",
     polyrythmie: "Le cylindre en trois, le carillon en deux : la grosse caisse garde le temps",
+    boss: {
+      nom: "La Mite reine",
+      phases: [
+        "Elle joue une phrase : rejoue-la une mesure plus tard",
+        "Elle accélère : ses phrases se serrent",
+        "Dernière phase : elle s'affole",
+      ],
+      vaincu: "La mite tombe : finis le canon seul",
+      fuite: "La mite s'envole, encore debout",
+    },
     deadTag: "Ressort détendu",
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",
@@ -121,4 +143,5 @@ export const THEMES: Record<string, Univers> = {
 };
 
 export const TH = (): Univers => THEMES[S.theme];
-export const placeName = () => TH().places[S.song.prog.name];
+/** Le lieu de la chanson, ou le boss dans un niveau de boss (#26) */
+export const placeName = () => (S.song.boss ? TH().boss.nom : TH().places[S.song.prog.name]);

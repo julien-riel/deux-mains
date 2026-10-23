@@ -11,7 +11,18 @@ import { TH } from "../univers/univers";
 import { oublierTouches } from "./actions";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
 import type { Note } from "../chanson/types";
-import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
+import {
+  COULOIRS,
+  S,
+  autoFor,
+  bossNeuf,
+  mesureDeLaChanson,
+  passageAt,
+  sectionAtBar,
+  spb,
+  statsNeuves,
+  uneMain,
+} from "./etat";
 import { noter, reprendre } from "./enregistrement";
 import { corpsDeLaChanson } from "./jam";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
@@ -51,6 +62,8 @@ export function resetRun() {
     jam: null,
     // Une nouvelle partie repart de la chanson de la graine : la reprise du solo d'avant est oubliée (ADR-0012)
     reprise: repriseNeuve(),
+    // Le boss de fin (#26) repart avec toute sa vie
+    boss: bossNeuf(S.song),
   });
   oublierTouches();
   for (const ev of S.song.ev) {
@@ -112,6 +125,8 @@ function passage(k: number): Note[] {
         bar: ev.bar + k * sec.bars,
         // Chaque passage a son relais (#20), désigné comme lui par sa mesure de début
         relais: ev.relais === undefined ? undefined : ev.relais + k * sec.bars,
+        // De même pour les phrases du canon contre le boss (#26)
+        canon: ev.canon === undefined ? undefined : ev.canon + k * sec.bars,
         state: "pending",
         auto: false,
         voice: null,
@@ -156,6 +171,8 @@ export function lancerJam() {
   resetRun();
   S.jam = corpsDeLaChanson(S.song.sections);
   S.ev = [];
+  // Le boss de fin (#26) ne vient pas en jam : on joue sur l'accompagnement seul
+  S.boss = null;
   S.auto = false;
   S.autoUsed = true;
   S.enregistrement = null;
@@ -199,6 +216,8 @@ export function resumeCP() {
     parMain: { L: { ...cp.parMain.L, combo: 0 }, R: { ...cp.parMain.R, combo: 0 } },
     accordsDuo: { ...cp.accordsDuo },
     relais: { ...cp.relais },
+    // Le boss de fin (#26) retrouve sa vie du point de reprise
+    boss: cp.boss && { ...cp.boss },
     health: 100,
     combo: 0,
     keys: {},
@@ -302,19 +321,25 @@ function avancer(nb: number) {
         parMain: structuredClone(S.parMain),
         accordsDuo: { ...S.accordsDuo },
         relais: { ...S.relais },
+        boss: S.boss && { ...S.boss },
       };
       // Le pont en mains croisées (#21) rappelle que les touches ne changent pas, la section en 3 contre 2 (#19) dit
-      // ce que joue chaque main
+      // ce que joue chaque main ; une phase du boss (#26) dit ce qu'il fait, et à l'outro, s'il tient encore, il s'enfuit
+      const fuite = S.boss && S.boss.vaincu === null && sec.kind === "outro" && !S.bouclePartie;
       if (sec.kind !== "intro")
         S.banner = {
-          text: sec.name,
+          text: sec.boss ? `${TH().boss.nom} · ${sec.name}` : fuite ? TH().boss.nom : sec.name,
           sub: estSolo(sec)
             ? TH().solo
             : sec.croisee
               ? TH().croisee
               : sec.kind === "polyrythmie"
                 ? TH().polyrythmie
-                : "",
+                : sec.boss
+                  ? TH().boss.phases[sec.boss - 1]
+                  : fuite
+                    ? TH().boss.fuite
+                    : "",
           at: performance.now(),
         };
     }
