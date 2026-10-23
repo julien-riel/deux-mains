@@ -6,7 +6,8 @@
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
-import { accorder, assembler, chanter, type Morceau } from "./fabrique";
+import { estPetiteNote } from "../chanson/generateur";
+import { accorder, assembler, chanter, marcher, type Morceau } from "./fabrique";
 
 export interface Essai {
   /** Court, en minuscules avec des tirets : il sert dans l'adresse (?essai=double-saut) */
@@ -259,6 +260,67 @@ export const ESSAIS: Essai[] = [
         [1, 3, 5, 7],
       ),
     repere: (ev) => ev.hand === "R" && !!ev.reponse,
+  },
+  {
+    id: "petites-notes",
+    titre: "Petites notes",
+    verifier:
+      "De petits ennemis entre deux couloirs, sur les croches faibles, dans un halo aux deux couleurs : touche-les avec l'une ou l'autre des deux touches voisines (J ou K, K ou L, L ou ;). Chacun joue une note de la gamme qui n'est pas dans l'accord et mène à la note suivante ; la mélodie ne sonne jamais faux.",
+    issue: 14,
+    univers: "boite",
+    diff: "normal",
+    mains: "R",
+    // Deux petites notes par mesure, l'une qui monte vers la note suivante, l'autre qui descend ; sur les accords
+    // où la gamme n'a pas de note entre deux couloirs, la petite note disparaît
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "normal",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        {
+          couplet: ["2c3.1b2.", "3c2.0a1."],
+          refrain: ["1b2.2c3.", "3c2.1b2."],
+        },
+      ),
+    repere: (ev) => estPetiteNote(ev),
+  },
+  {
+    id: "walking-bass",
+    titre: "Walking bass",
+    verifier:
+      "Chaque mesure finit par un escalier : des marches qui montent (W ↑) ou descendent (S ↓) jusqu'à la fondamentale de l'accord suivant. Sauter monte d'une marche, glisser en descend une ; la basse marche note à note dans la gamme, une marche par temps, et le rail de gauche annonce la marche.",
+    issue: 13,
+    univers: "ville",
+    diff: "difficile",
+    mains: "L",
+    // Sol mineur, puis Mi♭ et Do mineur en boucle : un escalier d'une marche vers l'accord suivant (en descendant
+    // ou en montant), puis un de trois marches de Do mineur à Sol mineur
+    chanson: () =>
+      marcher(
+        assembler(
+          GRAINE,
+          "difficile",
+          [
+            INTRO,
+            {
+              ...couplet(2, 8),
+              accords: [
+                [0, "m"],
+                [8, "M"],
+                [5, "m"],
+              ],
+            },
+            OUTRO,
+          ],
+          { couplet: ["S......."] },
+          { couplet: ["0...2...", "1...0..."] },
+        ),
+        "difficile",
+        ["couplet"],
+        { couplet: ["S......."] },
+      ),
+    repere: (ev) => ev.hand === "L" && ev.lane >= 4,
   },
 ];
 

@@ -23,9 +23,12 @@ export const CHEVAUCHEMENT = 0.1;
  * Un seul appui par note, tenu jusqu'au bout d'une note tenue. Une trille (#15) se joue comme l'auto-play : le
  * premier appui sur le temps, puis une alternance des deux couloirs à chaque double-croche, en appuis brefs. Un
  * serpent (#16) se suit touche par touche : chaque couloir est enfoncé au temps de son passage et relâché un peu
- * après le passage suivant (les touches se chevauchent), le dernier à la fin du serpent.
+ * après le passage suivant (les touches se chevauchent), le dernier à la fin du serpent. Une marche d'escalier (#13)
+ * se joue en sautant pour monter, en glissant pour descendre ; une petite note (#14), avec la touche du dessous.
  */
 export function appuis(ev: Note): Appui[] {
+  if (ev.hand === "L" && ev.lane >= 4) return [{ beat: ev.beat, lane: ev.lane === 4 ? 1 : 0, fin: null }];
+  if (ev.hand === "R" && !Number.isInteger(ev.lane)) return [{ beat: ev.beat, lane: ev.lane - 0.5, fin: null }];
   if (ev.serpent)
     return ev.serpent.map((lane, k) => ({
       beat: tempsDuPassage(ev, k),

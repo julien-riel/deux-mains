@@ -176,6 +176,7 @@ describe("jugement au doigt", () => {
   it("le doigt maintenu tient un tunnel jusqu'au bout", async () => {
     const S = await partieTactile();
     const tunnel = S.song.ev.find((ev) => ev.hand === "L" && ev.dur > 0);
+    avancerEnAuto(temps(tunnel));
     nav.toucher(1, ...position(tunnel), attendre(temps(tunnel)));
     expect(tunnel.state).toBe("holding");
     attendre(temps(tunnel) + tunnel.dur * spb());
@@ -186,6 +187,7 @@ describe("jugement au doigt", () => {
   it("le doigt levé trop tôt lâche le tunnel", async () => {
     const S = await partieTactile();
     const tunnel = S.song.ev.find((ev) => ev.hand === "L" && ev.dur > 0);
+    avancerEnAuto(temps(tunnel));
     nav.toucher(1, ...position(tunnel), attendre(temps(tunnel)));
     attendre(temps(tunnel) + (tunnel.dur * spb()) / 2);
     nav.lever(1);

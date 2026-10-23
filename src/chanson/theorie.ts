@@ -44,6 +44,7 @@ export const PROGS: Progression[] = [
   {
     name: "Vamp dorien",
     mode: "mineur",
+    gamme: "dorien",
     chords: [
       [0, "m7"],
       [5, "7"],
@@ -98,3 +99,45 @@ export function makeChord(keyPc: number, [off, q]: [number, string]): Accord {
     hue: ((pc * 7) % 12) * 30,
   };
 }
+
+/* ---------- Gammes : les notes hors accord (ADR-0010) ---------- */
+
+/** Les gammes, en demi-tons depuis la tonique, degré par degré */
+export const GAMMES: Record<string, number[]> = {
+  majeur: [0, 2, 4, 5, 7, 9, 11],
+  mineur: [0, 2, 3, 5, 7, 8, 10],
+  dorien: [0, 2, 3, 5, 7, 9, 10],
+};
+// La pentatonique retire deux degrés de la gamme (à partir de 0) : le 4e et le 7e en majeur, le 2e et le 6e en
+// mineur et en dorien
+const HORS_PENTATONIQUE: Record<string, number[]> = { majeur: [3, 6], mineur: [1, 5], dorien: [1, 5] };
+
+/**
+ * La gamme de la tonalité pendant cet accord, en classes de hauteur (0 à 11) : la mélodie prend la pentatonique
+ * (`pentatonique`), la basse la gamme entière. Une note de l'accord hors de la gamme remplace la note qu'elle
+ * contredit, à un demi-ton : celle du dessous (un degré haussé, comme le Sol♯ du Mi majeur de la cadence andalouse
+ * en La mineur), sinon celle du dessus. La pentatonique est prise dans la gamme ainsi corrigée.
+ */
+export function gammeDe(keyPc: number, prog: Progression, ch: Accord, pentatonique = false): number[] {
+  const nom = prog.gamme ?? prog.mode,
+    degres = GAMMES[nom].map((i) => (keyPc + i) % 12);
+  for (const i of ch.ints) {
+    const pc = (ch.pc + i) % 12;
+    if (degres.includes(pc)) continue;
+    const dessous = degres.indexOf((pc + 11) % 12),
+      k = dessous >= 0 ? dessous : degres.indexOf((pc + 1) % 12);
+    if (k >= 0) degres[k] = pc;
+  }
+  return pentatonique ? degres.filter((_, k) => !HORS_PENTATONIQUE[nom].includes(k)) : degres;
+}
+
+/** Les notes MIDI de la gamme strictement entre `de` et `vers`, dans l'ordre où on les rencontre en partant de `de` */
+export function notesEntre(de: number, vers: number, gamme: number[]): number[] {
+  const sens = vers > de ? 1 : -1,
+    notes: number[] = [];
+  for (let m = de + sens; m !== vers && de !== vers; m += sens) if (gamme.includes(m % 12)) notes.push(m);
+  return notes;
+}
+
+/** La note appartient-elle à l'accord (à l'octave près) ? */
+export const dansLAccord = (ch: Accord, m: number) => ch.ints.some((i) => (ch.pc + i) % 12 === m % 12);

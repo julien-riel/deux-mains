@@ -93,20 +93,22 @@ export function autoHit(ev: Note) {
   const ns = ev.beat * spb(),
     pnow = performance.now();
   if (ev.hand === "L") {
-    S.keyFlash[ev.lane === 3 ? "ecraser" : ev.lane ? "sauter" : "glisser"] = pnow;
+    // Dans un escalier (#13), monter se fait en sautant et descendre en glissant
+    const bas = ev.lane === 0 || ev.lane === 5;
+    S.keyFlash[ev.lane === 3 ? "ecraser" : bas ? "glisser" : "sauter"] = pnow;
     if (ev.lane === 3) {
       S.ecraseAt = ns;
       S.jumpAt = S.doubleAt = -99;
     } else if (ev.lane === 2) {
       S.doubleAt = ns;
       S.doubleAir = ev.air * spb();
-    } else if (ev.lane) {
+    } else if (!bas) {
       S.jumpAt = ns;
       S.jumpAir = ev.air * spb();
     } else {
       S.slideUntil = ns + (ev.dur > 0 ? ev.dur : 0.55) * spb();
       S.jumpAt = S.doubleAt = -99;
     }
-  } else tirer(ev.lane);
+  } else tirer(Math.floor(ev.lane)); // une petite note (#14) se touche avec la touche du dessous
   hitEv(ev, 0);
 }

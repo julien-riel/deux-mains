@@ -9,7 +9,11 @@
 // Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant). trilleP : la chance
 // qu'une note longue devienne une trille (#15), en Normal et en Difficile. serpentP : la chance qu'une suite de
 // notes régulières qui montent ou descendent couloir par couloir devienne un serpent (#16), espacées d'un des
-// serpentPas (en croches) : une croche ou un temps en Difficile, un temps seulement en Normal.
+// serpentPas (en croches) : une croche ou un temps en Difficile, un temps seulement en Normal. petitesP : la chance
+// que la croche faible libre juste avant une note sur le temps reçoive une petite note (#14, ADR-0010), en Normal
+// et en Difficile (voir `semerPetitesNotes` dans le générateur).
+// escalierP : la chance qu'une mesure de couplet ou de refrain finisse en escalier de walking bass (#13, ADR-0010),
+// en Difficile seulement, quand la gamme le permet (voir `escalier` dans le générateur).
 // Chanteur (#18) : l'avant-dernière phrase de chaque couplet devient un chanteur, qui chante quatre notes sur une
 // mesure, puis sa réponse, que le joueur répète de mémoire sur la mesure suivante. `couloirs` : les degrés
 // chantés, tous présents dans la phrase ; `rythmes` : la place des quatre notes dans la mesure, en croches
@@ -25,6 +29,7 @@ export const DIFFS = {
     dmgL: 10,
     dmgR: 4,
     chanteur: null as ReglagesChanteur | null,
+    escalierP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -41,6 +46,7 @@ export const DIFFS = {
       trilleP: 0,
       serpentP: 0,
       serpentPas: [],
+      petitesP: 0,
       max: 5,
       dyadP: 0,
       dyadStrong: true,
@@ -55,6 +61,7 @@ export const DIFFS = {
     dmgL: 14,
     dmgR: 6,
     chanteur: { couloirs: [0, 2], rythmes: ["x.x.x.x."] },
+    escalierP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -70,6 +77,7 @@ export const DIFFS = {
       trilleP: 0,
       serpentP: 0,
       serpentPas: [],
+      petitesP: 0,
       max: 6,
       dyadP: 0.12,
       dyadStrong: true,
@@ -84,6 +92,7 @@ export const DIFFS = {
     dmgL: 18,
     dmgR: 8,
     chanteur: { couloirs: [0, 1, 2], rythmes: ["x.x.x.x.", "x.x.xx..", "xx..x.x."] },
+    escalierP: 0,
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -99,6 +108,7 @@ export const DIFFS = {
       trilleP: 0.5,
       serpentP: 0.6,
       serpentPas: [1, 2],
+      petitesP: 0.9,
       max: 9,
       dyadP: 0.16,
       dyadStrong: false,
@@ -113,6 +123,7 @@ export const DIFFS = {
     dmgL: 20,
     dmgR: 9,
     chanteur: { couloirs: [0, 1, 2, 3], rythmes: ["x.x.x.x.", "x.xx..x.", "xx.x..x.", "x..x.xx."] },
+    escalierP: 0.6,
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],
@@ -128,6 +139,7 @@ export const DIFFS = {
       trilleP: 0.7,
       serpentP: 0.7,
       serpentPas: [1, 2],
+      petitesP: 0.7,
       max: 11,
       dyadP: 0.22,
       dyadStrong: false,

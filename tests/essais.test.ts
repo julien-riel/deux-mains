@@ -4,6 +4,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { buildSong } from "../src/chanson/generateur";
+import { gammeDe } from "../src/chanson/theorie";
 import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler, chanter } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
@@ -29,8 +30,26 @@ function verifierChanson(c: Chanson) {
     expect(ev.beat + ev.dur).toBeLessThanOrEqual(c.endBeat);
     expect(ev.bar).toBe(Math.floor(ev.beat / 4));
     expect(ev.state).toBe("pending");
-    expect([0, 1, 2, 3]).toContain(ev.lane);
+    const memeTemps = c.ev.filter((e) => e.beat === ev.beat);
+    expect(ev.grp ?? [ev]).toEqual(memeTemps);
     const ch = c.chords[ev.bar];
+    if (ev.hand === "L" && ev.lane >= 4) {
+      // Une marche d'escalier (#13, ADR-0010) : une note de la gamme, sur un temps
+      expect([4, 5]).toContain(ev.lane);
+      expect(gammeDe(c.keyPc, c.prog, ch)).toContain(ev.midi % 12);
+      expect([ev.beat % 1, ev.dur]).toEqual([0, 0]);
+      return;
+    }
+    if (ev.hand === "R" && !Number.isInteger(ev.lane)) {
+      // Une petite note (#14, ADR-0010) : entre deux couloirs voisins, une note de la pentatonique entre leurs degrés
+      expect([0.5, 1.5, 2.5]).toContain(ev.lane);
+      expect(gammeDe(c.keyPc, c.prog, ch, true)).toContain(ev.midi % 12);
+      expect(ev.midi).toBeGreaterThan(ch.lanes[ev.lane - 0.5]);
+      expect(ev.midi).toBeLessThan(ch.lanes[ev.lane + 0.5]);
+      expect(ev.beat % 1).toBe(0.5);
+      return;
+    }
+    expect([0, 1, 2, 3]).toContain(ev.lane);
     if (ev.hand === "L" && ev.fin !== undefined) {
       // Une pente (#12) glisse entre la fondamentale et l'octave, dans un sens ou dans l'autre
       expect([ev.midi, ev.fin].sort()).toEqual([ch.bass, ch.bass + 12]);
@@ -51,8 +70,6 @@ function verifierChanson(c: Chanson) {
       expect(ev.midiSerpent).toEqual(ev.serpent.map((l) => ch.lanes[l]));
       expect(ev.beat + ev.dur).toBeLessThanOrEqual((ev.bar + 1) * 4);
     }
-    const memeTemps = c.ev.filter((e) => e.beat === ev.beat);
-    expect(ev.grp ?? [ev]).toEqual(memeTemps);
   });
 }
 

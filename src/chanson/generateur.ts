@@ -2,7 +2,7 @@
 import { clamp } from "../outils";
 import { mulberry32 } from "./aleatoire";
 import { DIFFS, type ReglagesChanteur } from "./difficultes";
-import { NOTE_FR, PROGS, makeChord } from "./theorie";
+import { NOTE_FR, PROGS, dansLAccord, gammeDe, makeChord, notesEntre } from "./theorie";
 import type { Accord, Chanson, Chanteur, Genre, Note, Section } from "./types";
 
 // Un motif de 2 mesures (16 croches) : rythme, puis contour en degrés voisins
@@ -105,6 +105,30 @@ export function fondreSerpents(rng, phrase, P) {
   }
   return notes;
 }
+/**
+ * Les petites notes (#14, ADR-0010) : sur la croche faible libre juste avant une note sur le temps (dans la même
+ * mesure), une petite note peut relier la note d'avant à celle-ci. Elle se place entre le couloir de la note
+ * d'arrivée et son voisin du côté de la note d'avant (d'en dessous si les deux notes sont sur le même couloir,
+ * d'au-dessus pour la fondamentale) : une petite note mène toujours à une note de l'accord. Elle n'entre ni dans une note tenue,
+ * ni dans une trille, ni dans un serpent, ni dans un accord : la note d'avant est une note simple, et celle
+ * d'après n'est ni une trille ni un serpent. Sa hauteur dépend de l'accord : elle se calcule note par note
+ * (`petiteNote`). Renvoie une copie de la phrase ; le hasard n'est tiré que pour une place qui convient.
+ */
+export function semerPetitesNotes(rng, phrase, P) {
+  const notes = [];
+  phrase.forEach((a, i) => {
+    notes.push({ ...a });
+    const b = phrase[i + 1];
+    if (!b) return;
+    // Elle vient du côté de la note d'avant ; après la même note, d'en dessous (d'au-dessus pour la fondamentale)
+    const s = b.s - 1,
+      sens = Math.sign(b.lane - a.lane) || (b.lane > 0 ? 1 : -1);
+    if (s % 2 === 0 || s <= a.s || b.s % 8 === 0) return;
+    if (a.dur > 0 || a.extra || a.tr || a.sp || b.tr || b.sp) return;
+    if (rng() < P.petitesP) notes.push({ s, lane: b.lane - sens / 2, dur: 0, petite: sens });
+  });
+  return notes;
+}
 export function vary(rng, m, nMut) {
   const c = m.map((n) => ({ ...n }));
   for (let k = 0; k < nMut && c.length > 1; k++) {
@@ -131,8 +155,18 @@ export function answer(rng, m, P) {
  * le double saut la quinte au-dessus de l'octave, et l'écrasement la fondamentale accentuée (ADR-0003). Le
  * tunnel et les pentes (#12) se tiennent sur les « - » : la pente montante glisse de la fondamentale à
  * l'octave, la descendante de l'octave à la fondamentale. `plaque` : la première note devient une plaque (#8).
+ * Les marches d'un escalier (#13), « / » pour monter et « \ » pour descendre, jouent dans l'ordre les notes de
+ * `marches` (voir `escalier`).
  */
-export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre, plaque: boolean): Note[] {
+export function notesDeBasse(
+  motif: string,
+  bar: number,
+  ch: Accord,
+  kind: Genre,
+  plaque: boolean,
+  marches: number[] = [],
+): Note[] {
+  let marche = 0;
   const notes: Note[] = [];
   for (let k = 0; k < 8; k++) {
     const c = plaque && k === 0 ? "P" : motif[k];
@@ -143,7 +177,7 @@ export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre
       while (k + n < 8 && motif[k + n] === "-") n++;
       dur = n / 2;
     }
-    const lane = c === "P" ? 3 : c === "W" ? 1 : c === "D" ? 2 : 0;
+    const lane = { P: 3, W: 1, D: 2, "/": 4, "\\": 5 }[c] ?? 0;
     const note: Note = {
       hand: "L",
       beat: bar * 4 + k / 2,
@@ -151,7 +185,7 @@ export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre
       lane,
       bar,
       kind,
-      midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
+      midi: lane >= 4 ? marches[marche++] : [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
       state: "pending",
     };
     if (c === "M") note.fin = ch.bass + 12;
@@ -159,6 +193,81 @@ export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre
     notes.push(note);
   }
   return notes;
+}
+
+// Une note tenue (tunnel, pente) commencée avant la croche `k` déborde-t-elle sur elle ?
+function deborde(motif: string, k: number) {
+  for (let j = 0; j < k; j++) {
+    if (!"TMB".includes(motif[j])) continue;
+    let n = 1;
+    while (j + n < 8 && motif[j + n] === "-") n++;
+    if (j + n > k) return true;
+  }
+  return false;
+}
+
+// La note d'arrivée d'un escalier : celle que joue le début du motif de la mesure suivante, la fondamentale grave
+// (glisser, tunnel, pente montante) ou l'octave (sauter, pente descendante) ; null pour tout autre début
+function arriveeDe(motif: string | null, ch: Accord) {
+  const c = motif ? motif[0] : ".";
+  return "STM".includes(c) ? ch.bass : "WB".includes(c) ? ch.bass + 12 : null;
+}
+
+/**
+ * Un escalier de walking bass (#13, ADR-0010) à la fin d'une mesure : la basse marche par degrés voisins de la
+ * `gamme` jusqu'à la fondamentale de l'accord `suivant`, sur la note que joue le début de la mesure suivante.
+ * Elle part de la fondamentale (glisser) ou de l'octave (sauter) de l'accord en cours, puis joue une marche par
+ * temps jusqu'au bout de la mesure : trois marches depuis le premier temps, deux depuis le deuxième, une depuis le
+ * troisième, selon le nombre de notes de la gamme entre le départ et l'arrivée. Sur le troisième temps (fort), la
+ * marche doit être une note de l'accord ; les temps 2 et 4 prennent n'importe quelle note de la gamme. Renvoie le
+ * motif réécrit et les notes des marches (le plus long escalier possible), ou null si aucun ne convient.
+ */
+export function escalier(motif: string, ch: Accord, suivant: Accord, motifSuivant: string | null, gamme: number[]) {
+  const arrivee = arriveeDe(motifSuivant, suivant);
+  if (arrivee === null) return null;
+  let meilleur: { depart: number; marches: number[]; k: number } = null;
+  for (const depart of [ch.bass, ch.bass + 12]) {
+    const marches = notesEntre(depart, arrivee, gamme),
+      k = 2 * (3 - marches.length);
+    // L'escalier ne remplace que des notes simples (glisser, sauter) et des silences : les tunnels, pentes et
+    // doubles sauts restent
+    if (marches.length < 1 || marches.length > 3 || deborde(motif, k) || /[^.SW]/.test(motif.slice(k))) continue;
+    // Une note déjà là au départ garde son geste : elle peut être l'arrivée de l'escalier de la mesure d'avant
+    if ((motif[k] === "S" && depart !== ch.bass) || (motif[k] === "W" && depart !== ch.bass + 12)) continue;
+    if (marches.some((m, i) => k + 2 * (i + 1) === 4 && !dansLAccord(ch, m))) continue;
+    if (!meilleur || marches.length > meilleur.marches.length) meilleur = { depart, marches, k };
+  }
+  if (!meilleur) return null;
+  const { depart, marches, k } = meilleur,
+    pas = arrivee > depart ? "/" : "\\";
+  return {
+    motif: motif.slice(0, k) + (depart === ch.bass ? "S" : "W") + marches.map(() => "." + pas).join("") + ".",
+    marches,
+  };
+}
+
+/** Une petite note de la mélodie (#14), entre deux couloirs voisins */
+export const estPetiteNote = (ev: Note) => ev.hand === "R" && !Number.isInteger(ev.lane);
+
+/**
+ * Une petite note entre les couloirs `lane - 0,5` et `lane + 0,5` (ADR-0010) : la note de la `pentatonique` entre
+ * leurs deux degrés, la plus proche de celui où elle mène (celui du haut si `monte`). Sans note de la pentatonique
+ * entre les deux, pas de petite note : null.
+ */
+export function petiteNote(
+  lane: number,
+  monte: boolean,
+  beat: number,
+  bar: number,
+  ch: Accord,
+  kind: Genre,
+  pentatonique: number[],
+): Note | null {
+  const bas = ch.lanes[lane - 0.5],
+    haut = ch.lanes[lane + 0.5],
+    entre = monte ? notesEntre(bas, haut, pentatonique) : notesEntre(haut, bas, pentatonique);
+  if (!entre.length) return null;
+  return { hand: "R", beat, dur: 0, lane, bar, kind, vel: 0.8, midi: entre[entre.length - 1], state: "pending" };
 }
 
 /** Le couloir voisin d'une trille (#15), dans le sens `sens` (1 au-dessus, -1 au-dessous), retourné au bord */
@@ -299,13 +408,34 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       });
   }
 
+  // Les petites notes (#14) aussi, après les serpents, qu'elles évitent
+  if (D.mel.petitesP) {
+    const rngPetites = mulberry32(seed * 6151 + 15485863),
+      semees = new Map();
+    for (const k of Object.keys(phrases))
+      phrases[k] = phrases[k].map((p) => {
+        if (!semees.has(p)) semees.set(p, semerPetitesNotes(rngPetites, p, D.mel));
+        return semees.get(p);
+      });
+  }
+  // Les escaliers (#13) aussi, mesure par mesure : au couplet et au refrain, hors plaque (#8) et hors dernière
+  // mesure, pour que la fondamentale d'arrivée reste dans la section
+  const rngEscaliers = D.escalierP ? mulberry32(seed * 4999 + 1237) : null;
+
   const ev = [],
     chanteurs: Chanteur[] = [];
   for (const s of sections) {
     for (let i = 0; i < s.bars; i++) {
-      const p = bassPat(s.kind, i);
+      const bar = s.start + i,
+        plaque = s.kind === "refrain" && i === 0;
+      let p = bassPat(s.kind, i),
+        marches: number[] = [];
+      if (rngEscaliers && p && !plaque && i < s.bars - 1 && (s.kind === "couplet" || s.kind === "refrain")) {
+        const e = escalier(p, chords[bar], chords[bar + 1], bassPat(s.kind, i + 1), gammeDe(keyPc, prog, chords[bar]));
+        if (e && rngEscaliers() < D.escalierP) ({ motif: p, marches } = e);
+      }
       // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
-      if (p) ev.push(...notesDeBasse(p, s.start + i, chords[s.start + i], s.kind, s.kind === "refrain" && i === 0));
+      if (p) ev.push(...notesDeBasse(p, bar, chords[bar], s.kind, plaque, marches));
     }
     const ph = phrases[s.kind];
     if (!ph) continue;
@@ -323,6 +453,11 @@ export function buildSong(seed: number, diffKey: string): Chanson {
         const barIdx = s.start + 2 * k + Math.floor(n.s / 8),
           ch = chords[barIdx];
         const beat = (s.start + 2 * k) * 4 + n.s / 2;
+        if (n.petite) {
+          const petite = petiteNote(n.lane, n.petite > 0, beat, barIdx, ch, s.kind, gammeDe(keyPc, prog, ch, true));
+          if (petite) ev.push(petite);
+          continue;
+        }
         const extra = [...new Set<number>(n.extra || [])].filter((l) => l !== n.lane);
         const vel = extra.length ? 0.75 : 1;
         // Pas de trille sur une note qui fait partie d'un accord de la main droite

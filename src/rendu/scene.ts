@@ -1,6 +1,7 @@
 /* ---------- Rendu ---------- */
 import { AC, songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
+import { estPetiteNote } from "../chanson/generateur";
 import { NOTE, noteName } from "../chanson/theorie";
 import {
   COULOIRS,
@@ -29,6 +30,8 @@ import {
   boiteChanteur,
   boiteHaut,
   boiteEnemy,
+  boiteMarche,
+  boitePetite,
   boiteSerpent,
   boiteGround,
   boitePente,
@@ -58,7 +61,9 @@ import {
   hexA,
   reduced,
   rr,
+  teinteDeCouloir,
   txt,
+  yDeCouloir,
 } from "./outils";
 import {
   villeBack,
@@ -68,6 +73,8 @@ import {
   villeEnemy,
   villeGround,
   villeHaut,
+  villeMarche,
+  villePetite,
   villePente,
   villePlaque,
   villeSerpent,
@@ -259,13 +266,24 @@ export function render(nb, dt) {
     }
   }
   keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("sauter"));
-  // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
-  txt("OCTAVE · 2× QUINTE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
-  txt(noteName(ch.bass + 12), 64, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
-  txt(noteName(ch.bass + 12 + ch.ints[2]), 118, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
   keycap(24, GY - 40, KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
-  txt("GLISSER · FOND.", 64, GY - 28, `600 10px ${FONT.mono}`, COL.muted);
-  txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
+  // Dans un escalier (#13), sauter monte d'une marche et glisser en descend une : le rail montre la marche
+  const marche = marcheProche(nb);
+  if (marche) {
+    const monte = marche.lane === 4,
+      [yl, ye] = monte ? [GY - 68, GY - 52] : [GY - 28, GY - 12];
+    txt(monte ? "MONTER ↑" : "DESCENDRE ↓", 64, yl, `600 10px ${FONT.mono}`, hsl(HUE_BASS, 90, 70));
+    txt(noteName(marche.midi), 64, ye, `600 14px ${FONT.mono}`, COL.fg);
+    txt(monte ? "GLISSER · FOND." : "OCTAVE", 64, monte ? GY - 28 : GY - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(monte ? ch.bass : ch.bass + 12), 64, monte ? GY - 12 : GY - 52, `600 14px ${FONT.mono}`, COL.fg);
+  } else {
+    // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
+    txt("OCTAVE · 2× QUINTE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass + 12), 64, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt(noteName(ch.bass + 12 + ch.ints[2]), 118, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt("GLISSER · FOND.", 64, GY - 28, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
+  }
 
   g.restore();
 
@@ -482,7 +500,7 @@ export const Y_SILHOUETTE = (LANE_Y[1] + LANE_Y[2]) / 2;
 /** La hauteur du chanteur (#18) et de ses notes, au-dessus des couloirs */
 export const Y_CHANTEUR = LANE_Y[3] - 50;
 // La hauteur où l'on voit un ennemi encore à jouer : une silhouette ne montre pas son couloir
-const yVisible = (ev) => (ev.reponse ? Y_SILHOUETTE : LANE_Y[ev.lane]);
+const yVisible = (ev) => (ev.reponse ? Y_SILHOUETTE : yDeCouloir(ev.lane));
 
 // Accords : une barre relie les ennemis à tirer ensemble, un pointillé descend vers l'obstacle du même temps
 export function drawChordLinks(grp, nb) {
@@ -522,12 +540,15 @@ export function drawChordLinks(grp, nb) {
 export const RAMPE = 46;
 export const hauteurPente = (ev, p) => RAMPE * (ev.fin > ev.midi ? p : 1 - p);
 
+/** La hauteur d'une marche d'escalier (#13) : elle suit sa note, pour que l'escalier se lise en montant ou en descendant */
+export const hauteurMarche = (midi: number) => clamp(14 + (midi - 31) * 2, 12, 70);
+
 // L'obstacle est dessiné légèrement en avance sur le temps : on appuie quand il est encore devant,
-// et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) ne l'est pas :
-// on retombe dessus pile sur le temps.
+// et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) et les marches (#13)
+// ne le sont pas : on y arrive pile sur le temps.
 export function drawObstacle(ev, nb, hsl) {
   const x0 = PX + PW / 2 + (ev.beat - nb) * PPB;
-  const x = x0 + (ev.lane === 3 ? 0 : ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
+  const x = x0 + (ev.lane >= 3 ? 0 : ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
   if (x < -80 || x0 > W + 80 + ev.dur * PPB) return;
   if (ev.state === "pending") {
     g.beginPath();
@@ -553,6 +574,19 @@ export function drawObstacle(ev, nb, hsl) {
     g.lineWidth = 2.5;
     g.stroke();
     txt(KEYLABEL.Space, x, GY - 50, `600 13px ${FONT.mono}`, fill, "center");
+  } else if (ev.lane >= 4) {
+    // La marche d'un escalier (#13) : sauter monte, glisser descend, et la flèche le rappelle
+    const monte = ev.lane === 4,
+      haut = hauteurMarche(ev.midi);
+    (boite ? boiteMarche : villeMarche)(x, haut, fill, monte);
+    txt(
+      `${monte ? KEYLABEL.KeyW : KEYLABEL.KeyS} ${monte ? "↑" : "↓"}`,
+      x,
+      GY - haut - 24,
+      `600 13px ${FONT.mono}`,
+      fill,
+      "center",
+    );
   } else if (ev.lane >= 1) {
     // Le haut obstacle (#7) passe sous le personnage au sommet du double saut ; un saut simple le heurte
     const haut = ev.lane === 2 ? (boite ? 48 : 68) : 0;
@@ -629,11 +663,12 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   const x2 = HITX + (ev.beat + ev.dur - nb) * PPB;
   if (x2 < 0 || x > W + 40) return;
   if (ev.reponse && ev.state === "pending") return dessinerSilhouette(ev, x, nb, hsl);
-  const y = LANE_Y[ev.lane] + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
+  const y = yDeCouloir(ev.lane) + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
   if (a <= 0) return;
+  if (estPetiteNote(ev)) return dessinerPetite(ev, x, y, a, nb, hsl);
   // Le couloir de l'ennemi : celui où en est le serpent (#16), qui change en chemin
   let yh = y,
     lane = ev.lane;
@@ -745,6 +780,38 @@ function dessinerChanteurs(nb, hsl) {
       });
   }
 }
+/**
+ * La petite note (#14) : un petit ennemi entre deux couloirs, dans un halo pointillé en deux moitiés aux couleurs
+ * de ses deux couloirs, avec ses deux touches : l'une ou l'autre le touche (ADR-0010). L'univers l'habille.
+ */
+function dessinerPetite(ev, x, y, a, nb, hsl) {
+  const bas = ev.lane - 0.5,
+    haut = ev.lane + 0.5,
+    rate = ev.state === "miss";
+  g.save();
+  g.setLineDash([3, 3]);
+  g.lineWidth = 2;
+  for (const [l, debut] of [
+    [haut, Math.PI],
+    [bas, 0],
+  ]) {
+    g.beginPath();
+    g.arc(x, y, 14, debut, debut + Math.PI);
+    g.strokeStyle = rate ? hexA(COL.bad, 0.6 * a) : hsl(LANE_HUE[l], 80, 68, 0.8 * a);
+    g.stroke();
+  }
+  g.restore();
+  const col = rate ? hexA(COL.bad, a) : hsl(teinteDeCouloir(ev.lane), 80, 72, a);
+  (S.theme === "boite" ? boitePetite : villePetite)(x, y, col, a, nb, hsl);
+  if (ev.state === "pending")
+    txt(
+      `${KEYLABEL[LANE_CODES[bas]]}·${KEYLABEL[LANE_CODES[haut]]}`,
+      x + 18,
+      y + 4,
+      `600 10px ${FONT.mono}`,
+      hexA(COL.fg, 0.7 * a),
+    );
+}
 /** Une étoile à quatre branches, de rayon r */
 function etoile(x, y, r, couleur) {
   g.beginPath();
@@ -845,6 +912,11 @@ function dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
   return [HITX, ev.dernier === ev.trille ? y2 : y];
 }
 
+/** La prochaine note de la main gauche si c'est une marche d'escalier (#13) qui arrive dans le temps qui vient */
+function marcheProche(nb: number) {
+  const ev = S.ev.find((e) => e.hand === "L" && e.state === "pending" && e.beat >= nb - 0.2);
+  return ev && ev.lane >= 4 && ev.beat - nb < 1 ? ev : null;
+}
 export function drawPlayer(nb, ns, pnow, hsl, dt) {
   const cx = PX + PW / 2;
   let yOff = 0,
