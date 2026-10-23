@@ -96,8 +96,12 @@ export function show(kind) {
       <p class="meta">À vérifier : ${essai.verifier}</p>
       <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s</p>
       ${essai.midi ? pianoMidi() + etatMidi() : ""}
-      <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
-      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      <div class="actions">${
+        essai.jam
+          ? `<button class="primary" type="button" data-act="jam">Jammer <kbd>Espace</kbd></button>`
+          : `<button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>`
+      }
       ${sortiesEssai()}</div>`;
   } else if (kind === "essais") {
     h = `<p class="eyebrow">Mode essai</p><h2>Essayer une fonctionnalité</h2>
@@ -113,6 +117,7 @@ export function show(kind) {
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      <button type="button" data-act="jam">Jam ${kc("KeyJ")}</button>
       <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
@@ -159,6 +164,10 @@ export function show(kind) {
     h = `<p class="eyebrow">Pause · réécoute</p><h2>La réécoute attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>
       <button type="button" data-act="quitter-reecoute">Quitter la réécoute <kbd>Entrée</kbd></button></div>`;
+  } else if (kind === "pause" && S.jam) {
+    h = `<p class="eyebrow">Pause · jam</p><h2>La jam attend</h2>
+      <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Espace</kbd></button>
+      <button type="button" data-act="quitter-jam">Quitter la jam <kbd>Échap</kbd></button></div>`;
   } else if (kind === "pause") {
     h = `<p class="eyebrow">Pause</p><h2>La chanson attend</h2>
       <div class="actions"><button class="primary" type="button" data-act="continue">Continuer <kbd>Échap</kbd></button>

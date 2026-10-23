@@ -1,6 +1,6 @@
 /* ---------- Séquenceur (double-croches) ---------- */
 import { autoNotes, autoSerpents, autoSolo, autoTrilles } from "../jeu/autoplay";
-import { S, layers, mesureDeLaChanson, sectionAtBar, spb, uneMain } from "../jeu/etat";
+import { S, layers, mesureDeLaChanson, sansFin, sectionAtBar, spb, uneMain } from "../jeu/etat";
 import {
   arpV,
   chantV,
@@ -30,9 +30,9 @@ export function stopScheduler() {
 }
 export function schedule() {
   if (S.mode !== "play") return;
-  // En boucle, la partie n'a pas de fin : le séquenceur continue dans le passage suivant (ADR-0009)
+  // En boucle et en jam, la partie n'a pas de fin : le séquenceur continue dans le passage suivant (ADR-0009)
   const ahead = AC.currentTime + 0.12,
-    last = S.bouclePartie ? Infinity : S.song.totalBars * 16;
+    last = sansFin() ? Infinity : S.song.totalBars * 16;
   while (S.nextStep < last) {
     const t = timeOfBeat(S.nextStep / 4);
     if (t > ahead) break;
@@ -41,8 +41,10 @@ export function schedule() {
   }
 }
 export const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
-// La mesure qui précède un refrain (#8), en mesures de la partie : en boucle, elle précède chaque passage (ADR-0009)
+// La mesure qui précède un refrain (#8), en mesures de la partie : en boucle, elle précède chaque passage (ADR-0009).
+// En jam (#24), il n'y a pas de plaque pour relancer le refrain : l'accompagnement ne se tait jamais.
 export function avantRefrain(bar: number) {
+  if (S.jam) return false;
   const suivante = sectionAtBar(bar + 1);
   return suivante.kind === "refrain" && mesureDeLaChanson(bar + 1) === suivante.start;
 }

@@ -15,6 +15,7 @@ import {
   mult,
   passageAt,
   precision,
+  sansFin,
   sectionAtBar,
   spb,
   type Action,
@@ -114,6 +115,50 @@ function scoresDuo() {
     );
   }
 }
+// L'harmonie et les couches qu'elle débloque, au centre ; le score et le combo à droite (ceux de chaque joueur en
+// duo, #6)
+function jauges() {
+  const hx = 430,
+    hw = 340,
+    hv = clamp(S.health, 0, 100);
+  txt(TH().meter, hx, 34, `600 11px ${FONT.mono}`, COL.muted);
+  txt(String(Math.round(hv)), hx + hw, 34, `600 12px ${FONT.mono}`, COL.fg, "right");
+  rr(hx, 42, hw, 10, 5);
+  g.fillStyle = COL.panel;
+  g.fill();
+  if (hv > 0) {
+    rr(hx, 42, Math.max(10, (hw * hv) / 100), 10, 5);
+    g.fillStyle = `hsl(${Math.round(hv * 1.45)},72%,62%)`;
+    g.fill();
+  }
+  for (const q of [25, 50, 75]) {
+    g.fillStyle = hexA(COL.ink, 0.8);
+    g.fillRect(hx + (hw * q) / 100, 42, 2, 10);
+  }
+  const L = layers();
+  [L.arp, L.choir, L.strings]
+    .map((on, i) => [TH().layers[i], on])
+    .forEach(([n, on], i) => {
+      const x = hx + i * 104;
+      g.beginPath();
+      g.arc(x + 4, 71, 4, 0, Math.PI * 2);
+      g.fillStyle = on ? COL.good : hexA(COL.muted, 0.35);
+      g.fill();
+      txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, 0.6));
+    });
+  if (S.practice === "duo") scoresDuo();
+  else {
+    txt(S.score.toLocaleString("fr-CA"), W - 24, 46, `600 30px ${FONT.mono}`, COL.fg, "right");
+    txt(
+      `COMBO ${S.combo}  ×${mult().toLocaleString("fr-CA")}`,
+      W - 24,
+      70,
+      `600 12px ${FONT.mono}`,
+      S.combo >= 8 ? COL.good : COL.muted,
+      "right",
+    );
+  }
+}
 export function render(nb, dt) {
   const song = S.song;
   if (!song) return;
@@ -129,7 +174,7 @@ export function render(nb, dt) {
   const curBar = clamp(mesureDeLaChanson(Math.floor(nb / 4)), 0, song.totalBars - 1),
     curSec = sectionAtBar(curBar),
     ch = song.chords[curBar],
-    fin = S.bouclePartie ? Infinity : song.totalBars;
+    fin = sansFin() ? Infinity : song.totalBars;
   const down = (a: Action) => S.keys[a] || pnow - (S.keyFlash[a] || -1e9) < 120;
 
   let shx = 0,
@@ -143,8 +188,9 @@ export function render(nb, dt) {
   g.translate(shx, shy);
 
   // Mains croisées (#21) : toute la scène, rail compris, se retourne autour de son axe ; les textes s'y redressent.
-  // Pendant la bascule, elle s'aplatit sur l'axe, devant le fond de l'univers.
-  const vue = playing ? retournement(song.sections, nb, S.bouclePartie?.sec) : { k: 1, annonce: null };
+  // Pendant la bascule, elle s'aplatit sur l'axe, devant le fond de l'univers. En jam (#24), sans obstacles ni
+  // ennemis à lire, elle reste à l'endroit.
+  const vue = playing && !S.jam ? retournement(song.sections, nb, S.bouclePartie?.sec) : { k: 1, annonce: null };
   VUE.k = Math.sign(vue.k || 1) * Math.max(0.02, Math.abs(vue.k));
   if (VUE.k < 1) {
     g.fillStyle = TH().under;
@@ -319,50 +365,17 @@ export function render(nb, dt) {
   );
   txt(placeName(), 24, 62, `700 17px ${FONT.display}`, COL.fg);
   txt(`${song.keyName} · ${song.bpm} BPM`, 24, 84, `500 13px ${FONT.body}`, COL.muted);
-  const hx = 430,
-    hw = 340,
-    hv = clamp(S.health, 0, 100);
-  txt(TH().meter, hx, 34, `600 11px ${FONT.mono}`, COL.muted);
-  txt(String(Math.round(hv)), hx + hw, 34, `600 12px ${FONT.mono}`, COL.fg, "right");
-  rr(hx, 42, hw, 10, 5);
-  g.fillStyle = COL.panel;
-  g.fill();
-  if (hv > 0) {
-    rr(hx, 42, Math.max(10, (hw * hv) / 100), 10, 5);
-    g.fillStyle = `hsl(${Math.round(hv * 1.45)},72%,62%)`;
-    g.fill();
-  }
-  for (const q of [25, 50, 75]) {
-    g.fillStyle = hexA(COL.ink, 0.8);
-    g.fillRect(hx + (hw * q) / 100, 42, 2, 10);
-  }
-  const L = layers();
-  [L.arp, L.choir, L.strings]
-    .map((on, i) => [TH().layers[i], on])
-    .forEach(([n, on], i) => {
-      const x = hx + i * 104;
-      g.beginPath();
-      g.arc(x + 4, 71, 4, 0, Math.PI * 2);
-      g.fillStyle = on ? COL.good : hexA(COL.muted, 0.35);
-      g.fill();
-      txt(n, x + 14, 75, `500 12px ${FONT.body}`, on ? COL.fg : hexA(COL.muted, 0.6));
-    });
   const duo = S.practice === "duo";
-  if (duo) scoresDuo();
-  else {
-    txt(S.score.toLocaleString("fr-CA"), W - 24, 46, `600 30px ${FONT.mono}`, COL.fg, "right");
-    txt(
-      `COMBO ${S.combo}  ×${mult().toLocaleString("fr-CA")}`,
-      W - 24,
-      70,
-      `600 12px ${FONT.mono}`,
-      S.combo >= 8 ? COL.good : COL.muted,
-      "right",
-    );
-  }
+  // En jam (#24), il n'y a ni harmonie, ni couches, ni score
+  if (!S.jam) jauges();
   const badge = [
     S.relecture ? "RÉÉCOUTE" : "",
-    S.auto ? "AUTO-PLAY" : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
+    // En jam (#24), les deux mains jouent librement, quelles que soient les mains choisies
+    S.jam
+      ? "JAM"
+      : S.auto
+        ? "AUTO-PLAY"
+        : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
     S.bouclePartie ? "BOUCLE" : "",
     VUE.k < 0 ? "MAINS CROISÉES" : "",
@@ -374,12 +387,12 @@ export function render(nb, dt) {
     g.font = `600 11px ${FONT.mono}`;
     bw = g.measureText(badge).width + 24;
     rr(W - 24 - bw, 82, bw, 20, 10);
-    g.fillStyle = S.auto ? COL.mel : S.practice === "L" ? COL.bass : duo ? COL.fg : COL.mel;
+    g.fillStyle = S.jam ? COL.good : S.auto ? COL.mel : S.practice === "L" ? COL.bass : duo ? COL.fg : COL.mel;
     g.fill();
     txt(badge, W - 24 - bw / 2, 96, `600 11px ${FONT.mono}`, COL.ink, "center");
   }
   // En duo, le score total reste affiché, discrètement, pour le comparer aux parties en solo
-  if (duo)
+  if (duo && !S.jam)
     txt(
       `TOTAL ${S.score.toLocaleString("fr-CA")}`,
       W - 24 - (bw && bw + 10),
@@ -394,7 +407,10 @@ export function render(nb, dt) {
     fw = W - 48,
     perBar = fw / song.totalBars,
     prog = clamp(mesureDeLaChanson(nb / 4), 0, song.totalBars),
-    enBoucle = playing ? S.bouclePartie && S.bouclePartie.sec : song.sections[S.boucle];
+    enBoucle = playing ? S.bouclePartie && S.bouclePartie.sec : song.sections[S.boucle],
+    // En jam (#24), toutes les sections du corps de la chanson tournent
+    rejouee = (s) =>
+      s === enBoucle || (playing && S.jam && s.start >= S.jam.start && s.start < S.jam.start + S.jam.bars);
   const secHue = { intro: null, couplet: HUE_BASS, refrain: HUE_MEL, pont: 320, outro: null };
   for (const s of song.sections) {
     const x = fx0 + s.start * perBar,
@@ -411,13 +427,13 @@ export function render(nb, dt) {
       g.fillRect(x, 562, Math.min(done, w), 22);
       g.restore();
     }
-    if (s === enBoucle) {
+    if (rejouee(s)) {
       rr(x - 1, 561, w + 2, 24, 6);
       g.strokeStyle = COL.mel;
       g.lineWidth = 2;
       g.stroke();
     }
-    txt(s.name, x + 8, 577, `500 11px ${FONT.body}`, (s === curSec && playing) || s === enBoucle ? COL.fg : COL.muted);
+    txt(s.name, x + 8, 577, `500 11px ${FONT.body}`, (s === curSec && playing) || rejouee(s) ? COL.fg : COL.muted);
   }
   g.fillStyle = COL.fg;
   g.fillRect(fx0 + prog * perBar - 1, 557, 2, 32);
@@ -444,7 +460,11 @@ export function render(nb, dt) {
     );
   }
   // Aide du clavier, et indicateur du clavier MIDI (#10) : quand il est branché, ou pendant l'essai du MIDI
-  const aide = COMMANDES.tactile ? "" : `${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`,
+  const aide = COMMANDES.tactile
+      ? ""
+      : S.jam
+        ? "ÉCHAP : QUITTER LA JAM"
+        : `${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`,
     petit = `600 11px ${FONT.mono}`;
   if (aide) txt(aide, W - 24, 608, petit, COL.muted, "right");
   if (MIDI.etat === "connecte" || S.essai?.essai.midi) {

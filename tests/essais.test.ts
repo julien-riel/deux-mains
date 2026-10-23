@@ -8,6 +8,7 @@ import { gammeDe } from "../src/chanson/theorie";
 import type { Chanson } from "../src/chanson/types";
 import { accorder, assembler, chanter } from "../src/essais/fabrique";
 import { ESSAIS, essaiDemande, trouverEssai } from "../src/essais/registre";
+import { corpsDeLaChanson } from "../src/jeu/jam";
 import { soloEtRefrain } from "../src/jeu/variations";
 import { coupsAttendus } from "./support/appuis";
 import { Navigateur } from "./support/navigateur";
@@ -92,6 +93,14 @@ describe("registre des essais", () => {
       const c = e.chanson();
       verifierChanson(c);
       expect(c.totalBars).toBeLessThanOrEqual(20);
+      // La jam (#24) ne joue aucune note : elle revient vite au début du corps de la chanson, qui suit l'intro
+      if (e.jam) {
+        const corps = corpsDeLaChanson(c.sections);
+        expect(c.ev.filter(e.repere)).toEqual([]);
+        expect(corps.start).toBeLessThan(4);
+        expect(corps.bars).toBeGreaterThanOrEqual(4);
+        return;
+      }
       // Une variation de la partie (ADR-0012) naît en jouant : la chanson n'en a pas, son solo arrive tôt
       if (e.variation) {
         expect(c.ev.filter(e.repere)).toEqual([]);
@@ -228,7 +237,8 @@ describe("registre des essais", () => {
   });
 });
 
-describe.each(ESSAIS.map((e) => [e.id, e] as const))("essai %s", (id, e) => {
+// La jam n'a pas de fin ni de notes à jouer : son parcours est dans jam.test.ts
+describe.each(ESSAIS.filter((e) => !e.jam).map((e) => [e.id, e] as const))("essai %s", (id, e) => {
   it("ouvert par ?essai=, l'auto-play le joue jusqu'au bout sans rater de note", async () => {
     nav = await Navigateur.ouvrir({ adresse: { search: `?essai=${id}` } });
     const S = nav.jeu.state;

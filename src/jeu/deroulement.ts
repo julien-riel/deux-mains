@@ -5,12 +5,14 @@ import { startScheduler, stopScheduler } from "../audio/sequenceur";
 import { DIFFS } from "../chanson/difficultes";
 import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
+import { COMMANDES } from "../ui/touches";
 import { TH } from "../univers/univers";
 import { oublierTouches } from "./actions";
 import { autoAlterner, autoHit, autoPasser } from "./autoplay";
 import type { Note } from "../chanson/types";
 import { COULOIRS, S, autoFor, mesureDeLaChanson, passageAt, sectionAtBar, spb, statsNeuves, uneMain } from "./etat";
 import { noter, reprendre } from "./enregistrement";
+import { corpsDeLaChanson } from "./jam";
 import { completeHold, finirTrille, gagner, missEv, suivreSerpent } from "./jugement";
 import { enregistrer, finirReecoute, garderLaPartie, rejouer } from "./reecoute";
 import { pointsDeStyle } from "./style";
@@ -44,6 +46,7 @@ export function resetRun() {
     keyFlash: {},
     ev: S.song.ev,
     bouclePartie: null,
+    jam: null,
     // Une nouvelle partie repart de la chanson de la graine : la reprise du solo d'avant est oubliée (ADR-0012)
     reprise: repriseNeuve(),
   });
@@ -144,6 +147,43 @@ function entretenirBoucle(nb: number) {
   S.ev = [...S.ev.filter((ev) => ev.passage >= k - 1), ...passage(k + 1)];
   S.banner = { text: b.sec.name, sub: `Passage ${k + 1}`, at: performance.now() };
 }
+/* ---------- Jam (#24) ---------- */
+/** Lance la jam sur la chanson en cours : l'intro, puis son corps en boucle, sans une seule note à jouer. Rien ne
+ * s'enregistre : la jam ne se réécoute pas (#23). */
+export function lancerJam() {
+  resetRun();
+  S.jam = corpsDeLaChanson(S.song.sections);
+  S.ev = [];
+  S.auto = false;
+  S.autoUsed = true;
+  S.enregistrement = null;
+  startAt(0);
+  S.banner = {
+    text: "Jam",
+    sub: COMMANDES.tactile ? "Pause pour quitter" : "Échap pour quitter",
+    at: performance.now(),
+  };
+}
+/** Quitte la jam pour l'écran de départ de la même chanson */
+export function quitterJam() {
+  stopScheduler();
+  const t = AC.currentTime;
+  B.master.gain.cancelScheduledValues(t);
+  B.master.gain.setTargetAtTime(0, t, 0.05);
+  resetRun();
+  S.mode = "title";
+  show("title");
+}
+// La jam n'a rien à juger : le temps qui avance n'annonce que les sections qui reviennent
+function avancerEnJam(nb: number) {
+  const bar = Math.floor(nb / 4);
+  if (bar < 0) return;
+  const sec = sectionAtBar(bar);
+  if (sec === S.curSec) return;
+  S.curSec = sec;
+  if (sec.kind !== "intro") S.banner = { text: sec.name, sub: "", at: performance.now() };
+}
+
 export function resumeCP() {
   const cp = S.cp;
   if (!cp) return newRun();
@@ -225,7 +265,7 @@ export function finish() {
 /** L'avancée du temps, image par image. Pendant la réécoute (#23), les coups enregistrés se rejouent à leur temps. */
 export function update(nb: number) {
   if (S.relecture) nb = rejouer(nb, avancer);
-  if (S.mode === "play") avancer(nb);
+  if (S.mode === "play") (S.jam ? avancerEnJam : avancer)(nb);
 }
 
 function avancer(nb: number) {

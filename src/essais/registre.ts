@@ -33,6 +33,8 @@ export interface Essai {
    * les notes de la partie jouée par l'auto-play, dans les quatre mesures qui suivent le solo, qui doit commencer
    * dans les quatre premières mesures */
   variation?: boolean;
+  /** L'essai ouvre la jam (#24) sur sa chanson : aucune note n'y est jouée, et le repère n'en trouve aucune */
+  jam?: boolean;
 }
 
 // Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
@@ -397,6 +399,28 @@ export const ESSAIS: Essai[] = [
     // Deux ponts en mains croisées, sur la mélodie du couplet, séparés par deux mesures à l'endroit
     chanson: () => assembler(GRAINE, "difficile", [INTRO, pontCroise(2), couplet(6, 2), pontCroise(10), OUTRO]),
     repere: (ev) => ev.kind === "pont",
+  },
+  {
+    id: "jam",
+    titre: "Jam",
+    verifier:
+      "Ni obstacle ni ennemi : joue librement des deux mains (W, S, Espace ; J K L ;). Chaque touche sonne juste sur l'accord en cours, dont le rail de gauche montre les notes en direct. Après le refrain, la chanson repart au couplet sans s'arrêter, et il n'y a ni score, ni harmonie, ni mort. Échap quitte la jam.",
+    issue: 24,
+    univers: "boite",
+    diff: "normal",
+    mains: "both",
+    jam: true,
+    // Un couplet, un solo et un refrain courts : la jam revient au couplet après une dizaine de mesures
+    chanson: () =>
+      assembler(GRAINE, "normal", [
+        INTRO,
+        couplet(2, 4),
+        { nom: "Solo libre", genre: "pont", de: 18, mesures: 2 },
+        refrain(10, 4),
+        OUTRO,
+      ]),
+    // La jam ne joue aucune note de la chanson
+    repere: () => false,
   },
 ];
 

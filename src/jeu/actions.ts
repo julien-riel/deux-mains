@@ -3,7 +3,7 @@
 // (#23) : la réécoute de fin de partie la rejoue.
 import { compteurs, noter, resultatEntre, type Appui } from "./enregistrement";
 import { S, autoFor, spb, type Action } from "./etat";
-import { findNear, leftPress, release, rightPress } from "./jugement";
+import { findNear, jouerEnJam, leftPress, release, rightPress } from "./jugement";
 
 const main = (a: Action) => (a === "sauter" || a === "glisser" || a === "ecraser" ? "L" : "R");
 const couloir = (a: Action) => +a.slice(-1);
@@ -32,8 +32,10 @@ export function relacher(a: Action, ns: number) {
 /** Joue un appui et l'enregistre, avec la note qu'il a jugée : celui du joueur, ou celui que rejoue la réécoute */
 export function appuyer(a: Action, ns: number, tactile = false) {
   if (S.mode !== "play" || autoFor(main(a)) || S.keys[a]) return;
-  const avant = compteurs(S);
   S.keys[a] = true;
+  // En jam (#24), rien n'est jugé ni enregistré : le geste fait sonner son degré de l'accord en cours
+  if (S.jam) return jouerEnJam(a, ns);
+  const avant = compteurs(S);
   if (a === "sauter") leftPress(1, ns);
   else if (a === "ecraser") leftPress(3, ns);
   else if (a === "glisser") leftPress(tactile && plaqueProche(ns) ? 3 : 0, ns);
