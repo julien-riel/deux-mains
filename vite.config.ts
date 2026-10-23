@@ -31,6 +31,7 @@ export default defineConfig({
         "src/jeu/midi.ts",
         "src/jeu/variations.ts",
         "src/jeu/style.ts",
+        "src/jeu/enregistrement.ts",
       ],
       reporter: ["text"],
       thresholds: {
@@ -40,6 +41,7 @@ export default defineConfig({
         "src/jeu/midi.ts": { lines: 90 },
         "src/jeu/variations.ts": { lines: 90 },
         "src/jeu/style.ts": { lines: 90 },
+        "src/jeu/enregistrement.ts": { lines: 90 },
       },
     },
   },

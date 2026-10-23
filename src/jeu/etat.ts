@@ -2,6 +2,8 @@
 import type { Chanson, Main, Note, Section } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { clamp } from "../outils";
+import type { Enregistrement } from "./enregistrement";
+import type { Relecture } from "./reecoute";
 import type { Reprise } from "./variations";
 
 export type Mode = "title" | "essais" | "calib" | "play" | "pause" | "dying" | "dead" | "done";
@@ -151,6 +153,10 @@ export interface Etat {
   keyAng: number;
   /** Le mode essai : l'essai ouvert, ou null pour une chanson générée */
   essai: EssaiEnCours | null;
+  /** Les coups de la partie en cours (#23), ou null quand elle ne s'enregistre pas (boucle) */
+  enregistrement: Enregistrement | null;
+  /** La réécoute en cours (#23) : la partie rejoue les coups enregistrés, et ceux du joueur sont ignorés */
+  relecture: Relecture | null;
 }
 
 export const S: Etat = {
@@ -209,6 +215,8 @@ export const S: Etat = {
   formes: true,
   keyAng: 0,
   essai: null,
+  enregistrement: null,
+  relecture: null,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.

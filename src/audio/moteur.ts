@@ -14,6 +14,9 @@ export function retardDe(timeStamp: number) {
 // L'heure d'un événement horodaté, ramenée sur l'horloge de la chanson (ADR-0004, ADR-0008 règle 2)
 export const heureDe = (timeStamp: number) => songNow() - retardDe(timeStamp);
 export const timeOfBeat = (b) => S.t0 + (b - S.startBeat) * spb();
+// L'heure de l'horloge audio où le temps de la chanson valait `ns` : l'inverse de songNow. Un coup rejoué par la
+// réécoute (#23) y fait sonner sa note, comme quand le joueur l'a joué.
+export const heureDuTemps = (ns: number) => ns + lat() + S.decalage + S.t0 - S.startBeat * spb();
 
 export let AC = null,
   B = null,

@@ -20,12 +20,26 @@ import { die } from "./deroulement";
 import { S, chordAtBeat, layers } from "./etat";
 import { couloirDe, type Effets } from "./jugement";
 
+// L'heure où sonne un coup « tout de suite » : maintenant, ou l'heure où le joueur l'avait joué quand la réécoute
+// le rejoue (#23), un peu en avance pour qu'il sonne à l'heure exacte (ADR-0004)
+let instant: number | null = null;
+const maintenant = () => Math.max(AC.currentTime, instant ?? 0);
+/** Fait sonner à l'heure `t` de l'horloge audio les coups joués pendant `f` */
+export function aLHeure(t: number, f: () => void) {
+  instant = t;
+  try {
+    f();
+  } finally {
+    instant = null;
+  }
+}
+
 export const effets: Effets = {
   jouer(ev, beat, lane) {
-    playHit(ev, beat === null ? AC.currentTime : timeOfBeat(beat), lane);
+    playHit(ev, beat === null ? maintenant() : timeOfBeat(beat), lane);
   },
   couper(ev) {
-    if (ev.voice) ev.voice.stop(AC.currentTime);
+    if (ev.voice) ev.voice.stop(maintenant());
   },
   reussite(ev, perfect, bonus) {
     const label = perfect ? "Parfait" : "Bien",
@@ -81,12 +95,12 @@ export const effets: Effets = {
   },
   solo(lane, nb) {
     const ch = chordAtBeat(nb);
-    leadV(AC.currentTime, ch.lanes[lane], 0, leadTimbre("refrain"));
-    if (layers().choir) harmV(AC.currentTime, lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
+    leadV(maintenant(), ch.lanes[lane], 0, leadTimbre("refrain"));
+    if (layers().choir) harmV(maintenant(), lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
     burst(HITX + 40, LANE_Y[lane], LANE_HUE[lane], 10);
   },
   vibrato(ev, points) {
-    ev.voice?.vibrer?.(AC.currentTime);
+    ev.voice?.vibrer?.(maintenant());
     ev.vibreAt = performance.now();
     if (points) popup(`Vibrato +${points}`, HITX + 30, LANE_Y[ev.lane] - 26, COL.good);
   },
@@ -95,7 +109,7 @@ export const effets: Effets = {
     burst(HITX, LANE_Y[lane], LANE_HUE[lane], 4);
   },
   glisser(ev, k, beat) {
-    glisserVoix(ev, k, beat === null ? AC.currentTime : timeOfBeat(beat));
+    glisserVoix(ev, k, beat === null ? maintenant() : timeOfBeat(beat));
   },
   passage(ev, k, parfait) {
     const lane = ev.serpent[k],
@@ -126,5 +140,8 @@ export const effets: Effets = {
     S.laneFlash[lane] = at;
     S.beams.push({ lane, at, ok });
   },
-  mourir: () => die(),
+  // La réécoute (#23) va au bout de la chanson : une mort de la partie y a déjà été suivie d'une reprise
+  mourir: () => {
+    if (!S.relecture) die();
+  },
 };
