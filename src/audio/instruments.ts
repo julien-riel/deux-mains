@@ -142,6 +142,9 @@ export function bassV(t, m, dur, accent = 1) {
     },
   };
 }
+// La vitesse et la profondeur du vibrato : environ six oscillations par seconde, un tiers de demi-ton
+export const VIBRATO_HZ = 5.5,
+  VIBRATO_CENTS = 35;
 export function leadV(t, m, dur, timbre, vel = 1) {
   const f = mtof(m),
     hold = dur > 0,
@@ -154,10 +157,17 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     gn.gain.setTargetAtTime(0.14 * vel, t + 0.01, 0.12);
     gn.gain.setTargetAtTime(0, end, 0.08);
   } else gn.gain.setTargetAtTime(0, t + 0.01, timbre === "box" ? 0.4 : timbre === "bell" ? 0.22 : 0.14);
+  // Les oscillateurs de la voix : le vibrato fait osciller leur hauteur ensemble
+  const os: OscillatorNode[] = [],
+    o = (type, fr, fin, det = 0) => {
+      const n = osc(type, fr, t, fin, det);
+      os.push(n);
+      return n;
+    };
   if (timbre === "box") {
     // Lame de boîte à musique : partiels inharmoniques très brefs, fondamentale qui tinte
     const f2 = f * 2;
-    osc("sine", f2, t, stop + 0.6).connect(gn);
+    o("sine", f2, stop + 0.6).connect(gn);
     for (const [r, v, d] of [
       [2.76, 0.3, 0.06],
       [5.4, 0.12, 0.025],
@@ -165,19 +175,19 @@ export function leadV(t, m, dur, timbre, vel = 1) {
       const p = AC.createGain();
       p.gain.setValueAtTime(v, t);
       p.gain.setTargetAtTime(0, t, d);
-      osc("sine", f2 * r, t, stop).connect(p);
+      o("sine", f2 * r, stop).connect(p);
       p.connect(gn);
     }
   } else if (timbre === "bell") {
-    osc("sine", f, t, stop).connect(gn);
+    o("sine", f, stop).connect(gn);
     const p = AC.createGain();
     p.gain.setValueAtTime(0.35, t);
     p.gain.setTargetAtTime(0, t, 0.05);
-    osc("sine", f * 4, t, stop).connect(p);
+    o("sine", f * 4, stop).connect(p);
     p.connect(gn);
     const tr = AC.createGain();
     tr.gain.value = 0.3;
-    osc("triangle", f * 2, t, stop).connect(tr);
+    o("triangle", f * 2, stop).connect(tr);
     tr.connect(gn);
   } else {
     const lp = AC.createBiquadFilter();
@@ -185,15 +195,29 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     lp.Q.value = 2;
     lp.frequency.setValueAtTime(5200, t);
     lp.frequency.setTargetAtTime(hold ? 1800 : 900, t + 0.01, 0.12);
-    osc("sawtooth", f, t, stop, -5).connect(lp);
-    osc("triangle", f, t, stop, 5).connect(lp);
+    o("sawtooth", f, stop, -5).connect(lp);
+    o("triangle", f, stop, 5).connect(lp);
     lp.connect(gn);
   }
   send(gn, 0.28, 0.32);
+  // Le vibrato (#17) : un oscillateur lent, créé au premier tapotement, module la hauteur de quelques centièmes
+  // de demi-ton autour de la note, qui ne change pas de degré (ADR-0003). Chaque tapotement le ravive, puis il s'éteint.
+  let vib: GainNode = null;
   return {
     stop(at) {
       gn.gain.cancelScheduledValues(at);
       gn.gain.setTargetAtTime(0, at, 0.04);
+    },
+    vibrer(at) {
+      if (!vib) {
+        vib = AC.createGain();
+        vib.gain.value = 0;
+        osc("sine", VIBRATO_HZ, at, stop).connect(vib);
+        for (const n of os) vib.connect(n.detune);
+      }
+      vib.gain.cancelScheduledValues(at);
+      vib.gain.setTargetAtTime(VIBRATO_CENTS, at, 0.03);
+      vib.gain.setTargetAtTime(0, at + 0.35, 0.25);
     },
   };
 }

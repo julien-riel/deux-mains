@@ -1,7 +1,8 @@
 /* ---------- Fabrique des chansons d'essai ---------- */
 // Logique pure (ADR-0007). Une chanson d'essai est courte et fait revenir une fonctionnalité dès les premières
 // mesures. On ne touche pas au générateur (ADR-0005) : on part de sa sortie, dont on réassemble des mesures
-// (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés.
+// (accords et mélodie), puis on réécrit la basse selon des motifs choisis, dans la notation des difficultés, et au
+// besoin la mélodie.
 import { DIFFS } from "../chanson/difficultes";
 import { buildSong } from "../chanson/generateur";
 import type { Accord, Chanson, Genre, Note, Section } from "../chanson/types";
@@ -17,6 +18,10 @@ export interface Morceau {
 
 /** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel */
 export type MotifsDeBasse = Partial<Record<Genre, string[]>>;
+
+/** Les motifs de mélodie par genre de section, une mesure en huit croches : 0 à 3 le couloir, - prolonge la note
+ * en note tenue, . silence */
+export type MotifsDeMelodie = Partial<Record<Genre, string[]>>;
 
 // Les notes de basse d'une mesure, avec les règles du générateur : glisser joue la fondamentale, sauter l'octave,
 // le double saut la quinte au-dessus de l'octave, la plaque la fondamentale accentuée (ADR-0003). La plaque
@@ -48,12 +53,43 @@ function mesureDeBasse(motif: string, bar: number, ch: Accord, kind: Genre, plaq
   return notes;
 }
 
+// Les notes de mélodie d'une mesure : chaque couloir joue son degré de l'accord (ADR-0003), avec l'harmonie du
+// générateur (le degré au-dessus)
+function mesureDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre): Note[] {
+  const notes: Note[] = [];
+  for (let k = 0; k < 8; k++) {
+    if (!/[0-3]/.test(motif[k])) continue;
+    const lane = +motif[k];
+    let n = 1;
+    while (k + n < 8 && motif[k + n] === "-") n++;
+    notes.push({
+      hand: "R",
+      beat: bar * 4 + k / 2,
+      dur: n > 1 ? n / 2 : 0,
+      lane,
+      bar,
+      kind,
+      vel: 1,
+      midi: ch.lanes[lane],
+      harm: lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12,
+      state: "pending",
+    });
+  }
+  return notes;
+}
+
 /**
  * Assemble une chanson d'essai : les morceaux de la chanson générée par `graine` et `diff`, mis bout à bout.
  * Les accords et la mélodie viennent des mesures recopiées ; la basse est réécrite avec les motifs de la
- * difficulté, remplacés genre par genre par `basse`.
+ * difficulté, remplacés genre par genre par `basse`. Pour les genres de `melodie`, la mélodie est réécrite aussi.
  */
-export function assembler(graine: number, diff: string, morceaux: Morceau[], basse: MotifsDeBasse = {}): Chanson {
+export function assembler(
+  graine: number,
+  diff: string,
+  morceaux: Morceau[],
+  basse: MotifsDeBasse = {},
+  melodie: MotifsDeMelodie = {},
+): Chanson {
   const source = buildSong(graine, diff),
     motifs: MotifsDeBasse = { ...DIFFS[diff].bass, ...basse },
     sections: Section[] = [],
@@ -64,7 +100,10 @@ export function assembler(graine: number, diff: string, morceaux: Morceau[], bas
     sections.push({ name: m.nom, kind: m.genre, bars: m.mesures, start: bar });
     const decale = bar - m.de;
     for (let i = 0; i < m.mesures; i++) chords.push(source.chords[m.de + i]);
-    for (const e of source.ev)
+    const chant = melodie[m.genre];
+    for (let i = 0; chant && i < m.mesures; i++)
+      ev.push(...mesureDeMelodie(chant[i % chant.length], bar + i, chords[bar + i], m.genre));
+    for (const e of chant ? [] : source.ev)
       if (e.hand === "R" && e.bar >= m.de && e.bar < m.de + m.mesures)
         ev.push({ ...e, beat: e.beat + 4 * decale, bar: e.bar + decale, kind: m.genre, grp: undefined });
     const a = motifs[m.genre];

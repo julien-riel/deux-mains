@@ -94,6 +94,28 @@ export const ESSAIS: Essai[] = [
     chanson: () => accorder(assembler(GRAINE, "facile", [INTRO, couplet(2, 4), refrain(10, 4), OUTRO])),
     repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.filter((e) => e.hand === "R").length > 1,
   },
+  {
+    id: "vibrato",
+    titre: "Vibrato",
+    verifier:
+      "Des ennemis allongés à chaque mesure : tiens la note, puis tapote une autre touche. La note ondule (vibrato), l'ennemi aussi, et « Vibrato +20 » s'affiche, cinq fois au plus par note. Sans tapoter, la note tenue reste réussie.",
+    issue: 17,
+    univers: "ville",
+    diff: "normal",
+    mains: "R",
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "normal",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        {
+          couplet: ["0-----..", "2---1-.."],
+          refrain: ["3-----..", "1---2-.."],
+        },
+      ),
+    repere: (ev) => ev.hand === "R" && ev.dur > 0,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

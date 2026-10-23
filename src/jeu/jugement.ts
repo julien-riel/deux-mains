@@ -17,6 +17,8 @@ export interface Effets {
   mauvaisCouloir(lane: number): void;
   /** Une note jouée librement pendant le solo. */
   solo(lane: number, nb: number): void;
+  /** Un tapotement de vibrato sur une note tenue, et les points de style qu'il rapporte (0 une fois plafonné) */
+  vibrato(ev: Note, points: number): void;
   /** Le rayon tiré dans un couloir : réussi, dans le mauvais couloir, ou dans le vide (`null`). */
   tir(lane: number, ok: boolean | null): void;
   mourir(): void;
@@ -97,6 +99,24 @@ export function release(hand: Main, lane: number, ns: number) {
     else completeHold(ev, false);
   }
 }
+/** Le vibrato (#17) : chaque tapotement pendant une note tenue rapporte des points de style, jusqu'à `max` par note */
+export const VIBRATO = { points: 20, max: 5 };
+/** Fait vibrer les notes tenues de la main droite, et renvoie celles qui vibrent. Ce n'est jamais une erreur :
+ * la note reste tenue, le combo ne bouge pas, et une note tenue sans vibrato reste réussie. */
+export function vibrer(ns: number): Note[] {
+  const nb = ns / spb(),
+    tenues: Note[] = [];
+  for (const ev of S.ev) {
+    if (ev.beat > nb) break;
+    if (ev.hand !== "R" || ev.state !== "holding") continue;
+    ev.vibrato = (ev.vibrato ?? 0) + 1;
+    const points = ev.vibrato <= VIBRATO.max ? VIBRATO.points : 0;
+    S.score += points;
+    effets.vibrato(ev, points);
+    tenues.push(ev);
+  }
+  return tenues;
+}
 /** En l'air, sur un saut simple : un second appui sur sauter y devient un double saut (#7) */
 export const enLair = (ns: number) => S.doubleAt < S.jumpAt && ns >= S.jumpAt && ns < S.jumpAt + S.jumpAir;
 export function leftPress(lane: number, ns: number) {
@@ -145,6 +165,8 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
     }
     return [near.ev, ...autres];
   }
+  // Pendant une note tenue, l'autre touche fait vibrer la note au lieu de compter comme un mauvais couloir
+  if (vibrer(ns).length) return [];
   if (findNear("R", ns)) {
     S.combo = 0;
     effets.mauvaisCouloir(lane);

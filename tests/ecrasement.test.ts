@@ -40,10 +40,19 @@ describe("jugement de l'écrasement", () => {
   let effets: { [K in keyof Effets]: ReturnType<typeof vi.fn> };
   beforeEach(() => {
     effets = Object.fromEntries(
-      ["jouer", "couper", "reussite", "accord", "rate", "lache", "mauvaisCouloir", "solo", "tir", "mourir"].map((k) => [
-        k,
-        vi.fn(),
-      ]),
+      [
+        "jouer",
+        "couper",
+        "reussite",
+        "accord",
+        "rate",
+        "lache",
+        "mauvaisCouloir",
+        "solo",
+        "vibrato",
+        "tir",
+        "mourir",
+      ].map((k) => [k, vi.fn()]),
     ) as typeof effets;
     brancherEffets(effets as unknown as Effets);
   });
