@@ -18,6 +18,8 @@
 // mesure, puis sa réponse, que le joueur répète de mémoire sur la mesure suivante. `couloirs` : les degrés
 // chantés, tous présents dans la phrase ; `rythmes` : la place des quatre notes dans la mesure, en croches
 // (x une note). Pas de chanteur en Débutant.
+// relaisP : la chance qu'une phrase du couplet (la deuxième) et une du refrain (la troisième) deviennent une phrase
+// en relais entre les deux mains (#20), en Normal et en Difficile (voir `phraseEnRelais` dans le générateur).
 export interface ReglagesChanteur {
   couloirs: number[];
   rythmes: string[];
@@ -30,6 +32,7 @@ export const DIFFS = {
     dmgR: 4,
     chanteur: null as ReglagesChanteur | null,
     escalierP: 0,
+    relaisP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S.......", "W......."],
@@ -62,6 +65,7 @@ export const DIFFS = {
     dmgR: 6,
     chanteur: { couloirs: [0, 2], rythmes: ["x.x.x.x."] },
     escalierP: 0,
+    relaisP: 0,
     bass: {
       couplet: ["S.......", "W......."],
       refrain: ["S...W..."],
@@ -93,6 +97,7 @@ export const DIFFS = {
     dmgR: 8,
     chanteur: { couloirs: [0, 1, 2], rythmes: ["x.x.x.x.", "x.x.xx..", "xx..x.x."] },
     escalierP: 0,
+    relaisP: 0.6,
     bass: {
       couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
       refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
@@ -124,6 +129,7 @@ export const DIFFS = {
     dmgR: 9,
     chanteur: { couloirs: [0, 1, 2, 3], rythmes: ["x.x.x.x.", "x.xx..x.", "xx.x..x.", "x..x.xx."] },
     escalierP: 0.6,
+    relaisP: 0.75,
     bass: {
       couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
       refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],

@@ -84,6 +84,9 @@ export interface Note {
   /** Une note de la réponse au chanteur (#18) : une silhouette dont le couloir ne se révèle qu'au coup. Les quatre
    * notes d'une réponse sont celles de la même mesure. */
   reponse?: true;
+  /** Une note d'une phrase en relais (#20) : la mesure où commence le relais, qui le désigne dans la partie (en
+   * boucle, chaque passage a le sien). Une main joue la première mesure, l'autre finit la phrase sur la suivante. */
+  relais?: number;
 }
 
 /** Une note chantée par le chanteur (#18) : on l'entend, on ne la joue pas */

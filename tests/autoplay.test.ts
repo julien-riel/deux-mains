@@ -31,6 +31,7 @@ beforeEach(() => {
       "passage",
       "tir",
       "phrase",
+      "relais",
       "mourir",
     ].map((k) => [k, vi.fn()]),
   ) as typeof effets;

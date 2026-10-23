@@ -99,6 +99,9 @@ describe("retour en boucle", () => {
     expect(S.mode).toBe("play");
     expect(S.miss).toBe(0);
     expect(S.bouclePartie.passages.slice(0, 3)).toEqual([0, 1, 2].map(() => ({ parfait: n, bien: 0, rate: 0 })));
+    // Ce refrain a une phrase en relais (#20) : chaque passage a la sienne, réussie à part
+    expect(notesDe(sec).some((ev) => ev.relais !== undefined)).toBe(true);
+    expect(S.relais).toEqual({ reussis: 3, total: 3 });
     // Chaque image avance le temps de la partie d'1/60 s, y compris aux points de boucle
     expect(Math.min(...pas)).toBeCloseTo(1 / 60, 9);
     expect(Math.max(...pas)).toBeCloseTo(1 / 60, 9);

@@ -31,6 +31,8 @@ export interface Effets {
   passage(ev: Note, k: number, parfait: boolean | null): void;
   /** Une réponse au chanteur (#18) entièrement juste : ses quatre notes, et le bonus gagné */
   phrase(notes: Note[], points: number): void;
+  /** Une phrase en relais (#20) entièrement réussie, aux deux mains : ses notes, et le bonus gagné */
+  relais(notes: Note[], points: number): void;
   /** Le rayon tiré dans un couloir : réussi, dans le mauvais couloir, ou dans le vide (`null`). */
   tir(lane: number, ok: boolean | null): void;
   mourir(): void;
@@ -123,6 +125,23 @@ function jugerReponse(ev: Note) {
   gagner(points, ev.hand);
   effets.phrase(phrase, points);
 }
+/** Les phrases en relais (#20) : un relais dont toutes les notes sont réussies, aux deux mains, rapporte `bonus`
+ * points, multipliés par le combo commun. C'est un exploit commun : en duo, il va au score total seulement. */
+export const RELAIS = { bonus: 600 };
+/** Les notes du relais de cette note, dans la partie : en boucle, chaque passage a le sien (ADR-0009) */
+export const notesDuRelais = (ev: Note) => S.ev.filter((e) => e.relais === ev.relais);
+// Le relais dont cette note vient d'être jugée : compté quand sa dernière note l'est, avec le bonus s'il est réussi
+function jugerRelais(ev: Note) {
+  if (ev.relais === undefined) return;
+  const phrase = notesDuRelais(ev);
+  if (phrase.some((e) => e.state === "pending")) return;
+  S.relais.total++;
+  if (!phrase.every(reussie)) return;
+  S.relais.reussis++;
+  const points = Math.round(RELAIS.bonus * mult());
+  gagner(points);
+  effets.relais(phrase, points);
+}
 export function hitEv(ev: Note, d: number) {
   if (ev.trille !== undefined) return commencerTrille(ev, d, ev.lane);
   ev.state = ev.dur > 0 ? "holding" : "hit";
@@ -134,6 +153,7 @@ export function hitEv(ev: Note, d: number) {
   effets.reussite(ev, perfect);
   jugerAccord(ev);
   jugerReponse(ev);
+  jugerRelais(ev);
 }
 export function missEv(ev: Note) {
   const D = DIFFS[S.diff];
@@ -143,6 +163,7 @@ export function missEv(ev: Note) {
   S.parMain[ev.hand].miss++;
   compterPassage(ev, "rate");
   suivreAccordDuo(ev);
+  jugerRelais(ev);
   effets.rate(ev);
   // L'harmonie est commune : en duo, l'erreur d'un joueur la fait baisser pour les deux
   damage(ev.hand === "L" ? D.dmgL : D.dmgR);

@@ -79,6 +79,7 @@ describe("jugement des pentes", () => {
         "solo",
         "tir",
         "phrase",
+        "relais",
         "mourir",
       ].map((k) => [k, vi.fn()]),
     ) as typeof effets;

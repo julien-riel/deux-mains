@@ -114,6 +114,13 @@ export const effets: Effets = {
     popup(`Phrase juste +${points}`, HITX + 30, LANE_Y[3] - 40, COL.good);
     for (const lane of new Set(notes.map((n) => n.lane))) burst(HITX, LANE_Y[lane], LANE_HUE[lane], 14);
   },
+  relais(notes, points) {
+    // Le relais réussi (#20) : le bonus entre les deux mains, et une gerbe de chaque côté du passage
+    const m = notes.filter((n) => n.hand === "R");
+    popup(`Relais +${points}`, HITX + 30, LANE_Y[0] + 44, COL.good);
+    burst(HITX, LANE_Y[m[m.length - 1].lane], LANE_HUE[m[m.length - 1].lane], 14);
+    burst(PX + PW / 2, GY - 20, HUE_BASS, 14);
+  },
   tir(lane, ok) {
     const at = performance.now();
     S.laneFlash[lane] = at;

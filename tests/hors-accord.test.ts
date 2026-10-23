@@ -15,7 +15,8 @@ import { DIFFICULTES, GRAINES } from "./support/instantane";
 const CHANSONS = DIFFICULTES.flatMap((diff) => GRAINES.map((graine) => ({ diff, chanson: buildSong(graine, diff) })));
 const dans = (diff: string) => CHANSONS.filter((c) => c.diff === diff).map((c) => c.chanson);
 const petites = (c: Chanson) => c.ev.filter(estPetiteNote);
-const marches = (c: Chanson) => c.ev.filter((ev) => ev.hand === "L" && ev.lane >= 4);
+// Les marches des escaliers seulement : celles des relais (#20) montent ou descendent l'arpège (tests/relais.test.ts)
+const marches = (c: Chanson) => c.ev.filter((ev) => ev.hand === "L" && ev.lane >= 4 && ev.relais === undefined);
 const gauche = (c: Chanson) => c.ev.filter((ev) => ev.hand === "L");
 const prog = (nom: string) => PROGS.find((p) => p.name === nom);
 const sectionDe = (c: Chanson, bar: number) => c.sections.find((s) => bar >= s.start && bar < s.start + s.bars);
@@ -162,7 +163,7 @@ describe("escaliers de walking bass (#13)", () => {
     for (const c of dans("difficile")) {
       const ls = gauche(c);
       ls.forEach((ev, i) => {
-        if (ev.lane < 4) return;
+        if (ev.lane < 4 || ev.relais !== undefined) return;
         const gamme = gammeDe(c.keyPc, c.prog, c.chords[ev.bar]),
           avant = ls[i - 1];
         expect(gamme).toContain(ev.midi % 12);
@@ -182,7 +183,7 @@ describe("escaliers de walking bass (#13)", () => {
     for (const c of dans("difficile")) {
       const ls = gauche(c);
       ls.forEach((ev, i) => {
-        if (ev.lane < 4 || ls[i + 1].lane >= 4) return;
+        if (ev.lane < 4 || ev.relais !== undefined || ls[i + 1].lane >= 4) return;
         const arrivee = ls[i + 1],
           suivant = c.chords[ev.bar + 1];
         expect([arrivee.beat, ev.beat % 4]).toEqual([(ev.bar + 1) * 4, 3]);
@@ -197,7 +198,7 @@ describe("escaliers de walking bass (#13)", () => {
     for (const c of dans("difficile")) {
       const ls = gauche(c);
       ls.forEach((ev, i) => {
-        if (ev.lane < 4 || ls[i - 1].lane >= 4) return;
+        if (ev.lane < 4 || ev.relais !== undefined || ls[i - 1].lane >= 4) return;
         const depart = ls[i - 1],
           ch = c.chords[ev.bar];
         expect([0, 1]).toContain(depart.lane);
@@ -282,6 +283,7 @@ beforeEach(() => {
       "glisser",
       "passage",
       "tir",
+      "relais",
       "mourir",
     ].map((k) => [k, vi.fn()]),
   ) as typeof effets;

@@ -351,6 +351,44 @@ export function phraseDuChanteur(
   return { chanteur: { bar, notes }, reponse };
 }
 
+/* ---------- Phrases en relais (#20) ---------- */
+
+/** Les phrases du couplet et du refrain qui peuvent devenir un relais : la deuxième du couplet (la première expose
+ * le thème, la troisième laisse la place au chanteur, la dernière garde sa cadence) et la troisième du refrain (la
+ * première commence sur la plaque, la deuxième et la quatrième peuvent reprendre le solo). */
+export const PHRASES_EN_RELAIS: Partial<Record<Genre, number>> = { couplet: 1, refrain: 2 };
+
+/** Les motifs de basse des deux mesures d'un relais, dans la notation de `DIFFS` : la basse monte l'arpège de son
+ * accord avant que la mélodie le reprenne, ou le descend après elle. Ses marches (« / » et « \ ») jouent la tierce
+ * et la quinte : la touche ne choisit que le geste (ADR-0010). */
+export const MOTIFS_RELAIS = { monte: ["S././.W.", "........"], descend: ["........", "W.\\.\\.S."] };
+
+/**
+ * Une phrase en relais (#20) sur les mesures `bar` et `bar + 1` : une main joue l'arpège de l'accord sur les quatre
+ * temps de la première mesure, l'autre le continue dans le même sens sur la seconde, et chaque main se tait sur la
+ * mesure de l'autre. En montant, la basse va de sa fondamentale à son octave (glisser, deux marches, sauter), puis
+ * la mélodie monte de la fondamentale à l'octave ; en descendant, la mélodie descend de l'octave à la fondamentale,
+ * puis la basse reprend une octave plus bas, de son octave à sa fondamentale. Chaque main joue les degrés de
+ * l'accord de sa mesure (ADR-0003), et la mélodie y joue sans harmonie : on n'entend qu'une ligne. Toutes les notes
+ * portent `relais`, la mesure du début.
+ */
+export function phraseEnRelais(monte: boolean, bar: number, chords: Accord[], kind: Genre): Note[] {
+  const notes: Note[] = [];
+  (monte ? MOTIFS_RELAIS.monte : MOTIFS_RELAIS.descend).forEach((motif, i) => {
+    const ch = chords[bar + i],
+      marches = [ch.bass + ch.ints[1], ch.bass + ch.ints[2]];
+    notes.push(...notesDeBasse(motif, bar + i, ch, kind, false, monte ? marches : marches.reverse()));
+  });
+  const m = monte ? bar + 1 : bar;
+  for (let t = 0; t < 4; t++) {
+    const note = noteDeMelodie(monte ? t : 3 - t, m * 4 + t, 0, m, chords[m], kind);
+    delete note.harm;
+    notes.push(note);
+  }
+  for (const n of notes) n.relais = bar;
+  return notes;
+}
+
 export function buildSong(seed: number, diffKey: string): Chanson {
   const rng = mulberry32(seed * 9301 + 49297);
   // Les chanteurs (#18) ont leur propre tirage : le reste de la chanson ne change pas avec eux
@@ -421,6 +459,16 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   // Les escaliers (#13) aussi, mesure par mesure : au couplet et au refrain, hors plaque (#8) et hors dernière
   // mesure, pour que la fondamentale d'arrivée reste dans la section
   const rngEscaliers = D.escalierP ? mulberry32(seed * 4999 + 1237) : null;
+  // Les relais (#20) aussi, une fois par genre : les deux refrains ont le même (true s'il monte). Un relais remplace
+  // toute sa phrase, basse comprise : ses mesures n'ont pas d'escalier, celle d'avant peut le rejoindre par le sien.
+  const relais: Partial<Record<Genre, boolean>> = {};
+  if (D.relaisP) {
+    const rngRelais = mulberry32(seed * 3571 + 7907);
+    for (const kind of Object.keys(PHRASES_EN_RELAIS)) if (rngRelais() < D.relaisP) relais[kind] = rngRelais() < 0.5;
+  }
+  const enRelais = (s: Section, i: number) => s.kind in relais && Math.floor(i / 2) === PHRASES_EN_RELAIS[s.kind],
+    motifDe = (s: Section, i: number) =>
+      enRelais(s, i) ? MOTIFS_RELAIS[relais[s.kind] ? "monte" : "descend"][i % 2] : bassPat(s.kind, i);
 
   const ev = [],
     chanteurs: Chanteur[] = [];
@@ -428,10 +476,12 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     for (let i = 0; i < s.bars; i++) {
       const bar = s.start + i,
         plaque = s.kind === "refrain" && i === 0;
+      // La phrase en relais (#20) écrit sa basse elle-même
+      if (enRelais(s, i)) continue;
       let p = bassPat(s.kind, i),
         marches: number[] = [];
       if (rngEscaliers && p && !plaque && i < s.bars - 1 && (s.kind === "couplet" || s.kind === "refrain")) {
-        const e = escalier(p, chords[bar], chords[bar + 1], bassPat(s.kind, i + 1), gammeDe(keyPc, prog, chords[bar]));
+        const e = escalier(p, chords[bar], chords[bar + 1], motifDe(s, i + 1), gammeDe(keyPc, prog, chords[bar]));
         if (e && rngEscaliers() < D.escalierP) ({ motif: p, marches } = e);
       }
       // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
@@ -440,6 +490,11 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     const ph = phrases[s.kind];
     if (!ph) continue;
     for (let k = 0; k < s.bars / 2; k++) {
+      // La phrase en relais (#20) : les deux mains se passent l'arpège
+      if (enRelais(s, 2 * k)) {
+        ev.push(...phraseEnRelais(relais[s.kind], s.start + 2 * k, chords, s.kind));
+        continue;
+      }
       // L'avant-dernière phrase du couplet laisse la place au chanteur et à sa réponse (#18) : la dernière garde
       // sa cadence, et la réponse ne tombe pas dans le silence d'avant le refrain. Jamais au refrain : la reprise
       // du solo (#9) remplace des phrases du dernier refrain, elle ne croise pas le chanteur.

@@ -214,7 +214,7 @@ export function show(kind) {
 }
 
 // Fin d'une partie en duo (#6) : les deux joueurs côte à côte, le meilleur de chaque ligne mis en valeur, puis
-// l'exploit commun (les accords à deux mains) et, discrètement, le score total
+// les exploits communs (les accords à deux mains, les relais de #20) et, discrètement, le score total
 function bilanDuo() {
   const { L, R } = S.parMain,
     pct = (m: StatsMain) => Math.round(precision(m.perfect, m.good, m.miss) * 100);
@@ -239,7 +239,9 @@ function bilanDuo() {
           )
           .join("")}</tbody>
       </table>
-      <p class="meta">Accords en duo : ${reussis} / ${total}</p>
+      <p class="meta">Accords en duo : ${reussis} / ${total}${
+        S.relais.total ? ` · relais passés : ${S.relais.reussis} / ${S.relais.total}` : ""
+      }</p>
       <p class="hint">Score total : ${S.score.toLocaleString("fr-CA")}</p>`;
 }
 
