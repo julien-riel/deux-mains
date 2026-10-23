@@ -104,7 +104,9 @@ describe("générateur", () => {
     for (const { chanson } of CHANSONS)
       for (const ev of gauche(chanson)) {
         const { bass, ints } = chanson.chords[ev.bar];
-        expect(ev.midi).toBe([bass, bass + 12, bass + 12 + ints[2], bass][ev.lane]);
+        // La pente descendante (#12) part de l'octave : tests/pentes.test.ts
+        if (ev.fin !== undefined && ev.fin < ev.midi) expect(ev.midi).toBe(bass + 12);
+        else expect(ev.midi).toBe([bass, bass + 12, bass + 12 + ints[2], bass][ev.lane]);
       }
   });
 

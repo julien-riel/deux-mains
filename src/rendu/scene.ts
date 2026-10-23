@@ -27,6 +27,7 @@ import {
   boiteHaut,
   boiteEnemy,
   boiteGround,
+  boitePente,
   boitePlaque,
   boiteTunnel,
   drawComb,
@@ -62,6 +63,7 @@ import {
   villeEnemy,
   villeGround,
   villeHaut,
+  villePente,
   villePlaque,
   villeTunnel,
 } from "./ville";
@@ -451,6 +453,10 @@ export function drawChordLinks(grp, nb) {
   g.restore();
 }
 
+// La hauteur d'une pente (#12) au-dessus du sol, à la fraction p de sa longueur : elle monte ou descend avec la note
+export const RAMPE = 46;
+export const hauteurPente = (ev, p) => RAMPE * (ev.fin > ev.midi ? p : 1 - p);
+
 // L'obstacle est dessiné légèrement en avance sur le temps : on appuie quand il est encore devant,
 // et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) ne l'est pas :
 // on retombe dessus pile sur le temps.
@@ -496,6 +502,26 @@ export function drawObstacle(ev, nb, hsl) {
     g.lineWidth = 2.5;
     g.stroke();
     txt(KEYLABEL.KeyW, x, GY - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
+  } else if (ev.fin !== undefined) {
+    // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps
+    const a = x0,
+      b = x0 + ev.dur * PPB,
+      monte = ev.fin > ev.midi;
+    (boite ? boitePente : villePente)(a, b, GY - hauteurPente(ev, 0), GY - hauteurPente(ev, 1), fill);
+    if (ev.state === "holding") {
+      const px = clamp(PX + PW / 2, a, b);
+      g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(a, GY - hauteurPente(ev, 0) - 6);
+      g.lineTo(px, GY - hauteurPente(ev, (px - a) / (b - a)) - 6);
+      g.stroke();
+    }
+    const ly = GY - RAMPE - 46;
+    rr(a + 4, ly - 14, 84, 18, 4);
+    g.fillStyle = hexA(COL.ink, 0.7);
+    g.fill();
+    txt(`${KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti
     const a = x - 16,
@@ -595,7 +621,12 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
     else if (impact) {
       jumping = true;
       yOff = -16 * Math.sin((Math.PI * (e - 0.3)) / 0.7);
-    } else if (S.keys.glisser || ns < S.slideUntil) sliding = true;
+    } else if (S.keys.glisser || ns < S.slideUntil) {
+      sliding = true;
+      // Sur une pente tenue (#12), la glissade suit la rampe
+      const pente = S.ev.find((ev) => ev.state === "holding" && ev.fin !== undefined);
+      if (pente) yOff = -hauteurPente(pente, clamp((ns / spb() - pente.beat) / pente.dur, 0, 1));
+    }
   }
   const run = S.mode === "play" && !jumping && !sliding && !ecrase,
     ph = nb * Math.PI;

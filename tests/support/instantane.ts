@@ -16,6 +16,7 @@ interface NoteBrute {
   bar: number;
   kind: string;
   midi: number;
+  fin?: number;
   harm?: number;
   vel?: number;
   air?: number;
@@ -66,6 +67,7 @@ function canonique(s: ChansonBrute) {
       e.bar,
       e.kind,
       e.midi,
+      e.fin ?? null,
       e.harm ?? null,
       e.vel ?? null,
       e.air ?? null,

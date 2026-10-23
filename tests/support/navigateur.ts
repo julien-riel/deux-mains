@@ -45,6 +45,8 @@ class Horloge {
   audioActif = true;
   /** Les sons programmés (oscillateurs et bruits), avec leur heure de départ et de fin sur l'horloge audio */
   sons: { debut: number; fin: number }[] = [];
+  /** Les glissandos programmés sur la fréquence d'une source (#12) : d'où à où (en Hz), et l'heure d'arrivée */
+  glissandos: { de: number; vers: number; fin: number }[] = [];
 }
 
 /* ---------- Web Audio ---------- */
@@ -88,8 +90,16 @@ function noeud() {
 // Une source de son qui note son heure de départ et de fin
 function source(horloge: Horloge) {
   const son = { debut: NaN, fin: NaN };
+  const frequency = parametre();
+  Object.assign(frequency, {
+    exponentialRampToValueAtTime: (vers: number, fin: number) => {
+      horloge.glissandos.push({ de: frequency.value, vers, fin });
+      return frequency;
+    },
+  });
   return {
     ...noeud(),
+    frequency,
     start: (t: number) => void horloge.sons.push(Object.assign(son, { debut: t })),
     stop: (t: number) => void (son.fin = t),
   };

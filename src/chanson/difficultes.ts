@@ -1,9 +1,11 @@
 // Les quatre difficultés : fenêtres de jugement, dégâts, motifs de basse et réglages de la mélodie
 
 // Basse : une chaîne de 8 croches par mesure. S = glisser, W = sauter, T = tunnel (tenu sur les « - »),
-// D = double saut (#7), une croche après un W : il finit une phrase de quatre mesures. La mélodie évite les
-// notes des deux premiers motifs seulement : le double saut ne change pas la main droite. Le générateur remplace
-// la première note de chaque refrain par une plaque à écraser (#8).
+// D = double saut (#7), une croche après un W : il finit une phrase de quatre mesures. M et B = pente montante
+// et descendante (#12), tenues sur les « - » : elles finissent une phrase de deux mesures et amènent la
+// note de la mesure suivante, en Normal et en Difficile. La mélodie évite les notes des deux premiers motifs
+// seulement : le double saut ne change pas la main droite. Le générateur remplace la première note de chaque
+// refrain par une plaque à écraser (#8).
 // Mélodie : surLesTemps garde la main droite sur les temps, même au refrain (Débutant)
 export const DIFFS = {
   debutant: {
@@ -63,8 +65,8 @@ export const DIFFS = {
     dmgL: 18,
     dmgR: 8,
     bass: {
-      couplet: ["S...W...", "T--.W...", "S...W...", "T--.WD.."],
-      refrain: ["S.W.S.W.", "S.W.S.W.", "S.W.S.W.", "S.WD..W."],
+      couplet: ["S...W...", "S...M--.", "S...W...", "T--.WD.."],
+      refrain: ["S.W.S.W.", "S.W.B--.", "S.W.S.W.", "S.WD..W."],
       pont: ["T------."],
       outro: ["S.......", "........"],
     },
@@ -88,8 +90,8 @@ export const DIFFS = {
     dmgL: 20,
     dmgR: 9,
     bass: {
-      couplet: ["S..W..S.", "T--.S.W.", "S..WD.S.", "T--.S.W."],
-      refrain: ["S.WSS.W.", "S.W..WS.", "S.WSS.W.", "S.WD.WS."],
+      couplet: ["S..W..S.", "T--.M--.", "S..WD.S.", "S..WB--."],
+      refrain: ["S.WSS.W.", "S.WSM--.", "S.WSS.W.", "S.WD.WS."],
       pont: ["T---S.W."],
       outro: ["S.......", "........"],
     },

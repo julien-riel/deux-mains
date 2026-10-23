@@ -143,6 +143,8 @@ describe("écrasement au clavier", () => {
     nav.relacher("Space");
     const S = nav.jeu.state,
       [p1, p2] = S.ev.filter((ev) => ev.hand === "L" && ev.lane === 3);
+    // Personne ne joue la main droite : ses notes ne comptent pas, pour arriver vivant à la plaque
+    for (const ev of S.ev) if (ev.hand === "R") ev.state = "skip";
     nav.avancerJusqua(() => nav.jeu.songNow() >= p1.beat * spb() + 0.1, 60);
     expect([p1.state, p1.auto]).toEqual(["hit", true]);
     expect(S.ecraseAt).toBeCloseTo(p1.beat * spb(), 9);

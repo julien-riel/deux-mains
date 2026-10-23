@@ -37,6 +37,10 @@ describe.each(UNIVERS)("Univers %s", (univers) => {
       expect(etat.miss).toBe(0);
       expect(etat.perfect).toBe(etat.song.ev.length);
       expect(etat.health).toBe(100);
+      // Les pentes (#12), en Normal et en Difficile : tenues jusqu'au bout
+      const pentes = etat.ev.filter((ev) => ev.fin !== undefined);
+      expect(pentes.length > 0).toBe(difficulte === "normal" || difficulte === "difficile");
+      expect(pentes.every((ev) => ev.state === "done")).toBe(true);
     });
 
     it("une partie sans aucune touche pressée se termine par la mort", async () => {

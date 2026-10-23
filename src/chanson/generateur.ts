@@ -3,7 +3,7 @@ import { clamp } from "../outils";
 import { mulberry32 } from "./aleatoire";
 import { DIFFS } from "./difficultes";
 import { NOTE_FR, PROGS, makeChord } from "./theorie";
-import type { Chanson, Section } from "./types";
+import type { Accord, Chanson, Genre, Note, Section } from "./types";
 
 // Un motif de 2 mesures (16 croches) : rythme, puis contour en degrés voisins
 export function genMotif(rng, P, occ, refrain) {
@@ -83,6 +83,41 @@ export function answer(rng, m, P) {
   return c;
 }
 
+/**
+ * Les notes de basse d'une mesure, d'après un motif de `DIFFS`. Glisser joue la fondamentale, sauter l'octave,
+ * le double saut la quinte au-dessus de l'octave, et l'écrasement la fondamentale accentuée (ADR-0003). Le
+ * tunnel et les pentes (#12) se tiennent sur les « - » : la pente montante glisse de la fondamentale à
+ * l'octave, la descendante de l'octave à la fondamentale. `plaque` : la première note devient une plaque (#8).
+ */
+export function notesDeBasse(motif: string, bar: number, ch: Accord, kind: Genre, plaque: boolean): Note[] {
+  const notes: Note[] = [];
+  for (let k = 0; k < 8; k++) {
+    const c = plaque && k === 0 ? "P" : motif[k];
+    if (c === "." || c === "-") continue;
+    let dur = 0;
+    if (c === "T" || c === "M" || c === "B") {
+      let n = 1;
+      while (k + n < 8 && motif[k + n] === "-") n++;
+      dur = n / 2;
+    }
+    const lane = c === "P" ? 3 : c === "W" ? 1 : c === "D" ? 2 : 0;
+    const note: Note = {
+      hand: "L",
+      beat: bar * 4 + k / 2,
+      dur,
+      lane,
+      bar,
+      kind,
+      midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
+      state: "pending",
+    };
+    if (c === "M") note.fin = ch.bass + 12;
+    if (c === "B") [note.midi, note.fin] = [ch.bass + 12, ch.bass];
+    notes.push(note);
+  }
+  return notes;
+}
+
 export function buildSong(seed: number, diffKey: string): Chanson {
   const rng = mulberry32(seed * 9301 + 49297);
   const D = DIFFS[diffKey];
@@ -131,33 +166,8 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   for (const s of sections) {
     for (let i = 0; i < s.bars; i++) {
       const p = bassPat(s.kind, i);
-      if (!p) continue;
-      const barIdx = s.start + i,
-        ch = chords[barIdx];
-      for (let k = 0; k < 8; k++) {
-        const c = p[k];
-        // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
-        const plaque = s.kind === "refrain" && i === 0 && k === 0;
-        if (!plaque && (c === "." || c === "-")) continue;
-        let dur = 0;
-        if (c === "T" && !plaque) {
-          let n = 1;
-          while (k + n < 8 && p[k + n] === "-") n++;
-          dur = n / 2;
-        }
-        // Glisser joue la fondamentale, sauter l'octave, le double saut la quinte au-dessus de l'octave, et
-        // l'écrasement la fondamentale accentuée (ADR-0003)
-        const lane = plaque ? 3 : c === "W" ? 1 : c === "D" ? 2 : 0;
-        ev.push({
-          hand: "L",
-          beat: barIdx * 4 + k / 2,
-          dur,
-          lane,
-          bar: barIdx,
-          kind: s.kind,
-          midi: [ch.bass, ch.bass + 12, ch.bass + 12 + ch.ints[2], ch.bass][lane],
-        });
-      }
+      // La plaque à écraser (#8) remplace la première note de basse de chaque refrain
+      if (p) ev.push(...notesDeBasse(p, s.start + i, chords[s.start + i], s.kind, s.kind === "refrain" && i === 0));
     }
     const ph = phrases[s.kind];
     if (!ph) continue;

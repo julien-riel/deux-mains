@@ -116,6 +116,18 @@ export const ESSAIS: Essai[] = [
       ),
     repere: (ev) => ev.hand === "R" && ev.dur > 0,
   },
+  {
+    id: "pentes",
+    titre: "Pentes",
+    verifier:
+      "Une pente à la fin de chaque mesure : garde S enfoncé jusqu'en bas. La basse glisse de la fondamentale à l'octave en montant, de l'octave à la fondamentale en descendant ; lâcher trop tôt la coupe.",
+    issue: 12,
+    univers: "ville",
+    diff: "normal",
+    mains: "L",
+    chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO], { couplet: ["S...M--.", "S.W.B--."] }),
+    repere: (ev) => ev.hand === "L" && ev.fin !== undefined,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);
