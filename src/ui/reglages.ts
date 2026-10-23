@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage et formes des couloirs, retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage, formes des couloirs et mode pianiste, retenus d'une visite à l'autre
 import { B, AC, songNow } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -15,7 +15,7 @@ import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
 import { ecranTactile } from "./tactile";
-import { COMMANDES, etiquettes } from "./touches";
+import { COMMANDES, MIDI, etiquettes } from "./touches";
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 
@@ -235,6 +235,23 @@ export function setFormes(oui: boolean) {
   } catch {
     /* stockage indisponible */
   }
+}
+document
+  .querySelectorAll<HTMLInputElement>('input[name="pianiste"]')
+  .forEach((r) => r.addEventListener("change", () => setPianiste(r.value === "oui")));
+// Mode pianiste au clavier MIDI (#53, ADR-0011) : jouer la vraie note demandée, à l'octave près, plutôt que les touches
+// de la position fixe. Désactivé par défaut ; le réglage ne se montre qu'une fois le MIDI activé (src/ui/midi.ts).
+export function setPianiste(oui: boolean) {
+  MIDI.pianiste = oui;
+  const r = document.getElementById(oui ? "p-oui" : "p-non") as HTMLInputElement;
+  if (r) r.checked = true;
+  try {
+    localStorage.setItem("deux-mains-pianiste", oui ? "oui" : "non");
+  } catch {
+    /* stockage indisponible */
+  }
+  etiquettes();
+  if (S.mode === "title" && S.song) show("title");
 }
 $("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));
 $("#seed").addEventListener("change", (e) => load(+(e.target as HTMLInputElement).value, diffDuJoueur(), enBoss()));

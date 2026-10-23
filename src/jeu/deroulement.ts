@@ -67,6 +67,8 @@ export function resetRun() {
     boss: bossNeuf(S.song),
     // Les traces des notes parfaites (#29) : celles de la sauvegarde restent sur le décor, la partie en peint d'autres
     traces: { cle: cleDesTraces(), nouvelles: [] },
+    // Le mode pianiste (#53) se constate à la première note jouée ainsi
+    pianiste: false,
   });
   oublierTouches();
   for (const ev of S.song.ev) {

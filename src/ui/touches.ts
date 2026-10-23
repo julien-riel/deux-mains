@@ -30,13 +30,18 @@ export const KEYLABEL = { ...CLAVIER };
 export const COMMANDES = { tactile: false };
 
 /** Le clavier MIDI (ADR-0011) : l'accès Web MIDI (absent du navigateur, pas encore demandé, en attente, refusé,
- * accordé sans clavier branché, ou accordé avec des claviers), leurs noms et le point de séparation */
+ * accordé sans clavier branché, ou accordé avec des claviers), leurs noms, le point de séparation, et le mode
+ * pianiste choisi dans les réglages (#53) */
 export type EtatMidi = "absent" | "inactif" | "attente" | "refuse" | "aucun" | "connecte";
-export const MIDI = { etat: "absent" as EtatMidi, entrees: [] as string[], separation: SEPARATION };
+export const MIDI = { etat: "absent" as EtatMidi, entrees: [] as string[], separation: SEPARATION, pianiste: false };
 /** La touche MIDI de chaque commande (« Do4 »), repérée par la touche du clavier d'ordinateur qui fait la même action */
 export const toucheMidi = (code: string) => nomDeNote(noteDeAction(ACTION_DE[code], MIDI.separation));
-/** La scène montre les touches MIDI quand un clavier MIDI est branché, ou pendant l'essai du MIDI */
-export const etiquettesMidi = () => MIDI.etat === "connecte" || !!S.essai?.essai.midi;
+/** Le clavier MIDI joue en mode pianiste (#53) : choisi dans les réglages, ou pendant l'essai du mode pianiste */
+export const modePianiste = () => MIDI.pianiste || !!S.essai?.essai.pianiste;
+/** La scène montre les touches MIDI quand un clavier MIDI est branché, ou pendant l'essai du MIDI ou du mode pianiste */
+export const etiquettesMidi = () => MIDI.etat === "connecte" || !!S.essai?.essai.midi || !!S.essai?.essai.pianiste;
+/** En mode pianiste, la scène montre les noms des notes attendues plutôt que les touches de la position fixe */
+export const nomsDeNotes = () => modePianiste() && etiquettesMidi();
 export function etiquettes() {
   const midi = Object.fromEntries(Object.keys(ACTION_DE).map((c) => [c, toucheMidi(c)]));
   Object.assign(KEYLABEL, etiquettesMidi() ? { ...midi, KeyA: CLAVIER.KeyA } : COMMANDES.tactile ? TACTILE : CLAVIER);

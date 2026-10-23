@@ -31,6 +31,9 @@ export interface Essai {
   mains: Mains;
   /** La scène montre les touches du clavier MIDI, branché ou non (#10) */
   midi?: boolean;
+  /** Le clavier MIDI joue en mode pianiste (#53), quel que soit le réglage du joueur, et la scène montre les noms des
+   * notes attendues, clavier branché ou non */
+  pianiste?: boolean;
   /** Construit la chanson d'essai, neuve à chaque appel */
   chanson(): Chanson;
   /** Les notes qui portent la fonctionnalité : les tests vérifient qu'elles arrivent tôt et souvent */
@@ -256,6 +259,29 @@ export const ESSAIS: Essai[] = [
         { couplet: ["0...1...", "2-..3..."], refrain: ["0.2.1...", "3...2-.."] },
       ),
     repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.some((e) => e.hand === "R"),
+  },
+  {
+    id: "pianiste",
+    titre: "Mode pianiste",
+    verifier:
+      "Au clavier MIDI (Chrome ou Edge, hors de la page d'artefact), joue la vraie note écrite sur chaque ennemi et chaque obstacle, à l'octave près : Si♭, Mi♭ et Fa♯ sont des touches noires. Gauche, sous Do4 : la fondamentale glisse ou saute, la quinte en l'air fait le double saut, fondamentale et quinte ensemble écrasent la plaque ; droite : les notes de l'accord, et la petite note du refrain. Une fausse note casse le combo. Sans clavier : A pour l'auto-play, et les noms des notes à l'écran.",
+    issue: 53,
+    univers: "boite",
+    diff: "facile",
+    mains: "both",
+    pianiste: true,
+    // En Sol mineur (Sol m, Fa, Mi♭, Ré) : bien des notes tombent sur des touches noires, que la position fixe ne
+    // joue jamais. La basse glisse, saute, fait le double saut et tient un tunnel, la plaque ouvre le refrain, la
+    // mélodie tient une note et passe par une petite note hors de l'accord (ADR-0010)
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "facile",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        { couplet: ["S...W...", "T--.WD.."], refrain: ["S...W...", "S.W.S..."] },
+        { couplet: ["0.1.2...", "1-..3..."], refrain: ["0.2c3...", "1...2-.."] },
+      ),
+    repere: (ev) => [1, 3, 6, 8, 10].includes(ev.midi % 12),
   },
   {
     id: "trilles",

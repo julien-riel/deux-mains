@@ -40,6 +40,7 @@ type Bilan = Pick<
   | "autoUsed"
   | "reprise"
   | "boss"
+  | "pianiste"
 >;
 const bilanDe = (s: Etat): Bilan => ({
   score: s.score,
@@ -55,6 +56,7 @@ const bilanDe = (s: Etat): Bilan => ({
   autoUsed: s.autoUsed,
   reprise: s.reprise,
   boss: s.boss,
+  pianiste: s.pianiste,
 });
 
 /** La réécoute en cours : la partie rejouée, le rang du prochain coup, le temps jusqu'où la partie a avancé (elle
@@ -137,7 +139,7 @@ export function rejouer(nb: number, avancer: (nb: number) => void) {
 function rejouerCoup(coup: Coup) {
   const ns = coup.temps * spb();
   aLHeure(heureDuTemps(ns), () => {
-    if (coup.geste === "appui") return appuyer(coup.action, ns, coup.tactile);
+    if (coup.geste === "appui") return appuyer(coup.action, ns, coup.tactile, coup.hauteur);
     if (coup.geste === "relache") return lacher(coup.action, ns);
     if (coup.geste === "reprise") return reprendreIci(coup);
     if (coup.geste === "auto") S.auto = coup.auto;

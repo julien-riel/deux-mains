@@ -244,6 +244,9 @@ export interface Etat {
   /** Une composition jouée impose sa difficulté sans l'enregistrer : celle du joueur et sa boucle, à lui rendre quand
    * il revient à sa chanson ; null quand aucune composition n'est installée */
   avantComposition: { diff: string; boucle: number } | null;
+  /** La partie en cours a été jouée, au moins en partie, en mode pianiste au clavier MIDI (#53) : son score ne se
+   * compare pas à ceux de la position fixe (ADR-0011) */
+  pianiste: boolean;
 }
 
 export const S: Etat = {
@@ -313,6 +316,7 @@ export const S: Etat = {
   boss: null,
   editeur: null,
   avantComposition: null,
+  pianiste: false,
 };
 export const VITESSES = [0.5, 0.75, 1];
 // Secondes par temps : le tempo de la chanson, ralenti par la vitesse de la partie (#4). La chanson ne change pas.

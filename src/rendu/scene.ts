@@ -23,10 +23,11 @@ import {
 } from "../jeu/etat";
 import { retournement } from "../jeu/croisement";
 import { couloirDe, notesDuRelais, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
+import { nomDeClasse, notesDeLEcrasement } from "../jeu/pianiste";
 import { CRITERES, conseil } from "../jeu/style";
 import { estSolo, soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
-import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt } from "../ui/touches";
+import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt, etiquettesMidi, nomsDeNotes } from "../ui/touches";
 import { TH, placeName } from "../univers/univers";
 import { dessinerRemontage } from "./remontage";
 import {
@@ -345,8 +346,11 @@ export function render(nb, dt) {
   g.fillRect(-12, 92, 212, GY - 92);
   txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
   txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
+  // En mode pianiste (#53), les touches sont les notes de l'accord, à jouer à n'importe quelle octave
+  const pianiste = nomsDeNotes();
   for (let i = 0; i < 4; i++) {
-    keycap(24, LANE_Y[i] - 15, KEYLABEL[LANE_CODES[i]], hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
+    const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]];
+    keycap(24, LANE_Y[i] - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
     txt(DEG[i], 64, LANE_Y[i] - 3, `600 10px ${FONT.mono}`, COL.muted);
     txt(NOTE[ch.lanes[i] % 12], 64, LANE_Y[i] + 13, `600 15px ${FONT.mono}`, COL.fg);
     if (S.formes) {
@@ -355,8 +359,9 @@ export function render(nb, dt) {
       g.fill();
     }
   }
-  keycap(24, GY - 80, KEYLABEL.KeyW, COL.bass, down("sauter"));
-  keycap(24, GY - 40, KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
+  const fond = pianiste ? nomDeClasse(ch.bass) : null;
+  keycap(24, GY - 80, fond ?? KEYLABEL.KeyW, COL.bass, down("sauter"));
+  keycap(24, GY - 40, fond ?? KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
   // Dans un escalier (#13), sauter monte d'une marche et glisser en descend une : le rail montre la marche
   const marche = marcheProche(nb);
   if (marche) {
@@ -492,7 +497,7 @@ export function render(nb, dt) {
         : `${KEYLABEL.KeyA} : AUTO-PLAY · ÉCHAP : PAUSE`,
     petit = `600 11px ${FONT.mono}`;
   if (aide) txt(aide, W - 24, 608, petit, COL.muted, "right");
-  if (MIDI.etat === "connecte" || S.essai?.essai.midi) {
+  if (etiquettesMidi()) {
     g.font = petit;
     const dx = aide ? g.measureText(aide).width + 16 : 0;
     txt(etatMidiCourt(), W - 24 - dx, 608, petit, MIDI.etat === "connecte" ? COL.good : COL.muted, "right");
@@ -723,7 +728,9 @@ export function drawObstacle(ev, nb, hsl) {
     passed = ev.state === "hit" || ev.state === "done";
   const fill = missed ? hexA(COL.bad, 0.85) : hsl(HUE_BASS, 90, 62, passed ? 0.4 : 1);
   const ink = hexA(COL.ink, 0.85),
-    boite = S.theme === "boite";
+    boite = S.theme === "boite",
+    // En mode pianiste (#53), l'obstacle porte sa note, à jouer à n'importe quelle octave sous la séparation
+    note = nomsDeNotes() ? nomDeClasse(ev.midi) : null;
   if (ev.lane === 3) {
     (boite ? boitePlaque : villePlaque)(x, fill, passed);
     g.beginPath();
@@ -733,14 +740,20 @@ export function drawObstacle(ev, nb, hsl) {
     g.strokeStyle = fill;
     g.lineWidth = 2.5;
     g.stroke();
-    txt(KEYLABEL.Space, x, GY - 50, `600 13px ${FONT.mono}`, fill, "center");
+    // La plaque s'écrase en frappant ensemble la fondamentale et la quinte
+    const touches = note
+      ? notesDeLEcrasement(chordAtBar(Math.floor(ev.beat / 4)))
+          .map(nomDeClasse)
+          .join("+")
+      : KEYLABEL.Space;
+    txt(touches, x, GY - 50, `600 13px ${FONT.mono}`, fill, "center");
   } else if (ev.lane >= 4) {
     // La marche d'un escalier (#13) : sauter monte, glisser descend, et la flèche le rappelle
     const monte = ev.lane === 4,
       haut = hauteurMarche(ev.midi);
     (boite ? boiteMarche : villeMarche)(x, haut, fill, monte);
     txt(
-      `${monte ? KEYLABEL.KeyW : KEYLABEL.KeyS} ${monte ? "↑" : "↓"}`,
+      `${note ?? (monte ? KEYLABEL.KeyW : KEYLABEL.KeyS)} ${monte ? "↑" : "↓"}`,
       x,
       GY - haut - 24,
       `600 13px ${FONT.mono}`,
@@ -760,7 +773,7 @@ export function drawObstacle(ev, nb, hsl) {
     g.strokeStyle = fill;
     g.lineWidth = 2.5;
     g.stroke();
-    txt(KEYLABEL.KeyW, x, GY - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
+    txt(note ?? KEYLABEL.KeyW, x, GY - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
   } else if (ev.fin !== undefined) {
     // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps
     const a = x0,
@@ -777,10 +790,10 @@ export function drawObstacle(ev, nb, hsl) {
       g.stroke();
     }
     const ly = GY - RAMPE - 46;
-    rr(a + 4, ly - 14, 84, 18, 4);
+    rr(a + 4, ly - 14, note ? 102 : 84, 18, 4);
     g.fillStyle = hexA(COL.ink, 0.7);
     g.fill();
-    txt(`${KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
+    txt(`${note ?? KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti
     const a = x - 16,
@@ -795,14 +808,14 @@ export function drawObstacle(ev, nb, hsl) {
       g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
       g.fill();
     }
-    rr(a + 4, 432, 66, 18, 4);
+    rr(a + 4, 432, note ? 84 : 66, 18, 4);
     g.fillStyle = hexA(COL.ink, 0.7);
     g.fill();
-    txt(`${KEYLABEL.KeyS} tenu`, a + 10, 446, `600 13px ${FONT.mono}`, fill);
+    txt(`${note ?? KEYLABEL.KeyS} tenu`, a + 10, 446, `600 13px ${FONT.mono}`, fill);
   } else {
     if (boite) boiteBeam(x, fill);
     else villeBeam(x, fill);
-    txt(KEYLABEL.KeyS, x, 454, `600 13px ${FONT.mono}`, ink, "center");
+    txt(note ?? KEYLABEL.KeyS, x, 454, `600 13px ${FONT.mono}`, ink, "center");
   }
 }
 
@@ -862,6 +875,15 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   }
   if (S.theme === "boite") boiteEnemy(x, yh, ev, col, a, nb, hsl);
   else villeEnemy(x, yh, ev, col, a, nb, hsl);
+  // En mode pianiste (#53), l'ennemi porte la note à jouer : les deux d'une trille, la prochaine d'un serpent
+  if (nomsDeNotes() && ev.state !== "miss" && ev.state !== "broken") {
+    const k = ev.serpent ? Math.min((ev.state === "holding" ? (ev.troncon ?? 0) : -1) + 1, ev.serpent.length - 1) : 0,
+      nom =
+        ev.trille !== undefined
+          ? `${nomDeClasse(ev.midi)}~${nomDeClasse(ev.midiTrille)}`
+          : nomDeClasse(ev.serpent ? ev.midiSerpent[k] : ev.midi);
+    txt(nom, x, yh - 30, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
+  }
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
   if (ev.reprise) etoile(x, yh - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, a));
 }
@@ -1041,7 +1063,8 @@ function dessinerPetite(ev, x, y, a, nb, hsl) {
   (S.theme === "boite" ? boitePetite : villePetite)(x, y, col, a, nb, hsl);
   if (ev.state === "pending")
     txt(
-      `${KEYLABEL[LANE_CODES[bas]]}·${KEYLABEL[LANE_CODES[haut]]}`,
+      // En mode pianiste (#53), la petite note se joue avec sa vraie note, hors de l'accord (ADR-0010)
+      nomsDeNotes() ? nomDeClasse(ev.midi) : `${KEYLABEL[LANE_CODES[bas]]}·${KEYLABEL[LANE_CODES[haut]]}`,
       x + 18,
       y + 4,
       `600 10px ${FONT.mono}`,

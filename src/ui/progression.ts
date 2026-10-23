@@ -43,6 +43,10 @@ export function noterFinDePartie() {
   // Une composition (#28, ADR-0016) garde son meilleur score sous l'empreinte de sa partition, jamais sous une clé de
   // graine, et ne réussit pas de lieu : la carte se gagne avec les chansons du jeu
   const source = S.song.source;
+  // Un score du mode pianiste (#53) ne se compare pas à ceux de la position fixe (ADR-0011) : il n'est pas gardé comme
+  // record (le ranger à part demanderait une nouvelle version du format, ADR-0014). Le lieu d'une chanson du jeu et
+  // les traces des notes parfaites restent gagnés.
+  if (source?.genre === "partition" && S.pianiste) return remplacer(avecTraces(progression()));
   if (source?.genre === "partition") {
     const { doc, progres } = noterReussite(progression(), {
       univers: S.theme,
@@ -56,8 +60,8 @@ export function noterFinDePartie() {
   const reussite = { univers: S.theme, lieu: S.song.prog.name };
   const { doc, progres } = noterReussite(
     progression(),
-    // Une chanson d'essai n'est pas celle de sa graine : elle ne garde pas de score
-    S.essai ? reussite : { ...reussite, graine: S.seed, diff: S.diff, score: S.score },
+    // Une chanson d'essai n'est pas celle de sa graine : elle ne garde pas de score, pas plus qu'une partie au piano
+    S.essai || S.pianiste ? reussite : { ...reussite, graine: S.seed, diff: S.diff, score: S.score },
   );
   remplacer(avecTraces(doc));
   S.progres = progres;

@@ -1,5 +1,6 @@
 // Clavier MIDI (#10, ADR-0011) : l'accès Web MIDI, la traduction des messages en actions (la table pure est dans
-// src/jeu/midi.ts), l'indicateur des réglages et le point de séparation.
+// src/jeu/midi.ts, celle du mode pianiste dans src/jeu/pianiste.ts), l'indicateur des réglages, le point de
+// séparation et l'affichage du réglage du mode pianiste (#53).
 //
 // Chrome demande la permission avant d'ouvrir le MIDI : on ne la demande pas au chargement. Si elle est déjà
 // accordée, le jeu se branche tout seul ; sinon, le bouton « Activer » la demande. Sans Web MIDI, ou si l'accès
@@ -8,10 +9,11 @@ import { heureDe, retardDe, songNow } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { S, type Action } from "../jeu/etat";
 import { SEPARATION, SEPARATIONS, actionDeNote, lireMessage, nomDeNote } from "../jeu/midi";
+import { etatPianiste, lacherNote, mainDeNote, traduire } from "../jeu/pianiste";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { taperRemontage } from "./remontage";
-import { MIDI, etatMidiLong, etiquettes, type EtatMidi } from "./touches";
+import { MIDI, etatMidiLong, etiquettes, modePianiste, type EtatMidi } from "./touches";
 
 /* ---------- Ce que le jeu utilise de Web MIDI ---------- */
 // Une abstraction minimale de navigator.requestMIDIAccess, que le faux navigateur des tests imite
@@ -42,6 +44,8 @@ function changerEtat(etat: EtatMidi) {
   MIDI.etat = etat;
   $("#midi-etat").textContent = etatMidiLong();
   $<HTMLButtonElement>("#midi-activer").hidden = etat !== "inactif" && etat !== "refuse";
+  // Le réglage du mode pianiste ne se montre qu'une fois le MIDI activé
+  $("#champ-pianiste").hidden = etat !== "aucun" && etat !== "connecte";
   etiquettes();
   if ((S.mode === "title" || S.mode === "essais") && S.song) show(S.mode);
 }
@@ -80,6 +84,8 @@ function brancher(acces: AccesMidi) {
 /* ---------- Des messages aux actions ---------- */
 // L'action pressée par chaque note tenue : le relâchement lui revient, même si la séparation a changé entre-temps
 const tenues = new Map<number, Action>();
+// Les notes frappées pour un écrasement en mode pianiste, qui attendent l'autre note de l'accord
+const pianiste = etatPianiste();
 
 function recevoir(e: MessageMidi) {
   const m = lireMessage(e.data);
@@ -87,26 +93,42 @@ function recevoir(e: MessageMidi) {
   if (m.enfoncee) {
     // Pendant le calibrage, n'importe quelle touche compte comme un coup : la latence du MIDI est mesurée aussi
     if (S.mode === "calib") return taper(retardDe(e.timeStamp));
-    const a = actionDeNote(m.note, MIDI.separation);
-    // Pendant le remontage (#27), une touche de la table fait le tour de sa main
+    const enPianiste = modePianiste(),
+      a = enPianiste ? null : actionDeNote(m.note, MIDI.separation);
+    // Pendant le remontage (#27), une touche de la table fait le tour de sa main ; en mode pianiste, n'importe quelle
+    // touche, du côté de la séparation de sa main
     if (S.mode === "remontage") {
-      if (a) taperRemontage(a, retardDe(e.timeStamp));
+      const tour = enPianiste ? (mainDeNote(m.note, MIDI.separation) === "L" ? "glisser" : "couloir0") : a;
+      if (tour) taperRemontage(tour, retardDe(e.timeStamp));
       return;
     }
+    if (enPianiste) return presserEnPianiste(m.note, heureDe(e.timeStamp));
     // Une action déjà tenue par une autre commande (clavier, autre touche) : seule celle-ci la relâchera
     if (!a || S.keys[a]) return;
     presser(a, heureDe(e.timeStamp));
     if (S.keys[a]) tenues.set(m.note, a);
   } else {
+    lacherNote(pianiste, m.note);
     const a = tenues.get(m.note);
     if (!a) return;
     tenues.delete(m.note);
     relacher(a, S.mode === "play" ? heureDe(e.timeStamp) : 0);
   }
 }
+// Le mode pianiste (#53) : la note jouée choisit l'action d'après les notes attendues, et le jugement la vérifie
+function presserEnPianiste(note: number, ns: number) {
+  if (S.mode !== "play") return;
+  const t = traduire(note, MIDI.separation, ns, pianiste);
+  if (!t || S.keys[t.action]) return;
+  presser(t.action, t.ns, false, t.hauteur);
+  // Une fausse note ne tient rien : elle ne bloque pas l'action pour la note juste qui suit
+  if (t.breve) relacher(t.action, t.ns);
+  else if (S.keys[t.action]) tenues.set(note, t.action);
+}
 function toutRelacher() {
   for (const a of tenues.values()) relacher(a, S.mode === "play" ? songNow() : 0);
   tenues.clear();
+  pianiste.attente = [];
 }
 
 /* ---------- Réglages : activation et point de séparation ---------- */

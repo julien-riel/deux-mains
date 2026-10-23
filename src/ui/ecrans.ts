@@ -3,7 +3,7 @@ import { songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
-import { touchesMidi } from "../jeu/midi";
+import { nomDeNote, touchesMidi } from "../jeu/midi";
 import { peutReecouter } from "../jeu/reecoute";
 import { resultatRemontage } from "../jeu/remontage";
 import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb, type StatsMain } from "../jeu/etat";
@@ -13,7 +13,7 @@ import { LANE_HUE } from "../rendu/outils";
 import { TH, placeName } from "../univers/univers";
 import { carteDisponible, ecranCarte, ecranSauvegarde, prochainLieu, progresDeFin } from "./ecran-carte";
 import { boutonEditeur, ecranEditeur } from "./ecran-editeur";
-import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes } from "./touches";
+import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes, modePianiste } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
 // Pendant un essai, ce qu'il faut vérifier reste écrit sur la scène
@@ -36,9 +36,15 @@ const ROLE = {
 };
 // Le rappel de la table en une ligne : sur l'écran de départ, quand un clavier MIDI est branché
 const ligneMidi = (duo: boolean) => {
+  if (modePianiste()) return lignePianiste(duo);
   const t = touchesMidi(MIDI.separation),
     nom = (i: number) => `<kbd>${t[i].nom}</kbd>`;
   return `<p class="hint">Clavier MIDI · ${duo ? "Basse" : "Gauche"} : ${nom(0)} glisser, ${nom(1)} écraser, ${nom(2)} sauter · ${duo ? "Mélodie" : "Droite"} : ${nom(3)} ${nom(4)} ${nom(5)} ${nom(6)}</p>`;
+};
+// Le mode pianiste (#53, ADR-0011) : la vraie note, à l'octave près, de chaque côté de la séparation
+const lignePianiste = (duo: boolean) => {
+  const sep = `<kbd>${nomDeNote(MIDI.separation)}</kbd>`;
+  return `<p class="hint">Clavier MIDI · mode pianiste : joue la vraie note, à l'octave près · ${duo ? "Basse" : "Gauche"}, sous ${sep} : la fondamentale glisse ou saute, la quinte en l'air fait le double saut, fondamentale et quinte ensemble écrasent la plaque · ${duo ? "Mélodie" : "Droite"}, à partir de ${sep} : la note de chaque ennemi</p>`;
 };
 // Le rappel de la table sur un clavier de deux octaves autour de la séparation : les touches de la basse aux
 // couleurs de la main gauche, celles des couloirs aux couleurs de leur couloir
@@ -128,7 +134,7 @@ export function show(kind) {
       <h2>${essai.titre}</h2>
       <p class="meta">À vérifier : ${essai.verifier}</p>
       <p class="hint">${s.keyName} · ${s.bpm} BPM · ${len} s</p>
-      ${essai.midi ? pianoMidi() + etatMidi() : ""}
+      ${essai.midi ? pianoMidi() + etatMidi() : ""}${essai.pianiste ? lignePianiste(duo) + etatMidi() : ""}
       ${ligneDepart()}
       <div class="actions">${
         essai.jam
@@ -264,7 +270,7 @@ export function show(kind) {
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
       ${compo ? boutonEditeur(retourEditeur()) : ""}${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
   } else if (kind === "done" && essai) {
-    h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
+    h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.pianiste ? "mode pianiste · " : ""}${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
       <h2>Essai terminé</h2>
       <p class="meta">À vérifier : ${essai.verifier}</p>
       ${
@@ -286,7 +292,12 @@ export function show(kind) {
     const rank = acc >= 0.95 ? "Virtuose" : acc >= 0.85 ? "Soliste" : acc >= 0.7 ? "Choriste" : "Élève";
     const tag = S.autoUsed
       ? `${S.auto ? "auto-play" : "entraînement"}, score non classé`
-      : `${duo ? "duo · " : ""}précision ${Math.round(acc * 100)} %`;
+      : `${duo ? "duo · " : ""}${S.pianiste ? "mode pianiste · " : ""}précision ${Math.round(acc * 100)} %`;
+    // Les scores du mode pianiste (#53) ne se comparent pas à ceux de la position fixe (ADR-0011)
+    const pianiste =
+      S.pianiste && !S.autoUsed
+        ? `<p class="meta">Mode pianiste : ce score se lit à part, il ne compte pas pour le record de la chanson.</p>`
+        : "";
     const ou = compo
       ? `${TH().editeur.nom} · ${echapper(compo.titre.trim() || TH().editeur.sansTitre)}`
       : `${placeName()} · ${TH().unit} n° ${S.seed}`;
@@ -301,7 +312,7 @@ export function show(kind) {
         <div><b>${S.miss}</b><span>Raté</span></div>
         <div><b>${S.maxCombo}</b><span>Combo max</span></div>
       </div>`
-      }${bilanBoss()}${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
+      }${pianiste}${bilanBoss()}${bilanStyle()}${S.bouclePartie ? `<p class="meta">${resumeBoucle()}</p>` : ""}${progresDeFin()}
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
