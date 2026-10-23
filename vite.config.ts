@@ -40,6 +40,7 @@ export default defineConfig({
         "src/jeu/remontage.ts",
         "src/jeu/editeur.ts",
         "src/jeu/traces.ts",
+        "src/jeu/fantome.ts",
       ],
       reporter: ["text"],
       thresholds: {
@@ -58,6 +59,7 @@ export default defineConfig({
         "src/jeu/remontage.ts": { lines: 90 },
         "src/jeu/editeur.ts": { lines: 90 },
         "src/jeu/traces.ts": { lines: 90 },
+        "src/jeu/fantome.ts": { lines: 90 },
       },
     },
   },

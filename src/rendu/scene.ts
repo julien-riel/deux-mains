@@ -22,6 +22,7 @@ import {
   type Action,
 } from "../jeu/etat";
 import { retournement } from "../jeu/croisement";
+import { DUREE_TIR, ecartAvecLeFantome, poseDuFantome } from "../jeu/fantome";
 import { couloirDe, notesDuRelais, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
 import { nomDeClasse, notesDeLEcrasement } from "../jeu/pianiste";
 import { CRITERES, conseil } from "../jeu/style";
@@ -296,6 +297,8 @@ export function render(nb, dt) {
   }
   dessinerChanteurs(nb, hsl);
 
+  // Le fantôme du meilleur passage (#32), derrière le personnage
+  if (fantomeVisible()) dessinerFantome(nb, ns, pnow, hsl, dt);
   drawPlayer(nb, ns, pnow, hsl, dt);
 
   // Rayons
@@ -398,6 +401,7 @@ export function render(nb, dt) {
   const duo = S.practice === "duo";
   // En jam (#24), il n'y a ni harmonie, ni couches, ni score
   if (!S.jam) jauges();
+  if (fantomeVisible()) ecartFantome(nb);
   const badge = [
     S.relecture ? "RÉÉCOUTE" : "",
     // En jam (#24), les deux mains jouent librement, quelles que soient les mains choisies
@@ -1224,33 +1228,124 @@ function marcheProche(nb: number) {
   const ev = S.ev.find((e) => e.hand === "L" && e.state === "pending" && e.beat >= nb - 0.2);
   return ev && ev.lane >= 4 && ev.beat - nb < 1 ? ev : null;
 }
-export function drawPlayer(nb, ns, pnow, hsl, dt) {
+/** Ce qui fait la pose du personnage, en secondes de la chanson : celle du joueur, ou celle du fantôme (#32) */
+interface PoseDuPersonnage {
+  jumpAt: number;
+  jumpAir: number;
+  doubleAt: number;
+  doubleAir: number;
+  slideUntil: number;
+  ecraseAt: number;
+  /** La touche de glissade est tenue */
+  glisse: boolean;
+}
+const poseDuJoueur = (): PoseDuPersonnage => ({
+  jumpAt: S.jumpAt,
+  jumpAir: S.jumpAir,
+  doubleAt: S.doubleAt,
+  doubleAir: S.doubleAir,
+  slideUntil: S.slideUntil,
+  ecraseAt: S.ecraseAt,
+  glisse: !!S.keys.glisser,
+});
+
+/** Le fantôme court un peu derrière le personnage, pour qu'on le voie même quand ils font le même geste */
+const RECUL_FANTOME = 30;
+/** Le fantôme du meilleur passage (#32) se voit pendant la partie, s'il y en a un et que le réglage le montre */
+const fantomeVisible = () => !!S.fantome && S.voirFantome && !S.relecture && (S.mode === "play" || S.mode === "pause");
+
+// Le fantôme du meilleur passage (#32) : le personnage en transparence, un peu en retrait, qui fait les gestes de la
+// partie gardée à leurs temps, et ses tirs. Il ne se blesse pas et ne suit pas les pentes : il n'est pas jugé.
+function dessinerFantome(nb: number, ns: number, pnow: number, hsl, dt: number) {
+  const sp = spb(),
+    p = poseDuFantome(S.fantome, nb, S.song.ev),
+    enSecondes = (t: number) => t * sp;
+  g.save();
+  g.globalAlpha = 0.32;
+  g.translate(-RECUL_FANTOME, 0);
+  const [gx, gy] = drawPlayer(
+    nb,
+    ns,
+    pnow,
+    hsl,
+    dt,
+    {
+      jumpAt: enSecondes(p.jumpAt),
+      jumpAir: enSecondes(p.jumpAir),
+      doubleAt: enSecondes(p.doubleAt),
+      doubleAir: enSecondes(p.doubleAir),
+      slideUntil: enSecondes(p.slideUntil),
+      ecraseAt: enSecondes(p.ecraseAt),
+      glisse: p.glisse,
+    },
+    true,
+  );
+  g.lineCap = "round";
+  g.lineWidth = 2;
+  for (const tir of p.tirs) {
+    const a = 1 - (nb - tir.temps) / DUREE_TIR;
+    g.strokeStyle = tir.resultat === "rate" ? hexA(COL.bad, a) : hsl(LANE_HUE[tir.couloir], 85, 75, a);
+    g.beginPath();
+    g.moveTo(gx, gy);
+    g.lineTo(HITX + RECUL_FANTOME, LANE_Y[tir.couloir]);
+    g.stroke();
+  }
+  g.restore();
+}
+
+// L'avance ou le retard sur le fantôme (#32), sous le score : en vert quand on mène, en rouge quand il mène
+function ecartFantome(nb: number) {
+  const d = ecartAvecLeFantome(S.fantome, nb, S.score),
+    signe = d > 0 ? "+" : d < 0 ? "−" : "±";
+  txt(
+    `${TH().fantome} ${signe}${Math.abs(d).toLocaleString("fr-CA")}`,
+    W - 24,
+    92,
+    `600 12px ${FONT.mono}`,
+    d > 0 ? COL.good : d < 0 ? COL.bad : COL.muted,
+    "right",
+  );
+}
+
+/**
+ * Dessine le personnage, ou le fantôme du meilleur passage (#32) dans la pose qu'on lui donne, et renvoie le bout de
+ * son arme, d'où partent les tirs.
+ */
+export function drawPlayer(
+  nb,
+  ns,
+  pnow,
+  hsl,
+  dt,
+  pose: PoseDuPersonnage = poseDuJoueur(),
+  fantome = false,
+): [number, number] {
   const cx = PX + PW / 2;
   let yOff = 0,
     sliding = false,
     jumping = false,
     ecrase = 0;
   // L'écrasement (#8) : le personnage s'aplatit sur la plaque, puis rebondit un peu
-  const e = (ns - S.ecraseAt) / (0.5 * spb()),
+  const e = (ns - pose.ecraseAt) / (0.5 * spb()),
     impact = !auRepos() && e >= 0 && e < 1;
   if (!auRepos()) {
     // Le double saut (#7) part de la hauteur atteinte au second appui, monte plus haut et redescend au sol
     const haut = (p: number) => Math.sin(Math.PI * Math.pow(p, 0.6)),
-      double = S.doubleAt >= S.jumpAt,
-      p = double ? (ns - S.doubleAt) / S.doubleAir : (ns - S.jumpAt) / S.jumpAir;
+      double = pose.doubleAt >= pose.jumpAt,
+      p = double ? (ns - pose.doubleAt) / pose.doubleAir : (ns - pose.jumpAt) / pose.jumpAir;
     if (p >= 0 && p < 1) {
       jumping = true;
       yOff = double
-        ? -(122 * haut(clamp((S.doubleAt - S.jumpAt) / S.jumpAir, 0, 1)) * (1 - p) + 110 * haut(p))
+        ? -(122 * haut(clamp((pose.doubleAt - pose.jumpAt) / pose.jumpAir, 0, 1)) * (1 - p) + 110 * haut(p))
         : -122 * haut(p);
     } else if (impact && e < 0.3) ecrase = 1 - e / 0.3;
     else if (impact) {
       jumping = true;
       yOff = -16 * Math.sin((Math.PI * (e - 0.3)) / 0.7);
-    } else if (S.keys.glisser || ns < S.slideUntil) {
+    } else if (pose.glisse || ns < pose.slideUntil) {
       sliding = true;
       // Sur une pente tenue (#12), la glissade suit la rampe
-      const pente = S.ev.find((ev) => ev.state === "holding" && ev.fin !== undefined);
+      const pente = !fantome && S.ev.find((ev) => ev.state === "holding" && ev.fin !== undefined);
       if (pente) yOff = -hauteurPente(pente, clamp((ns / spb() - pente.beat) / pente.dur, 0, 1));
     }
   }
@@ -1260,7 +1355,7 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
     h = sliding ? 30 : PH * (1 - 0.35 * ecrase) - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
   const x = cx - w / 2,
     y = GY + yOff - h,
-    hurt = pnow - S.hurtAt < 260;
+    hurt = !fantome && pnow - S.hurtAt < 260;
   const s = run ? Math.sin(ph) : jumping ? 0.6 : 0,
     hipY = y + h - 14;
   const gy = sliding ? y + 14 : y + 32;
@@ -1288,7 +1383,8 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
           : auRepos()
             ? 1
             : 0;
-    S.keyAng = (S.keyAng || 0) + dt * spin;
+    // La clé du fantôme tourne avec celle du personnage, sans la faire tourner deux fois plus vite
+    if (!fantome) S.keyAng = (S.keyAng || 0) + dt * spin;
     const brass = hsl(42, 65, 55),
       porcelain = hurt ? COL.bad : hsl(198, 30, 62);
     if (!sliding) {
@@ -1413,5 +1509,7 @@ export function drawPlayer(nb, ns, pnow, hsl, dt) {
     g.fillStyle = hsl(HUE_MEL, 85, 68);
     g.fill();
   }
-  S.gun = [x + w + 12, gy];
+  const arme: [number, number] = [x + w + 12, gy];
+  if (!fantome) S.gun = arme;
+  return arme;
 }

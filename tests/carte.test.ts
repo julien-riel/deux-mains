@@ -93,8 +93,14 @@ describe.each(["ville", "boite"] as Univers[])("carte dans l'univers %s", (unive
     expect(sauvegardeDe(nav)).toEqual({
       v: VERSION,
       carte: { [univers]: [LIEUX[2]] },
-      // Les notes parfaites y ont laissé leurs traces (#29)
-      chansons: { [cleChanson(S.seed, "facile")]: { meilleur: S.score, traces: expect.any(Array) } },
+      chansons: {
+        [cleChanson(S.seed, "facile")]: {
+          meilleur: S.score,
+          // Les notes parfaites y ont laissé leurs traces (#29), et la partie son fantôme (#32)
+          traces: expect.any(Array),
+          fantome: expect.objectContaining({ finie: true }),
+        },
+      },
     });
     expect(S.progres).toEqual({ lieu: LIEUX[2], record: true });
     expect(nav.overlay.innerHTML).toContain(U.carte.gagne);

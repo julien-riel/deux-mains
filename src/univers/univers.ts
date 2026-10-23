@@ -16,6 +16,8 @@ export interface Univers {
   polyrythmie: string;
   /** Le boss de fin (#26) : son nom, ce que dit la bannière de chaque phase, à sa chute, et quand il s'enfuit */
   boss: { nom: string; phases: string[]; vaincu: string; fuite: string };
+  /** Le nom du fantôme du meilleur passage (#32), devant l'écart de score sur la scène */
+  fantome: string;
   deadTag: string;
   deadTitle: string;
   rail: string;
@@ -88,6 +90,7 @@ export const THEMES: Record<string, Univers> = {
       vaincu: "Le drone s'écrase : finis le canon seul",
       fuite: "Le drone s'enfuit, encore debout",
     },
+    fantome: "FANTÔME",
     deadTag: "Coupure de courant",
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
@@ -143,6 +146,7 @@ export const THEMES: Record<string, Univers> = {
       vaincu: "La mite tombe : finis le canon seul",
       fuite: "La mite s'envole, encore debout",
     },
+    fantome: "REFLET",
     deadTag: "Ressort détendu",
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",

@@ -151,11 +151,13 @@ export function ecranSauvegarde() {
       <button type="button" data-act="carte">Retour ${kbd("Échap")}</button></div>`;
 }
 
-/** Sur l'écran de fin : ce que la chanson a changé sur la carte, et un record */
+/** Sur l'écran de fin : ce que la chanson a changé sur la carte, et un record, dont la partie devient le fantôme
+ * (#32). Un essai ne parle de record que s'il en avait un à battre : celui de son fantôme. */
 export function progresDeFin() {
-  const p = S.progres;
-  if (!p || (!p.lieu && !p.record)) return "";
+  const p = S.progres,
+    record = p?.record && (!S.essai || S.fantome);
+  if (!p || (!p.lieu && !record)) return "";
   return `<p class="meta progres">${p.lieu ? `${TH().places[p.lieu]} · ${TH().carte.gagne}` : ""}${
-    p.record && !S.essai ? `${p.lieu ? " " : ""}Nouveau record pour cette chanson.` : ""
+    record ? `${p.lieu ? " " : ""}Nouveau record pour cette chanson : ton fantôme rejouera ce passage.` : ""
   }</p>`;
 }

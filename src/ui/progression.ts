@@ -4,8 +4,9 @@
 import { LIEUX } from "../jeu/carte";
 import { S, cleDesTraces, progression } from "../jeu/etat";
 import { decoder, encoder } from "../sauvegarde/code";
+import { nouveauFantome, type Fantome } from "../jeu/fantome";
 import {
-  clePartition,
+  fantomeDeLaChanson,
   fusionner,
   lieuxReussis,
   noterReussite,
@@ -24,45 +25,50 @@ export function chargerSauvegarde() {
 /** La progression qui compte change : celle de l'essai reste en mémoire, celle du joueur est rangée */
 export function remplacer(doc: Sauvegarde) {
   if (S.essai) S.essai.sauvegarde = doc;
-  else {
-    S.sauvegarde = doc;
-    ecrireSauvegarde(doc);
-  }
+  // Le stockage plein a pu faire partir des fantômes (#32) : la mémoire suit ce qui a été rangé
+  else S.sauvegarde = ecrireSauvegarde(doc) ?? doc;
+}
+
+/** Le fantôme du meilleur passage de la chanson en place (#32), sous sa clé (`cleDesTraces`), ou null : ni boss, ni
+ * boucle, ni jam n'en ont */
+export function fantomeEnJeu(): Fantome | null {
+  const cle = cleDesTraces();
+  if (cle === null || S.bouclePartie || S.jam) return null;
+  return fantomeDeLaChanson(progression(), cle);
 }
 
 /**
  * À la fin d'une chanson : si elle est réussie avec un score classé (ni auto-play, ni une seule main, ni ralenti,
- * ni boucle, ni jam), son lieu devient réussi dans l'univers, une chanson générée garde son meilleur score, et chaque
- * chanson les traces de ses notes parfaites (#29). On écrit ici, une fois par chanson, jamais à chaque image.
+ * ni boucle, ni jam), son lieu devient réussi dans l'univers, la chanson garde son meilleur score et les traces de
+ * ses notes parfaites (#29), et un nouveau record garde sa partie, que le fantôme rejouera (#32). On écrit ici, une
+ * fois par chanson, jamais à chaque image.
  */
 export function noterFinDePartie() {
   S.progres = null;
   // Le boss de fin (#26) n'est pas la chanson de sa graine : il n'allume pas son lieu et ne garde pas son score
   // (le noter demandera une nouvelle version du format, ADR-0014)
   if (S.bouclePartie || S.jam || S.autoUsed || S.song.boss || (S.essai && !S.essai.sauvegarde)) return;
-  // Une composition (#28, ADR-0016) garde son meilleur score sous l'empreinte de sa partition, jamais sous une clé de
-  // graine, et ne réussit pas de lieu : la carte se gagne avec les chansons du jeu
-  const source = S.song.source;
-  // Un score du mode pianiste (#53) ne se compare pas à ceux de la position fixe (ADR-0011) : il n'est pas gardé comme
-  // record (le ranger à part demanderait une nouvelle version du format, ADR-0014). Le lieu d'une chanson du jeu et
-  // les traces des notes parfaites restent gagnés.
-  if (source?.genre === "partition" && S.pianiste) return remplacer(avecTraces(progression()));
-  if (source?.genre === "partition") {
-    const { doc, progres } = noterReussite(progression(), {
-      univers: S.theme,
-      cle: clePartition(source.empreinte),
+  const enr = S.enregistrement,
+    cle = cleDesTraces(),
+    partition = S.song.source?.genre === "partition",
+    // Un score du mode pianiste (#53) ne se compare pas à ceux de la position fixe (ADR-0011) : il n'est pas gardé
+    // comme record, ni comme fantôme (le ranger à part demanderait une nouvelle version du format, ADR-0014). Le lieu
+    // d'une chanson du jeu et les traces des notes parfaites restent gagnés. Une chanson d'essai n'est pas celle de
+    // sa graine : elle ne garde un score, sous la clé de l'essai, que si sa progression fictive en porte déjà un à
+    // battre, celui de son fantôme (#32) ; une composition (#28) garde toujours le sien.
+    classee = !S.pianiste && (!S.essai || partition || progression().chansons[cle]?.meilleur !== undefined);
+  if (partition && !classee) return remplacer(avecTraces(progression()));
+  const { doc, progres } = noterReussite(progression(), {
+    univers: S.theme,
+    // Une composition (#28, ADR-0016) garde son meilleur score sous l'empreinte de sa partition, et ne réussit pas
+    // de lieu : la carte se gagne avec les chansons du jeu
+    ...(!partition && { lieu: S.song.prog.name }),
+    ...(classee && {
+      cle,
       score: S.score,
-    });
-    remplacer(avecTraces(doc));
-    S.progres = progres;
-    return;
-  }
-  const reussite = { univers: S.theme, lieu: S.song.prog.name };
-  const { doc, progres } = noterReussite(
-    progression(),
-    // Une chanson d'essai n'est pas celle de sa graine : elle ne garde pas de score, pas plus qu'une partie au piano
-    S.essai || S.pianiste ? reussite : { ...reussite, graine: S.seed, diff: S.diff, score: S.score },
-  );
+      ...(enr?.finie && { fantome: nouveauFantome(enr, Date.now()) }),
+    }),
+  });
   remplacer(avecTraces(doc));
   S.progres = progres;
 }

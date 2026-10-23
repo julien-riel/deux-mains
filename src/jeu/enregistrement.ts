@@ -2,10 +2,10 @@
 // Logique pure (ADR-0007). La graine refait la chanson (ADR-0005) et l'auto-play improvise à partir d'elle
 // (ADR-0012) : pour rejouer une partie, il suffit de ses réglages et de ce que le joueur a fait, dans l'ordre où il
 // l'a fait. La réécoute de fin de partie (#23) rejoue ces coups dans le jugement ; le fantôme du meilleur passage
-// (#32) se servira du même format.
+// (#32) les rejoue à l'image, avec le score de la partie à chaque temps.
 //
-// L'enregistrement vit en mémoire, le temps d'une visite : la façon de le sauvegarder (stockage, format, versions)
-// reste à décider (#25).
+// L'enregistrement vit en mémoire, le temps d'une partie ; celui du meilleur passage d'une chanson est gardé dans la
+// sauvegarde comme fantôme (#32, ADR-0014, `jeu/fantome.ts`).
 import type { Action, Mains } from "./etat";
 
 /** Ce qu'un appui a donné : la note qu'il a jugée, réussie (« Parfait » ou « Bien ») ou ratée */
@@ -76,6 +76,8 @@ export interface ReglagesDePartie {
 /** Une partie enregistrée : ses réglages, et ses coups dans l'ordre où ils ont été joués */
 export interface Enregistrement extends ReglagesDePartie {
   coups: Coup[];
+  /** Le score de la partie au début de chaque temps, du temps 0 au dernier atteint (#32) : le fantôme s'y compare */
+  scores: number[];
   /** La partie est allée au bout de la chanson */
   finie: boolean;
 }
@@ -83,8 +85,18 @@ export interface Enregistrement extends ReglagesDePartie {
 export const nouvelEnregistrement = (reglages: ReglagesDePartie): Enregistrement => ({
   ...reglages,
   coups: [],
+  scores: [],
   finie: false,
 });
+
+/**
+ * Note le score de la partie au temps `nb` : chaque temps franchi depuis le dernier noté prend ce score, celui de
+ * son début. Le temps ne fait qu'avancer, sauf à la reprise après une mort, qui oublie les temps d'après (`reprendre`).
+ */
+export function noterScore(enr: Enregistrement | null, nb: number, score: number) {
+  if (!enr) return;
+  for (let b = enr.scores.length; b <= Math.floor(nb); b++) enr.scores[b] = score;
+}
 
 /**
  * Ajoute un coup à la fin de l'enregistrement (rien sans enregistrement). Après une reprise, les coups du décompte
@@ -109,6 +121,8 @@ export function reprendre(enr: Enregistrement | null, temps: number, mains: Main
   if (!enr) return;
   enr.coups = enr.coups.filter((c) => c.temps < temps);
   enr.coups.push({ temps, geste: "reprise", mains, auto });
+  // Le score repart de celui du début de la section : les temps d'après seront notés de nouveau
+  enr.scores.length = Math.min(enr.scores.length, Math.max(0, Math.ceil(temps)));
 }
 
 /** Les réglages d'un enregistrement, pour en commencer un autre de la même partie */

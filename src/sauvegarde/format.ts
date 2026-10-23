@@ -4,12 +4,14 @@
 // migre le document, et y note ce que le joueur gagne. Il ne touche jamais au stockage lui-même.
 import { VERSION_GENERATEUR } from "../chanson/generateur";
 import { empreinteDe, lirePartition, type Partition } from "../chanson/partition";
+import { MAX_FANTOMES, lireFantome, type Fantome } from "../jeu/fantome";
 import { estTrace, reunir } from "../jeu/traces";
 
 /** La version du format. Tout changement du format l'augmente et ajoute une migration à MIGRATIONS.
  * 2 : les compositions (#28, ADR-0016).
- * 3 : les traces des notes parfaites d'une chanson (#29). */
-export const VERSION = 3;
+ * 3 : les traces des notes parfaites d'une chanson (#29).
+ * 4 : le fantôme du meilleur passage d'une chanson (#32). */
+export const VERSION = 4;
 
 /** Ce que la sauvegarde garde d'une chanson précise, sous sa clé (voir cleChanson) */
 export interface SuiviChanson {
@@ -18,6 +20,9 @@ export interface SuiviChanson {
   meilleur?: number;
   /** Les traces des notes parfaites (#29, `jeu/traces.ts`), triées et plafonnées ; absent tant qu'il n'y en a pas */
   traces?: number[];
+  /** La partie du meilleur score, gardée sur cet appareil (#32) : le fantôme la rejoue. Elle ne voyage pas dans le
+   * code de sauvegarde (voir `pourLeCode`) ; elle n'est jamais sans `meilleur`. */
+  fantome?: Fantome;
 }
 
 export interface Sauvegarde {
@@ -55,6 +60,13 @@ export const clePartition = (empreinte: string) => `p:${empreinte}`;
  */
 export const cleEssai = (id: string) => `e:${id}`;
 
+// L'entrée d'une chanson sans son fantôme (#32) : son meilleur score et ses traces restent
+function sansFantome(suivi: SuiviChanson): SuiviChanson {
+  const reste = { ...suivi };
+  delete reste.fantome;
+  return reste;
+}
+
 /* ---------- Lecture ---------- */
 /** Une migration fait passer un document brut de la version v à la version v + 1 */
 export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
@@ -64,6 +76,8 @@ export const MIGRATIONS: Record<number, Migration> = {
   1: (doc) => doc,
   // 2 → 3 : les traces des notes parfaites (#29) arrivent, facultatives, dans l'entrée de chaque chanson
   2: (doc) => doc,
+  // 3 → 4 : le fantôme du meilleur passage (#32) arrive, facultatif, dans l'entrée de chaque chanson ; aucune n'en a
+  3: (doc) => doc,
 };
 
 /**
@@ -123,6 +137,9 @@ function reparer(brut: Record<string, unknown>, version: number): Sauvegarde {
       // Une trace abîmée est laissée de côté ; le plafond s'applique à celles qui restent
       const traces = Array.isArray(suivi.traces) ? reunir(suivi.traces.filter(estTrace)) : [];
       if (traces.length) lu.traces = traces;
+      // Un fantôme abîmé est laissé de côté, comme celui d'une entrée sans meilleur score ; le reste demeure
+      const fantome = lu.meilleur !== undefined && lireFantome(suivi.fantome);
+      if (fantome) lu.fantome = fantome;
       if (lu.meilleur !== undefined || lu.traces) doc.chansons[cle] = lu;
     }
   // Une composition illisible est laissée de côté ; les autres sont rangées sous leur empreinte, recalculée
@@ -159,7 +176,16 @@ export interface Progres {
  */
 export function noterReussite(
   doc: Sauvegarde,
-  r: { univers: string; lieu?: string; graine?: number; diff?: string; cle?: string; score?: number },
+  r: {
+    univers: string;
+    lieu?: string;
+    graine?: number;
+    diff?: string;
+    cle?: string;
+    score?: number;
+    /** La partie jouée (#32) : un nouveau record la garde comme fantôme de la chanson */
+    fantome?: Fantome;
+  },
 ): { doc: Sauvegarde; progres: Progres } {
   const avant = lieuxReussis(doc, r.univers),
     nouveau = r.lieu !== undefined && !avant.includes(r.lieu),
@@ -173,9 +199,60 @@ export function noterReussite(
   if (cle !== undefined && r.score !== undefined) {
     const ancien = doc.chansons[cle]?.meilleur;
     record = ancien === undefined || r.score > ancien;
-    if (record) suivant.chansons[cle] = { ...doc.chansons[cle], meilleur: r.score };
+    // Le record garde les traces de la chanson ; sa partie devient le fantôme, et celui d'un ancien record, qui ne
+    // rejoue plus le meilleur passage, s'en va même quand il n'y a pas de partie pour le remplacer
+    if (record)
+      suivant.chansons[cle] = {
+        ...sansFantome(doc.chansons[cle] ?? {}),
+        meilleur: r.score,
+        ...(r.fantome && { fantome: r.fantome }),
+      };
   }
-  return { doc: suivant, progres: { lieu: nouveau ? r.lieu : null, record } };
+  return {
+    doc: record && r.fantome ? limiterFantomes(suivant) : suivant,
+    progres: { lieu: nouveau ? r.lieu : null, record },
+  };
+}
+
+/* ---------- Fantômes (#32) ---------- */
+/** Le fantôme d'une chanson, sous sa clé (`cleChanson` ou `clePartition`), ou null */
+export const fantomeDeLaChanson = (doc: Sauvegarde, cle: string): Fantome | null => doc.chansons[cle]?.fantome ?? null;
+
+// Un fantôme rangé sous la clé d'une autre version du générateur ne rejouera jamais : sa chanson n'existe plus
+const perime = (cle: string) => cle.startsWith("g") && !cle.startsWith(`g${VERSION_GENERATEUR}:`);
+
+/**
+ * Les clés des chansons qui ont un fantôme, dans l'ordre où ils partent quand la place manque : ceux d'une autre
+ * version du générateur, qui ne rejoueront plus, puis les plus anciens d'abord (ADR-0014).
+ */
+export function fantomesParAnciennete(doc: Sauvegarde): string[] {
+  return Object.entries(doc.chansons)
+    .filter(([, suivi]) => suivi.fantome)
+    .sort(([a, sa], [b, sb]) => +perime(b) - +perime(a) || sa.fantome.le - sb.fantome.le)
+    .map(([cle]) => cle);
+}
+
+/** Retire le fantôme qui part le premier ; le reste de son entrée demeure. Null s'il n'y a plus de fantôme. */
+export function retirerUnFantome(doc: Sauvegarde): Sauvegarde | null {
+  const [cle] = fantomesParAnciennete(doc);
+  if (cle === undefined) return null;
+  return { ...doc, chansons: { ...doc.chansons, [cle]: sansFantome(doc.chansons[cle]) } };
+}
+
+/** Retire des fantômes, dans l'ordre où ils partent, jusqu'à n'en garder que `max` */
+export function limiterFantomes(doc: Sauvegarde, max = MAX_FANTOMES): Sauvegarde {
+  while (fantomesParAnciennete(doc).length > max) doc = retirerUnFantome(doc);
+  return doc;
+}
+
+/**
+ * Le document que porte le code de sauvegarde : tout, sauf les fantômes. Un fantôme pèse de 10 à 40 ko, quand le
+ * reste de la sauvegarde en pèse quelques centaines d'octets : il reste sur l'appareil où il a été joué (ADR-0017).
+ */
+export function pourLeCode(doc: Sauvegarde): Sauvegarde {
+  const chansons: Record<string, SuiviChanson> = {};
+  for (const [cle, suivi] of Object.entries(doc.chansons)) chansons[cle] = sansFantome(suivi);
+  return { ...doc, chansons };
 }
 
 /* ---------- Traces (#29) ---------- */
@@ -234,6 +311,10 @@ export function fusionner(ici: Sauvegarde, autre: Sauvegarde): Sauvegarde {
       reuni: SuiviChanson = {};
     if (meilleur >= 0) reuni.meilleur = meilleur;
     if (traces.length) reuni.traces = traces;
+    // Le fantôme suit le meilleur score ; si celui-ci n'en a pas (un code n'en porte jamais), l'autre garde le sien
+    const fantome =
+      (suivi.meilleur ?? -1) > (a.meilleur ?? -1) ? (suivi.fantome ?? a.fantome) : (a.fantome ?? suivi.fantome);
+    if (fantome) reuni.fantome = fantome;
     doc.chansons[cle] = reuni;
   }
   if (ici.compositions || autre.compositions) doc.compositions = { ...ici.compositions, ...autre.compositions };

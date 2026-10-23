@@ -3,11 +3,14 @@
 // il protège la progression quand le stockage du navigateur est vidé, et la fait passer d'un endroit à l'autre
 // (page d'artefact, fichier local, GitHub Pages) ou d'un appareil à l'autre.
 //
+// Les fantômes du meilleur passage (#32) n'y entrent pas : ils pèsent cent fois le reste, et restent sur l'appareil
+// (ADR-0017).
+//
 // Forme : un préfixe, la version du document, un point, puis le JSON du document en UTF-8, encodé en base64url
 // (lettres, chiffres, - et _) : « DM1.eyJ2IjoxLC… ». Le même encodage sert aux partitions partagées (#28,
 // ADR-0016), avec leur propre préfixe : « DMP1.… ».
 import { VERSION_PARTITION, lirePartition, normaliser, type Partition } from "../chanson/partition";
-import { VERSION, lireObjet, type LectureObjet, type Sauvegarde } from "./format";
+import { VERSION, lireObjet, pourLeCode, type LectureObjet, type Sauvegarde } from "./format";
 
 /** Le préfixe des codes de sauvegarde */
 export const PREFIXE = "DM";
@@ -44,8 +47,9 @@ export function depuisBase64url(code: string): string | null {
   }
 }
 
-/** Le code d'une sauvegarde, à copier */
-export const encoder = (doc: Sauvegarde, prefixe = PREFIXE) => `${prefixe}${doc.v}.${base64url(JSON.stringify(doc))}`;
+/** Le code d'une sauvegarde, à copier : tout le document, sauf les fantômes (#32), qui restent sur l'appareil */
+export const encoder = (doc: Sauvegarde, prefixe = PREFIXE) =>
+  `${prefixe}${doc.v}.${base64url(JSON.stringify(pourLeCode(doc)))}`;
 
 // Le document d'un code : le JSON qu'il porte, si le préfixe est le bon et si la version annoncée est la sienne
 // (sinon le code a été trafiqué ou abîmé). Les espaces et les retours à la ligne sont ignorés (un code recopié ou

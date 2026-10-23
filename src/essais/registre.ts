@@ -13,7 +13,7 @@ import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
 import { reunir, trace } from "../jeu/traces";
 import { cleEssai, sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
-import { accorder, assembler, chanter, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
+import { accorder, assembler, chanter, fantomeFictif, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
 
 export interface Essai {
   /** Court, en minuscules avec des tirets : il sert dans l'adresse (?essai=double-saut) */
@@ -126,6 +126,17 @@ function progressionTracee(id: string): () => Sauvegarde {
 }
 const RETROUVER_TRACES =
   "Finis la chanson des deux mains, sans auto-play, puis rejoue l'essai (Entrée) : tes traces sont toujours là, aux mêmes endroits, et les nouvelles s'y ajoutent. Ta vraie sauvegarde n'est pas touchée.";
+// L'essai du fantôme (#32) : un couplet de Normal, et une progression fictive qui en garde déjà un meilleur passage,
+// rangé sous la clé de l'essai, où son fantôme le rejoue dès la première partie
+const chansonDuFantome = () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]);
+function progressionAvecFantome(): Sauvegarde {
+  const chanson = chansonDuFantome(),
+    fantome = fantomeFictif(chanson, "normal", "fantome");
+  return {
+    ...sauvegardeVide(),
+    chansons: { [cleEssai("fantome")]: { meilleur: fantome.scores.at(-1), fantome } },
+  };
+}
 
 export const ESSAIS: Essai[] = [
   {
@@ -647,6 +658,20 @@ export const ESSAIS: Essai[] = [
     // La chanson est toute écrite à la main : chaque note vient de la partition
     repere: () => true,
     progression: () => sauvegardeVide(),
+  },
+  {
+    id: "fantome",
+    titre: "Fantôme du meilleur passage",
+    verifier:
+      "Un fantôme en transparence court juste derrière toi : il rejoue un meilleur passage fictif, saute, glisse et tire aux temps de ses coups, mais laisse passer une note sur quatre. Sous le score, « FANTÔME +… » en vert quand tu mènes, « −… » en rouge quand il mène. Bats-le des deux mains, sans auto-play : l'écran de fin annonce le record, et à la partie suivante le fantôme rejoue ta partie. Réglages : Fantôme, Masquer le cache, écart compris, et le choix est retenu. Dans la Boîte, c'est un reflet. Ta vraie sauvegarde n'est pas touchée.",
+    issue: 32,
+    univers: "ville",
+    diff: "normal",
+    mains: "both",
+    chanson: chansonDuFantome,
+    // Le fantôme saute et glisse sur chaque obstacle qu'il ne laisse pas passer
+    repere: (ev) => ev.hand === "L",
+    progression: progressionAvecFantome,
   },
 ];
 
