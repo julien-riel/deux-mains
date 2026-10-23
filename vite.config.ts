@@ -18,6 +18,9 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
+    // Les simulations jouent des chansons entières : 5 s ne suffisent pas
+    // quand la machine est chargée (#51)
+    testTimeout: 30000,
     // La logique pure doit rester couverte par les tests (#3)
     coverage: {
       provider: "v8",
