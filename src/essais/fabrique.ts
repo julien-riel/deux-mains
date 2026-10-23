@@ -86,38 +86,40 @@ export function assembler(
 }
 
 /**
- * Ajoute un accord à deux mains au premier temps de chaque mesure des couplets et refrains : la basse y joue
- * déjà, la main droite y joue la fondamentale et la quinte (ou complète sa note d'un degré à deux pas).
+ * Ajoute un accord à deux mains sur les `temps` de chaque mesure des couplets et refrains (le premier, par
+ * défaut), là où la basse joue déjà : la main droite y joue la fondamentale et la quinte (ou complète sa note
+ * d'un degré à deux pas).
  */
-export function accorder(chanson: Chanson): Chanson {
+export function accorder(chanson: Chanson, temps: number[] = [0]): Chanson {
   for (const sec of chanson.sections) {
     if (sec.kind !== "couplet" && sec.kind !== "refrain") continue;
-    for (let bar = sec.start; bar < sec.start + sec.bars; bar++) {
-      const beat = bar * 4,
-        ch = chanson.chords[bar],
-        ici = chanson.ev.filter((e) => e.beat === beat),
-        droite = ici.filter((e) => e.hand === "R");
-      // Pas d'accord sans basse, ni pendant une note tenue de la main droite
-      const tenue = chanson.ev.some((e) => e.hand === "R" && e.beat < beat && e.beat + e.dur > beat);
-      if (!ici.some((e) => e.hand === "L") || tenue || droite.length > 1) continue;
-      const base = droite[0] ?? { lane: 0 },
-        lanes = [base.lane, base.lane <= 1 ? base.lane + 2 : base.lane - 2];
-      chanson.ev = chanson.ev.filter((e) => !droite.includes(e));
-      lanes.forEach((lane, i) =>
-        chanson.ev.push({
-          hand: "R",
-          beat,
-          dur: 0,
-          lane,
-          bar,
-          kind: sec.kind,
-          vel: 0.75,
-          midi: ch.lanes[lane],
-          ...(i === 0 ? { harm: lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12 } : {}),
-          state: "pending",
-        }),
-      );
-    }
+    for (let bar = sec.start; bar < sec.start + sec.bars; bar++)
+      for (const t of temps) {
+        const beat = bar * 4 + t,
+          ch = chanson.chords[bar],
+          ici = chanson.ev.filter((e) => e.beat === beat),
+          droite = ici.filter((e) => e.hand === "R");
+        // Pas d'accord sans basse, ni pendant une note tenue de la main droite
+        const tenue = chanson.ev.some((e) => e.hand === "R" && e.beat < beat && e.beat + e.dur > beat);
+        if (!ici.some((e) => e.hand === "L") || tenue || droite.length > 1) continue;
+        const base = droite[0] ?? { lane: 0 },
+          lanes = [base.lane, base.lane <= 1 ? base.lane + 2 : base.lane - 2];
+        chanson.ev = chanson.ev.filter((e) => !droite.includes(e));
+        lanes.forEach((lane, i) =>
+          chanson.ev.push({
+            hand: "R",
+            beat,
+            dur: 0,
+            lane,
+            bar,
+            kind: sec.kind,
+            vel: 0.75,
+            midi: ch.lanes[lane],
+            ...(i === 0 ? { harm: lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12 } : {}),
+            state: "pending",
+          }),
+        );
+      }
   }
   return finaliser(chanson);
 }

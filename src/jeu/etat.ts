@@ -9,6 +9,30 @@ export type Mode = "title" | "essais" | "calib" | "play" | "pause" | "dying" | "
 export type Action = "sauter" | "glisser" | "ecraser" | "couloir0" | "couloir1" | "couloir2" | "couloir3";
 export const COULOIRS: Action[] = ["couloir0", "couloir1", "couloir2", "couloir3"];
 
+/** Les mains que joue le joueur : les deux, une seule (l'autre joue toute seule), ou le duo local (#6), où deux
+ * joueurs tiennent chacun une main sur le même clavier */
+export type Mains = "both" | "L" | "R" | "duo";
+
+/** Les coups et le score d'une main, comptés à part pour le duo (#6) */
+export interface StatsMain {
+  score: number;
+  combo: number;
+  maxCombo: number;
+  perfect: number;
+  good: number;
+  miss: number;
+}
+export const statsNeuves = (): Record<Main, StatsMain> => ({
+  L: { score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0 },
+  R: { score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0 },
+});
+
+/** Les accords à deux mains : réussis, et jugés (réussis ou non). En duo, c'est l'exploit commun (#6). */
+export interface AccordsDuo {
+  reussis: number;
+  total: number;
+}
+
 /** Point de reprise : le début de la section en cours et le score à ce moment-là */
 export interface PointDeReprise {
   sec: Section;
@@ -17,6 +41,8 @@ export interface PointDeReprise {
   good: number;
   miss: number;
   maxCombo: number;
+  parMain: Record<Main, StatsMain>;
+  accordsDuo: AccordsDuo;
 }
 
 /** Les coups d'un passage de la boucle */
@@ -46,7 +72,7 @@ export interface Calibrage {
 /** L'essai en cours, et les réglages du joueur à lui rendre quand il quitte les essais */
 export interface EssaiEnCours {
   essai: Essai;
-  avant: { diff: string; theme: string; practice: string; vitesse: number; boucle: number };
+  avant: { diff: string; theme: string; practice: Mains; vitesse: number; boucle: number };
 }
 
 /** L'état de la partie, partagé par tous les modules */
@@ -62,6 +88,9 @@ export interface Etat {
   perfect: number;
   good: number;
   miss: number;
+  /** Les mêmes coups, main par main : le score total, lui, compte aussi le bonus des accords */
+  parMain: Record<Main, StatsMain>;
+  accordsDuo: AccordsDuo;
   // Horloge de la partie (ADR-0004), et le décalage du joueur mesuré par le calibrage, en secondes
   startBeat: number;
   decalage: number;
@@ -100,7 +129,7 @@ export interface Etat {
   autoQ: { at: number; ev?: Note; solo?: number }[];
   autoLane: number;
   keyFlash: Partial<Record<Action, number>>;
-  practice: string;
+  practice: Mains;
   /** Vitesse de lecture choisie (#4), et celle de la partie en cours, figée au départ pour que l'horloge ne saute pas */
   vitesse: number;
   vitessePartie: number;
@@ -127,6 +156,8 @@ export const S: Etat = {
   perfect: 0,
   good: 0,
   miss: 0,
+  parMain: statsNeuves(),
+  accordsDuo: { reussis: 0, total: 0 },
   startBeat: 0,
   decalage: 0,
   calib: null,
@@ -175,7 +206,9 @@ export const spb = () => 60 / (S.song.bpm * S.vitessePartie);
 // Sur l'écran de départ, dans la liste des essais et pendant le calibrage, la scène tourne au repos
 export const auRepos = () => S.mode === "title" || S.mode === "essais" || S.mode === "calib";
 
-export const mult = () => 1 + Math.min(3, Math.floor(S.combo / 10)) * 0.5;
+// Le combo qui fait le multiplicateur d'une main : en duo, celui de son joueur (#6) ; sinon le combo commun
+export const comboDe = (hand?: Main) => (hand && S.practice === "duo" ? S.parMain[hand].combo : S.combo);
+export const mult = (hand?: Main) => 1 + Math.min(3, Math.floor(comboDe(hand) / 10)) * 0.5;
 // Le temps de la partie ne recule jamais : en boucle, ses mesures continuent après la fin de la section, et
 // cette conversion seule les ramène dans la chanson (ADR-0009). Hors boucle, c'est la même mesure.
 export function mesureDeLaChanson(bar: number) {
@@ -207,5 +240,7 @@ export const layers = () => {
   const ok = S.health >= 50;
   return { arp: ok && S.combo >= 8, choir: ok && S.combo >= 20, strings: ok && S.combo >= 35 };
 };
-// La main qui joue toute seule : les deux en auto-play, ou l'autre main en entraînement
-export const autoFor = (hand: Main) => S.auto || (S.practice !== "both" && S.practice !== hand);
+// Une seule main jouée par le joueur : c'est un entraînement. En duo, chaque main a son joueur (#6).
+export const uneMain = () => S.practice === "L" || S.practice === "R";
+// La main qui joue toute seule : les deux en auto-play, ou l'autre main en entraînement ; jamais en duo
+export const autoFor = (hand: Main) => S.auto || (uneMain() && S.practice !== hand);

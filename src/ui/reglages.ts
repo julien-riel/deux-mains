@@ -6,7 +6,7 @@ import { buildSong } from "../chanson/generateur";
 import type { Chanson } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { resetRun } from "../jeu/deroulement";
-import { S, type EssaiEnCours } from "../jeu/etat";
+import { S, type EssaiEnCours, type Mains } from "../jeu/etat";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
@@ -93,7 +93,7 @@ document
   .forEach((r) => r.addEventListener("change", () => load(S.seed, r.value)));
 document
   .querySelectorAll<HTMLInputElement>('input[name="hands"]')
-  .forEach((r) => r.addEventListener("change", () => setPractice(r.value)));
+  .forEach((r) => r.addEventListener("change", () => setPractice(r.value as Mains)));
 document
   .querySelectorAll<HTMLInputElement>('input[name="theme"]')
   .forEach((r) => r.addEventListener("change", () => setTheme(r.value)));
@@ -107,11 +107,12 @@ export function setTheme(v: string, choix = true) {
     $("#songline").textContent = `${placeName()} · ${S.song.keyName} · ${S.song.progLabel} · ${S.song.bpm} BPM`;
   if (S.mode === "title" && S.song) show("title");
 }
-export function setPractice(v: string, choix = true) {
+// Mains jouées : les deux, une seule (l'autre en auto-play, un entraînement), ou le duo local (#6)
+export function setPractice(v: Mains, choix = true) {
   S.practice = v;
   const r = document.getElementById("h-" + v) as HTMLInputElement;
   if (r) r.checked = true;
-  if (S.mode === "play" && v !== "both") S.autoUsed = true;
+  if (S.mode === "play" && (v === "L" || v === "R")) S.autoUsed = true;
   if (choix) retenir("practice", v);
   if (S.mode === "title" && S.song) show("title");
 }

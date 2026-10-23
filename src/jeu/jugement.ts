@@ -45,6 +45,25 @@ export function findNear(hand: Main, ns: number, pred?: (ev: Note) => boolean) {
   }
   return best ? { ev: best, d: bd } : null;
 }
+/** Des points pour le score total et, s'il y a lieu, pour la main qui les a gagnés (le duo les compte à part, #6) */
+export function gagner(points: number, hand?: Main) {
+  S.score += points;
+  if (hand) S.parMain[hand].score += points;
+}
+// Une erreur casse le combo commun et celui de la main fautive : en duo, l'autre joueur garde le sien (#6)
+function casser(hand: Main) {
+  S.combo = 0;
+  S.parMain[hand].combo = 0;
+}
+const reussie = (ev: Note) => ev.state === "hit" || ev.state === "holding" || ev.state === "done";
+// Un accord à deux mains est jugé quand sa dernière note l'est : réussi si toutes ses notes le sont (#6)
+function suivreAccordDuo(ev: Note) {
+  const grp = ev.grp;
+  if (!grp || !grp.some((e) => e.hand === "L") || !grp.some((e) => e.hand === "R")) return;
+  if (grp.some((e) => e.state === "pending")) return;
+  S.accordsDuo.total++;
+  if (grp.every(reussie)) S.accordsDuo.reussis++;
+}
 export function damage(n: number) {
   S.health -= n;
   if (S.health <= 0) {
@@ -54,40 +73,49 @@ export function damage(n: number) {
 }
 export function hitEv(ev: Note, d: number) {
   const perfect = Math.abs(d) <= DIFFS[S.diff].win[0];
+  const m = S.parMain[ev.hand];
   ev.state = ev.dur > 0 ? "holding" : "hit";
   S.combo++;
+  m.combo++;
   S.maxCombo = Math.max(S.maxCombo, S.combo);
-  if (perfect) S.perfect++;
-  else S.good++;
+  m.maxCombo = Math.max(m.maxCombo, m.combo);
+  const coup = perfect ? "perfect" : "good";
+  S[coup]++;
+  m[coup]++;
   compterPassage(ev, perfect ? "parfait" : "bien");
-  S.score += Math.round((perfect ? 300 : 120) * mult());
+  gagner(Math.round((perfect ? 300 : 120) * mult(ev.hand)), ev.hand);
   if (S.combo % 8 === 0) S.health = Math.min(100, S.health + 4);
   // Quantification : en avance, la note part pile sur le temps ; en retard, tout de suite
   if (!ev.auto) effets.jouer(ev, d < 0 ? ev.beat : null);
   effets.reussite(ev, perfect);
-  if (ev.grp && ev.grp.every((e) => e.state === "hit" || e.state === "holding" || e.state === "done")) {
-    S.score += Math.round(200 * (ev.grp.length - 1) * mult());
+  // Le bonus d'accord va au score total seulement : en duo, c'est un exploit commun
+  if (ev.grp && ev.grp.every(reussie)) {
+    gagner(Math.round(200 * (ev.grp.length - 1) * mult()));
     effets.accord(ev.grp);
   }
+  suivreAccordDuo(ev);
 }
 export function missEv(ev: Note) {
   const D = DIFFS[S.diff];
   ev.state = "miss";
-  S.combo = 0;
+  casser(ev.hand);
   S.miss++;
+  S.parMain[ev.hand].miss++;
   compterPassage(ev, "rate");
+  suivreAccordDuo(ev);
   effets.rate(ev);
+  // L'harmonie est commune : en duo, l'erreur d'un joueur la fait baisser pour les deux
   damage(ev.hand === "L" ? D.dmgL : D.dmgR);
 }
 export function completeHold(ev: Note, cut: boolean) {
   ev.state = "done";
   if (cut) effets.couper(ev);
-  S.score += Math.round(150 * mult());
+  gagner(Math.round(150 * mult(ev.hand)), ev.hand);
 }
 export function breakHold(ev: Note) {
   ev.state = "broken";
   effets.couper(ev);
-  S.combo = 0;
+  casser(ev.hand);
   effets.lache(ev);
   damage(6);
 }
@@ -111,7 +139,7 @@ export function vibrer(ns: number): Note[] {
     if (ev.hand !== "R" || ev.state !== "holding") continue;
     ev.vibrato = (ev.vibrato ?? 0) + 1;
     const points = ev.vibrato <= VIBRATO.max ? VIBRATO.points : 0;
-    S.score += points;
+    gagner(points, "R");
     effets.vibrato(ev, points);
     tenues.push(ev);
   }
@@ -147,7 +175,7 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   const nb = ns / spb();
   if (sectionAtBar(Math.floor(nb / 4)).kind === "pont") {
     effets.solo(lane, nb);
-    S.score += 25;
+    gagner(25, "R");
     effets.tir(lane, true);
     return [];
   }
@@ -168,7 +196,7 @@ export function rightPress(lane: number, ns: number, accordEntier = false): Note
   // Pendant une note tenue, l'autre touche fait vibrer la note au lieu de compter comme un mauvais couloir
   if (vibrer(ns).length) return [];
   if (findNear("R", ns)) {
-    S.combo = 0;
+    casser("R");
     effets.mauvaisCouloir(lane);
     effets.tir(lane, false);
     return [];

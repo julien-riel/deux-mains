@@ -1,9 +1,11 @@
 /* ---------- Registre des essais ---------- */
 // Logique pure (ADR-0007). Un essai fait tomber directement sur une fonctionnalité : une chanson courte où elle
-// revient dès les premières mesures, dans l'univers et la difficulté choisis, avec l'autre main en auto-play.
+// revient dès les premières mesures, dans l'univers et la difficulté choisis, avec l'autre main en auto-play
+// ou un second joueur.
 // On l'ouvre par le menu Essais de l'écran titre, ou par l'adresse : ?essai=<id> ou #essai=<id>.
 // Chaque issue qui ajoute une fonctionnalité jouable ajoute ici son essai (voir CLAUDE.md, « Mode essai »).
 import type { Chanson, Note } from "../chanson/types";
+import type { Mains } from "../jeu/etat";
 import { accorder, assembler, type Morceau } from "./fabrique";
 
 export interface Essai {
@@ -18,8 +20,8 @@ export interface Essai {
   univers: "ville" | "boite";
   /** Une clé de DIFFS */
   diff: "debutant" | "facile" | "normal" | "difficile";
-  /** Les mains que joue le joueur : l'autre joue toute seule */
-  mains: "both" | "L" | "R";
+  /** Les mains jouées : les deux, une seule (l'autre joue toute seule), ou le duo, un joueur par main (#6) */
+  mains: Mains;
   /** Construit la chanson d'essai, neuve à chaque appel */
   chanson(): Chanson;
   /** Les notes qui portent la fonctionnalité : les tests vérifient qu'elles arrivent tôt et souvent */
@@ -127,6 +129,25 @@ export const ESSAIS: Essai[] = [
     mains: "L",
     chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO], { couplet: ["S...M--.", "S.W.B--."] }),
     repere: (ev) => ev.hand === "L" && ev.fin !== undefined,
+  },
+  {
+    id: "duo",
+    titre: "Duo local",
+    verifier:
+      "À deux sur un clavier : la basse (W S Espace) et la mélodie (J K L ;). Rien ne joue tout seul ; le HUD montre deux scores et deux combos, un raté ne casse que celui de son joueur, l'harmonie baisse pour les deux. Deux accords à deux mains par mesure, comptés sur l'écran de fin.",
+    issue: 6,
+    univers: "ville",
+    diff: "facile",
+    mains: "duo",
+    // La basse joue sur les temps 1 et 3 de chaque mesure : un accord à deux mains sur chacun
+    chanson: () =>
+      accorder(
+        assembler(GRAINE, "facile", [INTRO, couplet(2, 4), refrain(10, 4), couplet(6, 4), OUTRO], {
+          couplet: ["S...W..."],
+        }),
+        [0, 2],
+      ),
+    repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.some((e) => e.hand === "R"),
   },
 ];
 

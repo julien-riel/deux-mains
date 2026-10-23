@@ -198,6 +198,45 @@ button kbd {
   font-size: 12px;
   color: var(--muted);
 }
+/* ---------- Duo local (#6) : les deux joueurs côte à côte ---------- */
+.duo {
+  border-collapse: collapse;
+  margin: 4px 0;
+  width: min(420px, 100%);
+}
+.duo th,
+.duo td {
+  padding: 3px 12px;
+  text-align: right;
+}
+.duo tbody th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--muted);
+}
+.duo thead th {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.duo .basse {
+  color: var(--bass);
+}
+.duo .melodie {
+  color: var(--mel);
+}
+.duo td {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.duo td.mieux {
+  color: var(--fg);
+  font-weight: 700;
+}
 /* ---------- Mode essai ---------- */
 .essais {
   display: grid;
