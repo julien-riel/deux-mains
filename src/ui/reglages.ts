@@ -1,4 +1,4 @@
-// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage, formes des couloirs, mode pianiste et fantôme (#32), retenus d'une visite à l'autre
+// Réglages : chanson (graine, difficulté) ou essai, univers, mains jouées, vitesse, boucle, commandes, décalage, formes des couloirs, mode pianiste, fantôme (#32) et scène (#83), retenus d'une visite à l'autre
 import { B, AC, songNow } from "../audio/moteur";
 import { stopScheduler } from "../audio/sequenceur";
 import { randomSeed } from "../chanson/aleatoire";
@@ -12,7 +12,7 @@ import { resetRun } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
 import { S, airEnCours, spb, type EssaiEnCours, type Mains } from "../jeu/etat";
 import { abandonnerReecoute, mainsDuJoueur } from "../jeu/reecoute";
-import { sceneDeLaPartie } from "../jeu/scenes";
+import { sceneDeLaPartie, type ReglageScene } from "../jeu/scenes";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
@@ -48,7 +48,7 @@ function installer(song: Chanson, diff: string) {
   S.diff = diff;
   S.song = song;
   // La scène ne change jamais en pleine chanson (ADR-0019) : elle se choisit avec elle
-  S.scene = sceneDeLaPartie(S.essai?.essai, song);
+  S.scene = sceneDeLaPartie(S.essai?.essai, song, S.reglageScene);
   // Le remontage (#27) ne vaut que pour la chanson qui le suit
   S.remontage = null;
   S.depart = null;
@@ -291,6 +291,30 @@ export function setFantome(voir: boolean) {
     localStorage.setItem("deux-mains-fantome", voir ? "voir" : "masquer");
   } catch {
     /* stockage indisponible */
+  }
+}
+$("#scene").addEventListener("change", (e) => {
+  const sel = e.target as HTMLSelectElement;
+  setScene(sel.value as ReglageScene);
+  // On rend le clavier au jeu, comme pour la boucle
+  sel.blur();
+});
+/**
+ * Scène (#83, ADR-0019) : celle du lieu de chaque chanson, ou une scène fixe pour toutes. La scène ne change jamais
+ * en pleine chanson : le choix vaut aussitôt pour la chanson de l'écran de départ, sinon pour la prochaine chanson
+ * mise en place. Un essai garde sa scène, et n'appelle jamais ce réglage.
+ */
+export function setScene(v: ReglageScene) {
+  S.reglageScene = v;
+  $<HTMLSelectElement>("#scene").value = v;
+  try {
+    localStorage.setItem("deux-mains-scene", v);
+  } catch {
+    /* stockage indisponible */
+  }
+  if (S.mode === "title" && S.song) {
+    S.scene = sceneDeLaPartie(S.essai?.essai, S.song, v);
+    show("title");
   }
 }
 $("#decalage").addEventListener("change", (e) => setDecalage(+(e.target as HTMLInputElement).value));

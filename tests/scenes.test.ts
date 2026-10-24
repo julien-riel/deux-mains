@@ -3,10 +3,22 @@
 // chanson. Le choix est de la logique pure ; les poses et le dessin passent par le faux navigateur.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ESSAIS } from "../src/essais/registre";
-import { SCENES, sceneDeLaPartie } from "../src/jeu/scenes";
+import { buildSong, estPetiteNote } from "../src/chanson/generateur";
+import { REPERTOIRE } from "../src/chanson/repertoire";
+import type { Chanson } from "../src/chanson/types";
+import { ESSAIS, partitionExemple } from "../src/essais/registre";
+import { LIEUX, graineDuLieu } from "../src/jeu/carte";
+import {
+  NOMS_SCENES,
+  REGLAGES_SCENE,
+  SCENES,
+  SCENES_DES_LIEUX,
+  lireReglageScene,
+  sceneDeLaPartie,
+  sceneDuLieu,
+} from "../src/jeu/scenes";
 import type { Pose, Scene, Voie } from "../src/rendu/scenes/contrat";
-import { Navigateur } from "./support/navigateur";
+import { Navigateur, type Univers } from "./support/navigateur";
 
 let nav: Navigateur;
 afterEach(() => nav?.fermer());
@@ -16,6 +28,7 @@ const VOIES: Voie[] = [0, 1, 2, 3, 0.5, 1.5, 2.5, "chanteur", "basse"];
 describe("choix de la scène", () => {
   it("connaît les quatre scènes d'ADR-0019", () => {
     expect(SCENES).toEqual(["cote", "colonnes", "disque", "horizon"]);
+    expect(Object.keys(NOMS_SCENES)).toEqual([...SCENES]);
   });
 
   it("prend la scène imposée par l'essai, sinon la scène de côté", () => {
@@ -30,6 +43,33 @@ describe("choix de la scène", () => {
     expect(sceneDeLaPartie({}, { boss: {} })).toBe("disque");
     expect(sceneDeLaPartie({ scene: "cote" }, { boss: {} })).toBe("cote");
     expect(sceneDeLaPartie(null, {})).toBe("cote");
+    expect(sceneDeLaPartie(null, { boss: {}, prog: { name: "I–V–vi–IV" } })).toBe("disque");
+  });
+
+  it("joue une chanson dans la scène du lieu de sa progression, ou de côté sans lieu (#83)", () => {
+    for (const lieu of LIEUX) expect(sceneDeLaPartie(null, { prog: { name: lieu } })).toBe(SCENES_DES_LIEUX[lieu]);
+    // Une composition sans lieu : sans progression, ou sur une progression qui n'est pas un lieu de la carte
+    expect(sceneDeLaPartie(null, { prog: { name: "Le Port" } })).toBe("cote");
+    for (const nom of [undefined, "", "Le Port", "constructor", "toString"]) expect(sceneDuLieu(nom)).toBe("cote");
+  });
+
+  it("une scène fixée par le réglage vaut pour toutes les chansons, boss compris, mais jamais pour un essai", () => {
+    for (const fixe of SCENES) {
+      for (const lieu of LIEUX) expect(sceneDeLaPartie(null, { prog: { name: lieu } }, fixe)).toBe(fixe);
+      expect(sceneDeLaPartie(null, { boss: {} }, fixe)).toBe(fixe);
+      expect(sceneDeLaPartie(null, null, fixe)).toBe(fixe);
+      // Un essai garde sa scène, ou la scène de côté, ou le disque de son boss
+      expect(sceneDeLaPartie({ scene: "horizon" }, { prog: { name: "Blues" } }, fixe)).toBe("horizon");
+      expect(sceneDeLaPartie({}, { prog: { name: "Blues" } }, fixe)).toBe("cote");
+      expect(sceneDeLaPartie({}, { boss: {} }, fixe)).toBe("disque");
+    }
+    expect(sceneDeLaPartie(null, { prog: { name: "Blues" } }, "lieu")).toBe(SCENES_DES_LIEUX.Blues);
+  });
+
+  it("lit le réglage retenu : celle du lieu, ou une scène ; tout le reste vaut celle du lieu", () => {
+    expect(REGLAGES_SCENE).toEqual(["lieu", ...SCENES]);
+    for (const r of REGLAGES_SCENE) expect(lireReglageScene(r)).toBe(r);
+    for (const r of [null, undefined, "", "Disque", "voir", 3]) expect(lireReglageScene(r)).toBe("lieu");
   });
 
   it("chaque essai qui impose une scène impose une scène dessinée", async () => {
@@ -38,17 +78,17 @@ describe("choix de la scène", () => {
     for (const e of ESSAIS.filter((e) => e.scene)) expect(SCENES_DESSINEES).toHaveProperty(e.scene);
   });
 
-  it("se choisit avec la chanson : l'essai impose la sienne, la chanson suivante revient à la scène de côté", async () => {
+  it("se choisit avec la chanson : l'essai impose la sienne, la chanson suivante prend celle de son lieu", async () => {
     nav = await Navigateur.ouvrir();
     const { chargerEssai } = await import("../src/ui/reglages");
     chargerEssai({ ...ESSAIS[0], scene: "horizon" });
     expect(nav.jeu.state.scene).toBe("horizon");
     nav.jeu.load(4242, "normal");
-    expect(nav.jeu.state.scene).toBe("cote");
+    expect(nav.jeu.state.scene).toBe(sceneDuLieu(nav.jeu.state.song.prog.name));
   });
 
   it("dessine la scène de côté à la place d'une scène qui n'est pas encore dessinée", async () => {
-    nav = await Navigateur.ouvrir();
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-scene": "cote" } });
     const { scene, SCENES_DESSINEES } = await import("../src/rendu/geometrie");
     expect(Object.keys(SCENES_DESSINEES)).toContain("cote");
     expect(scene().id).toBe("cote");
@@ -56,6 +96,157 @@ describe("choix de la scène", () => {
     if (!absente) return;
     nav.jeu.state.scene = absente;
     expect(scene().id).toBe("cote");
+  });
+});
+
+// Une basse en triolets : une note de la main gauche hors de la grille des croches
+const basseEnTriolets = (ch: Chanson) => ch.ev.some((ev) => ev.hand === "L" && !Number.isInteger(ev.beat * 2));
+// Les scènes que la carte affiche, dans l'ordre de ses lieux
+const etiquettesDeLaCarte = (html: string) =>
+  [...html.matchAll(/class="scene-lieu" data-scene="(\w+)"/g)].map((m) => m[1]);
+
+describe("scène de chaque lieu (#83)", () => {
+  it("chaque lieu de la carte a sa scène, dans l'ordre de la carte, et chaque scène a au moins un lieu", () => {
+    expect(Object.keys(SCENES_DES_LIEUX)).toEqual(LIEUX);
+    for (const id of SCENES) expect(Object.values(SCENES_DES_LIEUX)).toContain(id);
+  });
+
+  it("les deux premiers lieux sont de côté, pour apprendre la lecture de toujours", () => {
+    expect(LIEUX.slice(0, 2).map(sceneDuLieu)).toEqual(["cote", "cote"]);
+  });
+
+  // Si un changement du générateur fait échouer ces deux tests, la répartition des lieux est à revoir (ADR-0019)
+  it("le disque et l'horizon n'ont pas de basse en triolets, même en Difficile", () => {
+    const lieux = LIEUX.filter((l) => ["disque", "horizon"].includes(sceneDuLieu(l)));
+    expect(lieux.length).toBeGreaterThan(0);
+    for (const lieu of lieux)
+      for (const diff of ["debutant", "facile", "normal", "difficile"])
+        expect(basseEnTriolets(buildSong(graineDuLieu(lieu), diff)), `${lieu}, ${diff}`).toBe(false);
+    // Les colonnes, où la basse reste de côté, prennent des lieux qui en ont
+    expect(LIEUX.some((l) => basseEnTriolets(buildSong(graineDuLieu(l), "difficile")))).toBe(true);
+  });
+
+  it("l'horizon a au plus deux petites notes en Difficile, qui y rapetissent loin du point d'impact", () => {
+    for (const lieu of LIEUX.filter((l) => sceneDuLieu(l) === "horizon"))
+      expect(buildSong(graineDuLieu(lieu), "difficile").ev.filter(estPetiteNote).length, lieu).toBeLessThanOrEqual(2);
+  });
+
+  it.each<Univers>(["ville", "boite"])(
+    "ouvrir un lieu sur la carte ouvre sa chanson dans la scène du lieu, dans l'univers %s",
+    async (univers) => {
+      nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers } });
+      const S = nav.jeu.state,
+        { scene } = await import("../src/rendu/geometrie");
+      LIEUX.forEach((lieu, i) => {
+        nav.presser("KeyC");
+        // La carte montre la scène de chaque lieu
+        expect(etiquettesDeLaCarte(nav.overlay.innerHTML)).toEqual(LIEUX.map(sceneDuLieu));
+        nav.presser(`Digit${i + 1}`);
+        const attendue = SCENES_DES_LIEUX[lieu];
+        expect([S.mode, S.song.prog.name, S.scene, scene().id]).toEqual(["title", lieu, attendue, attendue]);
+      });
+    },
+  );
+
+  it("une composition ou un air du répertoire prend la scène du lieu de sa progression", async () => {
+    nav = await Navigateur.ouvrir();
+    const S = nav.jeu.state,
+      { chargerAir, chargerComposition } = await import("../src/ui/reglages");
+    const p = partitionExemple();
+    chargerComposition(p);
+    expect(S.scene).toBe(SCENES_DES_LIEUX[p.prog]);
+    for (const air of REPERTOIRE) {
+      chargerAir(air, "normal");
+      expect(S.scene, air.id).toBe(SCENES_DES_LIEUX[air.partition.prog]);
+    }
+  });
+
+  it("le réglage « Scène » fixe la scène de toutes les chansons, et il est retenu à la visite suivante", async () => {
+    nav = await Navigateur.ouvrir();
+    let S = nav.jeu.state;
+    expect([S.reglageScene, nav.trouver("#scene").value]).toEqual(["lieu", "lieu"]);
+    nav.saisir("#scene", "horizon");
+    // Sur l'écran de départ, la chanson affichée passe aussitôt dans la scène choisie
+    expect([S.reglageScene, S.scene, nav.stockage.get("deux-mains-scene")]).toEqual(["horizon", "horizon", "horizon"]);
+    const stockage = Object.fromEntries(nav.stockage);
+    nav.fermer();
+
+    nav = await Navigateur.ouvrir({ stockage });
+    S = nav.jeu.state;
+    const { chargerAir, chargerBoss, chargerComposition } = await import("../src/ui/reglages");
+    expect([S.reglageScene, nav.trouver("#scene").value, S.scene]).toEqual(["horizon", "horizon", "horizon"]);
+    for (const lieu of LIEUX) {
+      nav.jeu.load(graineDuLieu(lieu), "normal");
+      expect(S.scene).toBe("horizon");
+    }
+    chargerBoss();
+    expect(S.scene).toBe("horizon");
+    chargerComposition(partitionExemple());
+    expect(S.scene).toBe("horizon");
+    chargerAir(REPERTOIRE[0], "facile");
+    expect(S.scene).toBe("horizon");
+    // La carte le dit, et montre encore la scène de chaque lieu
+    nav.presser("KeyC");
+    expect(nav.overlay.innerHTML).toContain("les joue toutes vers l'horizon");
+    expect(etiquettesDeLaCarte(nav.overlay.innerHTML)).toEqual(LIEUX.map(sceneDuLieu));
+    nav.presser("Escape");
+    // Revenir à « Celle du lieu » rend sa scène à la chanson affichée
+    nav.saisir("#scene", "lieu");
+    expect([S.scene, nav.stockage.get("deux-mains-scene")]).toEqual([sceneDuLieu(S.song.prog.name), "lieu"]);
+  });
+
+  it("la scène ne change jamais pendant une chanson : le réglage attend la chanson suivante", async () => {
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-scene": "cote" } });
+    const S = nav.jeu.state;
+    nav.jeu.load(graineDuLieu("Blues"), "normal");
+    expect(S.scene).toBe("cote");
+    nav.presser("KeyA");
+    expect(S.mode).toBe("play");
+    nav.saisir("#scene", "disque");
+    const vues = new Set<string>();
+    let change = false;
+    nav.avancerJusqua(
+      (s) => {
+        vues.add(s.scene);
+        // En pleine chanson, on change encore d'avis
+        if (!change && s.song.ev.some((ev) => ev.state === "done")) {
+          change = true;
+          nav.saisir("#scene", "colonnes");
+        }
+        return s.mode !== "play";
+      },
+      (S.song.endBeat * 60) / S.song.bpm + 10,
+    );
+    expect([change, S.mode, [...vues], S.scene]).toEqual([true, "done", ["cote"], "cote"]);
+    // La chanson suivante prend le réglage
+    nav.jeu.load(graineDuLieu("Blues"), "normal");
+    expect([S.reglageScene, S.scene]).toEqual(["colonnes", "colonnes"]);
+  });
+
+  it("un essai garde sa scène et n'écrit jamais le réglage du joueur", async () => {
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-scene": "disque" } });
+    const S = nav.jeu.state,
+      { chargerEssai, quitterEssai } = await import("../src/ui/reglages");
+    for (const e of ESSAIS) {
+      chargerEssai(e);
+      expect(S.scene, e.id).toBe(e.scene ?? (S.song.boss ? "disque" : "cote"));
+      expect([S.reglageScene, nav.stockage.get("deux-mains-scene")]).toEqual(["disque", "disque"]);
+    }
+    quitterEssai();
+    expect([S.essai, S.scene, nav.stockage.get("deux-mains-scene")]).toEqual([null, "disque", "disque"]);
+  });
+
+  it("l'essai « carte-scenes » montre une carte aux lieux de scènes différentes, sans parler du réglage", async () => {
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-scene": "horizon" } });
+    const S = nav.jeu.state,
+      { chargerEssai } = await import("../src/ui/reglages");
+    chargerEssai(ESSAIS.find((e) => e.id === "carte-scenes"));
+    // Sa chanson se joue dans la scène de son lieu, malgré le réglage du joueur
+    expect(S.scene).toBe(sceneDuLieu(S.song.prog.name));
+    nav.presser("KeyC");
+    expect(S.mode).toBe("carte");
+    expect(new Set(etiquettesDeLaCarte(nav.overlay.innerHTML)).size).toBe(SCENES.length);
+    expect(nav.overlay.innerHTML).not.toContain("Ton réglage");
   });
 });
 

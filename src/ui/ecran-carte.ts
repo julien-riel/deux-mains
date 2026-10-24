@@ -3,6 +3,7 @@
 // souvenirs de la Boîte révèlent leur illustration dans l'album. Les illustrations sont des esquisses provisoires.
 import { LIEUX, graineDuLieu, lieuSuivant } from "../jeu/carte";
 import { S, progression } from "../jeu/etat";
+import { NOMS_SCENES, sceneDuLieu, type IdScene } from "../jeu/scenes";
 import { encoder } from "../sauvegarde/code";
 import { lieuxReussis, meilleurScore } from "../sauvegarde/format";
 import { TH } from "../univers/univers";
@@ -119,6 +120,31 @@ function esquisse(lieu: string, reussi: boolean) {
   }</svg>`;
 }
 
+/* ---------- Scènes (#83, ADR-0019) ---------- */
+// Le pictogramme de chaque scène : les couloirs de côté, les colonnes qui tombent, les anneaux du disque, les rails
+// qui fuient vers l'horizon
+const PICTOGRAMMES: Record<IdScene, string> = {
+  cote: "M1 4H13M1 8H13M1 12H13",
+  colonnes: "M2 1V13M5.3 1V13M8.7 1V13M12 1V13",
+  disque: "M1 7a6 6 0 1 0 12 0a6 6 0 1 0 -12 0ZM4 7a3 3 0 1 0 6 0a3 3 0 1 0 -6 0Z",
+  horizon: "M7 2L1 13M7 2L4.5 13M7 2L9.5 13M7 2L13 13M1 13H13",
+};
+// La scène dans une phrase : « toutes les chansons se jouent sur le disque »
+const DANS_LA_SCENE: Record<IdScene, string> = {
+  cote: "de côté",
+  colonnes: "en colonnes",
+  disque: "sur le disque",
+  horizon: "vers l'horizon",
+};
+/** La scène d'un lieu sur la carte : son pictogramme et son nom */
+const etiquetteDeScene = (scene: IdScene) =>
+  `<em class="scene-lieu" data-scene="${scene}"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="${PICTOGRAMMES[scene]}"/></svg>${NOMS_SCENES[scene]}</em>`;
+// Sous la carte : la scène fixée par le réglage passe avant celle des lieux, hors essai
+const sceneFixee = () =>
+  !S.essai && S.reglageScene !== "lieu"
+    ? ` Ton réglage « Scène » les joue toutes ${DANS_LA_SCENE[S.reglageScene]}.`
+    : "";
+
 /* ---------- Écrans ---------- */
 const kbd = (t: string) => `<kbd>${t}</kbd>`;
 
@@ -132,7 +158,7 @@ export function ecranCarte() {
     const reussi = reussis.includes(lieu),
       record = S.essai ? undefined : meilleurScore(progression(), graineDuLieu(lieu), diff);
     return `<button type="button" class="lieu ${reussi ? "reussi" : "a-faire"}${lieu === prochain ? " prochain" : ""}" data-act="lieu" data-lieu="${lieu}"${S.essai ? " disabled" : ""}>
-        ${esquisse(lieu, reussi)}
+        ${esquisse(lieu, reussi)}${etiquetteDeScene(sceneDuLieu(lieu))}
         <span><b>${kbd(String(i + 1))} ${TH().places[lieu]}</b><small>${reussi ? C.reussi : C.aFaire}${
           record !== undefined ? ` · record ${record.toLocaleString("fr-CA")}` : ""
         }</small></span></button>`;
@@ -140,7 +166,7 @@ export function ecranCarte() {
   return `<p class="eyebrow">${TH().label} · ${reussis.length} sur ${LIEUX.length} ${C.reussis}${S.essai ? " · essai, progression fictive" : ""}</p>
       <h2>${C.titre}</h2>
       <div class="carte ${S.theme}">${lieux}</div>
-      <p class="hint">${C.effet}${S.essai ? " Dans l'essai, la carte se regarde : ta vraie sauvegarde n'est pas touchée." : ""}</p>
+      <p class="hint">${C.effet} Chaque lieu se lit dans sa scène.${sceneFixee()}${S.essai ? " Dans l'essai, la carte se regarde : ta vraie sauvegarde n'est pas touchée." : ""}</p>
       <div class="actions"><button type="button" data-act="sauvegarde">Code de sauvegarde ${kbd("S")}</button>
       <button type="button" data-act="titre">Retour ${kbd("Échap")}</button></div>`;
 }
