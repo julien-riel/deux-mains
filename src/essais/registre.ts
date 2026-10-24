@@ -816,6 +816,19 @@ export const ESSAIS: Essai[] = [
     repere: (ev) => ev.hand === "R" && (estPetiteNote(ev) || !surLaCroche(ev.beat)),
     progression: progressionTracee("horizon-boite"),
   },
+  ...(["ville", "boite"] as const).map((univers): Essai => ({
+    id: `papier-${univers}`,
+    titre: `Papier découpé (${univers === "ville" ? "Ville" : "Boîte"})`,
+    verifier: `Le décor est un diorama de papier qui bat au temps, et les couloirs sont des ${univers === "ville" ? "fils à linge" : "cordes de harpe"} entre des poteaux qui portent l'accord de chaque mesure. Joue la mélodie (la basse est en auto-play) : chaque tir réussi fait vibrer sa corde, et son jugement se colle en autocollant puis se décolle. Laisse passer une note : le papier se froisse, sa corde casse, puis se renoue avant la mesure suivante en gardant un nœud. Le refrain déplie un pop-up dans le décor, puis le replie. Avec « Mouvement réduit », rien ne tremble et le froissé reste près de la ligne de tir.`,
+    issue: 78,
+    univers,
+    diff: "normal",
+    mains: "R",
+    // Le refrain d'abord, pour voir le pop-up se déplier dès la troisième mesure
+    chanson: () => assembler(GRAINE, "normal", [INTRO, refrain(10, 4), couplet(2, 4), OUTRO]),
+    // Chaque note de la mélodie pince ou casse une corde
+    repere: (ev) => ev.hand === "R",
+  })),
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

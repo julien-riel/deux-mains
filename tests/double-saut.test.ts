@@ -55,10 +55,13 @@ describe("double saut", () => {
     expect([S.miss, S.health]).toEqual([1, 100 - DIFFS.normal.dmgL]);
   });
 
-  it("le rail de gauche affiche la note du double saut : la quinte au-dessus de l'octave", async () => {
-    const { S } = await avantLePremierHaut();
+  it("dans l'essai, le rail de gauche affiche la note du double saut : la quinte au-dessus de l'octave", async () => {
+    // Hors de Débutant et des essais, la légende complète quitte la scène (#78)
+    nav = await Navigateur.ouvrir({ adresse: { search: "?essai=double-saut" } });
+    nav.presser("KeyA");
     nav.image();
-    const ch = S.song.chords[Math.max(0, Math.floor(temps() / 4))];
+    const S = nav.jeu.state,
+      ch = S.song.chords[Math.max(0, Math.floor(temps() / 4))];
     expect(nav.textes).toContain(noteName(ch.bass + 12 + ch.ints[2]));
     expect(nav.textes).toContain("OCTAVE · 2× QUINTE");
   });

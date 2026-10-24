@@ -83,6 +83,9 @@ export interface VueDeScene {
   rates: { beat: number; voie: Voie; at: number }[];
   /** Les notes de la mélodie qui passent entre les temps `de` et `a`, dans l'ordre du temps */
   melodie(de: number, a: number): NoteDeScene[];
+  /** Le refrain en cours, ses temps de début et de fin dans la partie : son décor peut s'y déplier (#78) ; null au
+   * repos et hors refrain */
+  refrain: { debut: number; fin: number } | null;
 }
 
 /**

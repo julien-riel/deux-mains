@@ -21,6 +21,8 @@ export interface Univers {
   boss: { nom: string; phases: string[]; vaincu: string; fuite: string };
   /** Le nom du fantôme du meilleur passage (#32), devant l'écart de score sur la scène */
   fantome: string;
+  /** La bannière du pop-up qui se déplie dans le décor pendant le refrain (#78) */
+  refrain: string;
   deadTag: string;
   deadTitle: string;
   rail: string;
@@ -113,6 +115,7 @@ export const THEMES: Record<string, Univers> = {
       fuite: "Le drone s'enfuit, encore debout",
     },
     fantome: "FANTÔME",
+    refrain: "La ville chante !",
     deadTag: "Coupure de courant",
     deadTitle: "Le quartier s'est éteint",
     rail: "#0e0b1f",
@@ -197,6 +200,7 @@ export const THEMES: Record<string, Univers> = {
       fuite: "La mite s'envole, encore debout",
     },
     fantome: "REFLET",
+    refrain: "Souvenir retrouvé !",
     deadTag: "Ressort détendu",
     deadTitle: "La boîte s'est arrêtée",
     rail: "#1a120b",

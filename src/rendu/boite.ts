@@ -1,6 +1,5 @@
-import { S, progression } from "../jeu/etat";
+import { progression } from "../jeu/etat";
 import { COULEUR_BASSE } from "../jeu/traces";
-import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
 import { COL, PW, W, energy, g, hexA, hh, reduced, rr, teinteDeTrace, type PoseDuBoss } from "./outils";
 import type { SceneDeCote } from "./scenes/cote";
@@ -137,26 +136,6 @@ export function gear(cx, cy, r, teeth, ang, color) {
   g.arc(0, 0, r * 0.18, 0, Math.PI * 2);
   g.fill();
   g.restore();
-}
-// Le peigne : chaque couloir est une lame, qui vibre quand on la joue
-export function drawComb(pnow, hsl, cote: SceneDeCote) {
-  const bx = cote.impact(0).x - 46;
-  rr(bx, 128, 14, 294, 4);
-  g.fillStyle = hsl(40, 55, 36);
-  g.fill();
-  for (let i = 0; i < 4; i++) {
-    const fl = clamp(1 - (pnow - S.laneFlash[i]) / 300, 0, 1),
-      vib = Math.sin(pnow / 18) * 2.5 * fl;
-    g.fillStyle = hsl(42, 65, 50 + 18 * fl);
-    g.beginPath();
-    const { x, y } = cote.impact(i);
-    g.moveTo(bx + 14, y - 4);
-    g.lineTo(x - 17, y - 2 + vib);
-    g.lineTo(x - 17, y + 2 + vib);
-    g.lineTo(bx + 14, y + 4);
-    g.closePath();
-    g.fill();
-  }
 }
 // Le sol est le cylindre de la boîte, hérissé de picots
 export function boiteGround(nb, hsl, cote: SceneDeCote) {
