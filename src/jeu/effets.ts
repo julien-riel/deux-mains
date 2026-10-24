@@ -6,11 +6,13 @@ import {
   BOSS_X,
   BOSS_Y,
   COL,
+  CIBLE_Y,
   GY,
   HITX,
   HUE_BASS,
   LANE_HUE,
   LANE_Y,
+  PLONGEE,
   PW,
   PX,
   burst,
@@ -81,6 +83,18 @@ export const effets: Effets = {
       popup("Aïe", PX + 20, GY - 140, COL.bad);
     } else {
       popup("Raté", HITX + 30, yDeCouloir(ev.lane) - 26, COL.bad);
+      // L'ennemi raté plonge sur le joueur : il le frappe à la fin de sa plongée. Ce n'est qu'une image, les
+      // dégâts tombent au raté ; une petite note (#14) ne plonge pas. Le choc sonne à l'heure de l'horloge audio
+      // (ADR-0004), l'image le suit
+      if (Number.isInteger(ev.lane)) {
+        thud(maintenant() + PLONGEE / 1000);
+        setTimeout(() => {
+          S.hurtAt = performance.now();
+          S.shake = reduced ? 0 : 6;
+          popup("Aïe", PX + 20, GY - 140, COL.bad);
+          burst(PX + PW / 2, CIBLE_Y, 355, 12);
+        }, PLONGEE);
+      }
     }
   },
   lache(ev) {

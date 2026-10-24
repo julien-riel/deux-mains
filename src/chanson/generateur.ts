@@ -444,7 +444,7 @@ export function melodieEnPolyrythmie(
  * régénération de l'instantané (ADR-0005). Ce que la sauvegarde range sur les notes exactes d'une chanson (meilleur
  * score, tags, fantôme) porte cette version dans sa clé, et celui d'une autre version est ignoré.
  */
-export const VERSION_GENERATEUR = 2;
+export const VERSION_GENERATEUR = 3;
 
 // Le tirage d'une chanson : sa progression est le premier nombre tiré, avant la tonalité et le tempo
 const tirage = (seed: number) => mulberry32(seed * 9301 + 49297);

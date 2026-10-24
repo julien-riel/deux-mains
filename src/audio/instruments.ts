@@ -1,9 +1,187 @@
 // Instruments synthétisés : tous les sons sont créés avec Web Audio, sans fichier (ADR-0007)
 import { mtof } from "../chanson/theorie";
 import { S, chordAtBeat, layers, spb } from "../jeu/etat";
+import { ennemiDuLieu } from "../univers/univers";
 import { AC, B, decayGain, live, noise, osc, send, timeOfBeat } from "./moteur";
 
-export const leadTimbre = (kind) => (S.theme === "boite" ? "box" : kind === "refrain" ? "pluck" : "bell");
+// Le timbre de la mélodie : l'instrument de l'ennemi du lieu. Au premier lieu de la Ville, le refrain passe de la
+// cloche à la corde pincée.
+export const leadTimbre = (kind) => {
+  const t = ennemiDuLieu().timbre;
+  return t === "bell" && kind === "refrain" ? "pluck" : t;
+};
+
+/**
+ * Un timbre de la mélodie, propre à l'ennemi d'un lieu : ses partiels (forme d'onde, rapport à la note, gain, et
+ * pour un partiel bref la constante de temps où il s'éteint, en secondes), le filtre qu'ils traversent (qui peut
+ * se refermer vers `fin`), la constante de temps où s'éteint une note brève, la montée de l'attaque, et selon
+ * l'instrument un vibrato permanent (en cents), un trémolo (en Hz), un souffle (le gain d'un bruit filtré) ou un
+ * départ glissé de quelques demi-tons sous la note.
+ */
+interface Timbre {
+  partiels: [OscillatorType, number, number, number?][];
+  filtre?: { type: BiquadFilterType; f: number; q?: number; fin?: number };
+  bref: number;
+  attaque?: number;
+  vibrato?: number;
+  tremolo?: number;
+  souffle?: number;
+  glisse?: number;
+}
+export const TIMBRES: Record<string, Timbre> = {
+  // La Ville
+  sifflet: {
+    partiels: [
+      ["sine", 1, 1],
+      ["sine", 2, 0.08],
+    ],
+    bref: 0.18,
+    attaque: 0.02,
+    vibrato: 18,
+    souffle: 0.05,
+    glisse: 1,
+  },
+  neon: {
+    partiels: [
+      ["sawtooth", 1, 0.45],
+      ["sawtooth", 1.005, 0.45],
+      ["square", 0.5, 0.25],
+    ],
+    filtre: { type: "lowpass", f: 4200, q: 6, fin: 1100 },
+    bref: 0.2,
+  },
+  steel: {
+    partiels: [
+      ["sine", 1, 1],
+      ["sine", 2, 0.4, 0.15],
+      ["sine", 3, 0.22, 0.08],
+      ["sine", 4.2, 0.12, 0.05],
+    ],
+    bref: 0.3,
+  },
+  guitare: {
+    partiels: [
+      ["sawtooth", 1, 0.6],
+      ["triangle", 1, 0.6],
+    ],
+    filtre: { type: "lowpass", f: 4200, q: 1, fin: 700 },
+    bref: 0.25,
+  },
+  orgue: {
+    partiels: [
+      ["sine", 0.5, 0.3],
+      ["sine", 1, 0.7],
+      ["sine", 2, 0.45],
+      ["sine", 3, 0.25],
+      ["sine", 4, 0.18],
+    ],
+    bref: 0.4,
+    attaque: 0.02,
+  },
+  trompette: {
+    partiels: [["sawtooth", 1, 1]],
+    filtre: { type: "bandpass", f: 1500, q: 1.6, fin: 900 },
+    bref: 0.16,
+    attaque: 0.03,
+    vibrato: 10,
+  },
+  harmonica: {
+    partiels: [
+      ["square", 1, 0.5],
+      ["sawtooth", 1.004, 0.5],
+    ],
+    filtre: { type: "bandpass", f: 1800, q: 2.5 },
+    bref: 0.18,
+    attaque: 0.015,
+    tremolo: 6,
+    souffle: 0.05,
+  },
+  theremine: {
+    partiels: [
+      ["sine", 1, 1],
+      ["triangle", 1, 0.25],
+    ],
+    bref: 0.35,
+    attaque: 0.05,
+    vibrato: 30,
+    glisse: 2,
+  },
+  // La Boîte
+  flute: {
+    partiels: [
+      ["sine", 1, 1],
+      ["triangle", 2, 0.12],
+    ],
+    bref: 0.2,
+    attaque: 0.03,
+    vibrato: 12,
+    souffle: 0.06,
+  },
+  violon: {
+    partiels: [
+      ["sawtooth", 1, 0.6],
+      ["sawtooth", 1.004, 0.5],
+    ],
+    filtre: { type: "lowpass", f: 2600, q: 3 },
+    bref: 0.25,
+    attaque: 0.05,
+    vibrato: 22,
+  },
+  kalimba: {
+    partiels: [
+      ["sine", 1, 1],
+      ["sine", 5.95, 0.3, 0.03],
+      ["triangle", 2, 0.1, 0.1],
+    ],
+    bref: 0.35,
+  },
+  mandoline: {
+    partiels: [
+      ["sawtooth", 1, 0.5],
+      ["sawtooth", 1.006, 0.5],
+      ["triangle", 2, 0.2],
+    ],
+    filtre: { type: "lowpass", f: 3500, fin: 1500 },
+    bref: 0.3,
+    tremolo: 12,
+  },
+  clavecin: {
+    partiels: [
+      ["sawtooth", 1, 0.5],
+      ["square", 2, 0.25],
+      ["sawtooth", 4, 0.12, 0.05],
+    ],
+    filtre: { type: "highpass", f: 300 },
+    bref: 0.22,
+  },
+  piano: {
+    partiels: [
+      ["sine", 1, 1],
+      ["sine", 3.2, 0.35, 0.05],
+      ["triangle", 2, 0.15, 0.1],
+    ],
+    bref: 0.3,
+  },
+  barbarie: {
+    partiels: [
+      ["square", 1, 0.45],
+      ["sawtooth", 2, 0.3],
+      ["square", 0.5, 0.2],
+    ],
+    filtre: { type: "lowpass", f: 2400, q: 1.5 },
+    bref: 0.2,
+    tremolo: 7,
+  },
+  verre: {
+    partiels: [
+      ["sine", 1, 1],
+      ["sine", 2, 0.15],
+    ],
+    bref: 0.6,
+    attaque: 0.08,
+    vibrato: 6,
+  },
+};
 
 export const boite = () => S.theme === "boite";
 export function kick(t, v = 0.85) {
@@ -157,13 +335,20 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     hold = dur > 0,
     end = t + dur,
     stop = end + 1.4;
+  const T = TIMBRES[timbre],
+    monte = T?.attaque ?? 0.005;
   const gn = AC.createGain();
   gn.gain.setValueAtTime(0, t);
-  gn.gain.linearRampToValueAtTime(0.24 * vel, t + 0.005);
+  gn.gain.linearRampToValueAtTime(0.24 * vel, t + monte);
   if (hold) {
-    gn.gain.setTargetAtTime(0.14 * vel, t + 0.01, 0.12);
+    gn.gain.setTargetAtTime(0.14 * vel, t + monte + 0.005, 0.12);
     gn.gain.setTargetAtTime(0, end, 0.08);
-  } else gn.gain.setTargetAtTime(0, t + 0.01, timbre === "box" ? 0.4 : timbre === "bell" ? 0.22 : 0.14);
+  } else
+    gn.gain.setTargetAtTime(
+      0,
+      t + monte + 0.005,
+      T?.bref ?? (timbre === "box" ? 0.4 : timbre === "bell" ? 0.22 : 0.14),
+    );
   // Les oscillateurs de la voix : le vibrato fait osciller leur hauteur ensemble, le serpent la fait glisser
   const os: OscillatorNode[] = [],
     o = (type, fr, fin, det = 0) => {
@@ -171,7 +356,8 @@ export function leadV(t, m, dur, timbre, vel = 1) {
       os.push(n);
       return n;
     };
-  if (timbre === "box") {
+  if (T) timbreDuLieu(T, f, t, stop, gn, o);
+  else if (timbre === "box") {
     // Lame de boîte à musique : partiels inharmoniques très brefs, fondamentale qui tinte
     const f2 = f * 2;
     o("sine", f2, stop + 0.6).connect(gn);
@@ -239,6 +425,61 @@ export function leadV(t, m, dur, timbre, vel = 1) {
     },
   };
 }
+/** Monte les partiels d'un timbre de lieu dans `gn`, avec son filtre, son trémolo, son vibrato et son souffle */
+function timbreDuLieu(T: Timbre, f, t, stop, gn: GainNode, o: (type, fr, fin, det?) => OscillatorNode) {
+  let sortie: AudioNode = gn;
+  if (T.tremolo) {
+    const tr = AC.createGain(),
+      lfo = AC.createGain();
+    tr.gain.value = 0.75;
+    lfo.gain.value = 0.25;
+    osc("sine", T.tremolo, t, stop).connect(lfo);
+    lfo.connect(tr.gain);
+    tr.connect(sortie);
+    sortie = tr;
+  }
+  if (T.filtre) {
+    const fl = AC.createBiquadFilter();
+    fl.type = T.filtre.type;
+    fl.Q.value = T.filtre.q ?? 1;
+    fl.frequency.setValueAtTime(T.filtre.f, t);
+    if (T.filtre.fin) fl.frequency.setTargetAtTime(T.filtre.fin, t + 0.01, 0.12);
+    fl.connect(sortie);
+    sortie = fl;
+  }
+  const vib = T.vibrato ? AC.createGain() : null;
+  if (vib) {
+    // Le vibrato arrive après l'attaque, comme celui d'un souffle ou d'un archet
+    vib.gain.setValueAtTime(0, t);
+    vib.gain.linearRampToValueAtTime(T.vibrato, t + 0.25);
+    osc("sine", VIBRATO_HZ, t, stop).connect(vib);
+  }
+  for (const [type, r, v, bref] of T.partiels) {
+    const n = o(type, f * r, stop),
+      p = AC.createGain();
+    p.gain.setValueAtTime(v, t);
+    if (bref) p.gain.setTargetAtTime(0, t, bref);
+    if (T.glisse) {
+      n.frequency.setValueAtTime(f * r * 2 ** (-T.glisse / 12), t);
+      n.frequency.setTargetAtTime(f * r, t, 0.03);
+    }
+    if (vib) vib.connect(n.detune);
+    n.connect(p);
+    p.connect(sortie);
+  }
+  if (T.souffle) {
+    const bp = AC.createBiquadFilter(),
+      sg = AC.createGain();
+    bp.type = "bandpass";
+    bp.frequency.value = f * 2;
+    bp.Q.value = 3;
+    sg.gain.setValueAtTime(T.souffle, t);
+    sg.gain.setTargetAtTime(0, t + 0.04, 0.08);
+    noise(t, 0.4).connect(bp);
+    bp.connect(sg);
+    sg.connect(gn);
+  }
+}
 // Le temps du glissando d'un serpent (#16) : la constante de temps de la montée vers la nouvelle note, en secondes
 export const GLISSANDO = 0.035;
 /** Fait glisser la voix d'un serpent (#16) jusqu'à la note de son couloir `k`, à l'heure `t` */
@@ -273,8 +514,8 @@ export function stringsV(t, ch, dur) {
   for (const m of ch.lanes.slice(0, 3))
     for (const det of [-9, 9]) osc("sawtooth", mtof(m + 12), t, t + dur + 1, det).connect(lp);
 }
-export function thud() {
-  const t = AC.currentTime;
+// `t` : l'heure du choc sur l'horloge audio, tout de suite par défaut
+export function thud(t = AC.currentTime) {
   const o = osc("sine", 78, t, t + 0.3, 60);
   o.frequency.exponentialRampToValueAtTime(44, t + 0.2);
   const gn = decayGain(t, 0.55, 0.26);

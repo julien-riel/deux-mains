@@ -22,7 +22,7 @@ import {
   type Reglage,
 } from "../jeu/editeur";
 import { newRun } from "../jeu/deroulement";
-import { S, enComposition, progression, type EditeurEnCours } from "../jeu/etat";
+import { S, airEnCours, enComposition, progression, type EditeurEnCours } from "../jeu/etat";
 import { decoderPartition, encoderPartition } from "../sauvegarde/code";
 import { MAX_COMPOSITIONS, compositions, rangerComposition, retirerComposition } from "../sauvegarde/format";
 import { overlay, show } from "./ecrans";
@@ -77,7 +77,8 @@ export function ouvrirEditeur(exemple?: Partition) {
 
 /** Quitte l'éditeur : l'écran de départ ; après avoir joué une composition, celui de la chanson du joueur */
 export function fermerEditeur() {
-  if (enComposition() && !S.essai) return load(S.seed, diffDuJoueur());
+  // Un air du répertoire ouvert dans l'éditeur (ADR-0018) : on revient à son écran de départ
+  if (enComposition() && !airEnCours() && !S.essai) return load(S.seed, diffDuJoueur());
   S.mode = "title";
   show("title");
 }

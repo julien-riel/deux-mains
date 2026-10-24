@@ -9,6 +9,11 @@ export interface Univers {
   layers: string[];
   /** Le lieu de chaque progression */
   places: Record<string, string>;
+  /**
+   * L'ennemi de la mélodie de chaque lieu, par progression : son dessin (une clé des ennemis de l'univers, dans
+   * `rendu/`), le timbre de ses notes (une clé de `TIMBRES`, dans `audio/instruments.ts`) et leurs noms
+   */
+  ennemis: Record<string, { dessin: string; timbre: string; nom: string; instrument: string }>;
   solo: string;
   /** Sous le nom du pont en mains croisées (#21), quand la scène se retourne */
   croisee: string;
@@ -60,6 +65,12 @@ export interface Univers {
     rangees: string;
     aide: string;
   };
+  /** Le répertoire des chansons connues (ADR-0018) : le nom du bouton, le titre de l'écran et ce qu'il dit */
+  repertoire: {
+    nom: string;
+    titre: string;
+    aide: string;
+  };
 }
 
 // Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
@@ -76,6 +87,20 @@ export const THEMES: Record<string, Univers> = {
       "Vamp dorien": "Le Marché de nuit",
       "Cadence andalouse": "Le Port",
       "Canon de Pachelbel": "La Cathédrale",
+      "ii–V–I": "Le Club de jazz",
+      Blues: "Le Métro",
+      "Vamp lydien": "L'Observatoire",
+    },
+    ennemis: {
+      "I–V–vi–IV": { dessin: "drone", timbre: "bell", nom: "Drone", instrument: "cloche" },
+      "vi–IV–I–V": { dessin: "pigeon", timbre: "sifflet", nom: "Pigeon espion", instrument: "sifflet" },
+      "Royal Road": { dessin: "meduse", timbre: "neon", nom: "Méduse néon", instrument: "synthé néon" },
+      "Vamp dorien": { dessin: "lanterne", timbre: "steel", nom: "Lanterne espionne", instrument: "steel-drum" },
+      "Cadence andalouse": { dessin: "mouette", timbre: "guitare", nom: "Mouette d'acier", instrument: "guitare" },
+      "Canon de Pachelbel": { dessin: "gargouille", timbre: "orgue", nom: "Gargouille", instrument: "orgue" },
+      "ii–V–I": { dessin: "trompette", timbre: "trompette", nom: "Sourdine", instrument: "trompette bouchée" },
+      Blues: { dessin: "camera", timbre: "harmonica", nom: "Caméra", instrument: "harmonica" },
+      "Vamp lydien": { dessin: "satellite", timbre: "theremine", nom: "Satellite espion", instrument: "thérémine" },
     },
     solo: "En ondes : la radio pirate est à toi",
     croisee: "La ville à l'envers : tes touches ne changent pas",
@@ -119,6 +144,11 @@ export const THEMES: Record<string, Univers> = {
       rangees: "Mes émissions",
       aide: "Allume une touche pour y mettre une note : en haut les quatre couloirs de la mélodie, en bas sauter et glisser. Les notes jouent les degrés de l'accord en cours.",
     },
+    repertoire: {
+      nom: "Disques",
+      titre: "Les disques de la radio pirate",
+      aide: "Des airs que toute la ville fredonnait avant le silence, réarrangés pour la radio pirate. Chacun passe dans un quartier, avec ses ennemis, mais ne le rallume pas.",
+    },
   },
   boite: {
     label: "La Boîte à musique",
@@ -132,6 +162,30 @@ export const THEMES: Record<string, Univers> = {
       "Vamp dorien": "Un après-midi de pluie",
       "Cadence andalouse": "Une dispute",
       "Canon de Pachelbel": "Un mariage",
+      "ii–V–I": "Un bal masqué",
+      Blues: "Un train de nuit",
+      "Vamp lydien": "Un rêve",
+    },
+    ennemis: {
+      "I–V–vi–IV": { dessin: "papillon", timbre: "box", nom: "Papillon de nuit", instrument: "boîte à musique" },
+      "vi–IV–I–V": { dessin: "hirondelle", timbre: "flute", nom: "Hirondelle de papier", instrument: "flûte à bec" },
+      "Royal Road": { dessin: "libellule", timbre: "violon", nom: "Libellule de laiton", instrument: "violon" },
+      "Vamp dorien": { dessin: "araignee", timbre: "kalimba", nom: "Araignée d'horlogerie", instrument: "kalimba" },
+      "Cadence andalouse": { dessin: "guepe", timbre: "mandoline", nom: "Guêpe de cuivre", instrument: "mandoline" },
+      "Canon de Pachelbel": { dessin: "colombe", timbre: "clavecin", nom: "Colombe fêlée", instrument: "clavecin" },
+      "ii–V–I": { dessin: "masque", timbre: "piano", nom: "Masque de bal", instrument: "piano jouet" },
+      Blues: {
+        dessin: "chauvesouris",
+        timbre: "barbarie",
+        nom: "Chauve-souris de papier",
+        instrument: "orgue de Barbarie",
+      },
+      "Vamp lydien": {
+        dessin: "chouette",
+        timbre: "verre",
+        nom: "Chouette automate",
+        instrument: "harmonica de verre",
+      },
     },
     solo: "La figurine se souvient : joue ce que tu veux",
     croisee: "La boîte se renverse : tes touches ne changent pas",
@@ -175,9 +229,19 @@ export const THEMES: Record<string, Univers> = {
       rangees: "Mes cylindres",
       aide: "Plante un picot pour y mettre une note : en haut les quatre lames de la mélodie, en bas sauter et glisser. Les lames jouent les degrés de l'accord en cours.",
     },
+    repertoire: {
+      nom: "Airs",
+      titre: "Les airs de la boîte",
+      aide: "Des airs anciens que la boîte a toujours su jouer. Chacun se joue dans un souvenir, avec ses ennemis ; il ne compte pas pour l'album.",
+    },
   },
 };
 
 export const TH = (): Univers => THEMES[S.theme];
 /** Le lieu de la chanson, ou le boss dans un niveau de boss (#26) */
 export const placeName = () => (S.song.boss ? TH().boss.nom : TH().places[S.song.prog.name]);
+/** L'ennemi de la mélodie de la chanson : celui du lieu de sa progression, dans l'univers en cours */
+export const ennemiDuLieu = () => {
+  const e = TH().ennemis;
+  return e[S.song?.prog.name] ?? Object.values(e)[0];
+};

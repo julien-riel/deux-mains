@@ -168,7 +168,7 @@ describe("la grille de l'éditeur", () => {
     expect(regler(p, "diff", "difficile").diff).toBe("difficile");
     expect(regler(p, "diff", "extreme").diff).toBe(p.diff);
     expect(regler(p, "prog", "Vamp dorien").prog).toBe("Vamp dorien");
-    expect(regler(p, "prog", "Blues").prog).toBe(p.prog);
+    expect(regler(p, "prog", "Bossa nova").prog).toBe(p.prog);
   });
 });
 

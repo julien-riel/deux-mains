@@ -163,7 +163,8 @@ async function ouvrirEssai() {
 
 describe("réécouter sa partie", () => {
   // La réécoute ne voit les coups qu'aux images, mais les fait sonner à l'heure exacte où ils ont été joués. Seul
-  // le bruit d'un obstacle raté (deux sons) vient à l'image où on le voit passer, et peut glisser d'une image.
+  // le choc d'un raté (deux sons) vient à l'image où on le voit, et peut glisser d'une image : l'obstacle raté qui
+  // heurte le joueur, ou l'ennemi raté qui plonge sur lui.
   it.each([
     ["aux images", false],
     ["entre deux images", true],
@@ -209,7 +210,8 @@ describe("réécouter sa partie", () => {
       expect({ ...reecoutee, sons: [] }).toEqual({ ...partie, sons: [] });
       expect(reecoutee.sons.length).toBe(partie.sons.length);
       const decales = reecoutee.sons.filter((t, i) => t !== partie.sons[i]).length;
-      expect(decales).toBeLessThanOrEqual(entreDeuxImages ? 2 * S.parMain.L.miss : 0);
+      const chocs = S.ev.filter((ev) => ev.state === "miss" && (ev.hand === "L" || Number.isInteger(ev.lane))).length;
+      expect(decales).toBeLessThanOrEqual(2 * chocs);
       expect(reecoutee.sons.every((t, i) => Math.abs(t - partie.sons[i]) < 1 / 60)).toBe(true);
       // Rejouée, la partie redonne les mêmes coups avec les mêmes résultats ; on peut la réécouter encore
       expect(S.enregistrement.coups).toEqual(enr.coups);

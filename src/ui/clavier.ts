@@ -2,7 +2,7 @@ import { songNow } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { finish, lancerJam, newRun, pause, quitterJam, resumeCP, unpause } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
-import { S, enComposition, spb } from "../jeu/etat";
+import { S, airEnCours, enComposition, spb } from "../jeu/etat";
 import { peutReecouter, quitterReecoute, reecouter } from "../jeu/reecoute";
 import { appliquerCalibrage, fermerCalibrage, lancerCalibrage, taper } from "./calibrage";
 import { choisirLieu, enchainer, fermerCarte, lieuNumero, ouvrirCarte } from "./carte";
@@ -12,6 +12,7 @@ import { fermerMenuEssais, menuEssais, ouvrirEssai, taperChiffre, validerChiffre
 import { collerCode, copierCode, ouvrirSauvegarde } from "./progression";
 import { basculerBoss, nouvelleChanson, quitterEssai } from "./reglages";
 import { lancerRemontage, passerLeRemontage, taperRemontage } from "./remontage";
+import { airNumero, editerAir, fermerRepertoire, jouerAir, ouvrirRepertoire } from "./repertoire";
 import { ACTION_DE, CLAVIER, KEYLABEL, etiquettes } from "./touches";
 
 overlay.addEventListener("click", (e) => {
@@ -40,6 +41,10 @@ overlay.addEventListener("click", (e) => {
   else if (act === "coller") collerCode(document.querySelector<HTMLTextAreaElement>("#code-colle")?.value ?? "");
   else if (act === "boss") basculerBoss();
   else if (act === "editeur") ouvrirEditeur();
+  else if (act === "repertoire") ouvrirRepertoire();
+  else if (act === "fermer-repertoire") fermerRepertoire();
+  else if (act === "air") jouerAir(b.dataset.air);
+  else if (act === "editer-air") editerAir();
 });
 
 /* ---------- Entrées ---------- */
@@ -120,6 +125,12 @@ addEventListener("keydown", (e) => {
     else if (c === "Escape") fermerCarte();
   } else if (S.mode === "sauvegarde") {
     if (c === "Escape") ouvrirCarte();
+  } else if (S.mode === "repertoire") {
+    // Le répertoire (ADR-0018) : un chiffre prépare l'air de ce numéro
+    const n = /^(?:Digit|Numpad)([1-9])$/.exec(c),
+      air = n && airNumero(+n[1]);
+    if (air) jouerAir(air.id);
+    else if (c === "Escape") fermerRepertoire();
   } else if (S.mode === "title") {
     // L'essai de la jam (#24) n'a qu'un départ : la jam
     const jam = !!S.essai?.essai.jam,
@@ -138,6 +149,10 @@ addEventListener("keydown", (e) => {
     else if (c === "KeyE") menuEssais();
     else if (c === "KeyC") ouvrirCarte();
     else if (c === "KeyB" && !S.essai) basculerBoss();
+    else if (c === "KeyM") ouvrirRepertoire();
+    // Un air du répertoire (ADR-0018) s'ouvre dans l'éditeur, et Échap revient au répertoire
+    else if (c === "KeyP" && airEnCours()) editerAir();
+    else if (c === "Escape" && airEnCours()) ouvrirRepertoire();
     // L'éditeur (#28) : hors essai, ou dans l'essai de l'éditeur ; une composition y revient aussi par Échap
     else if (c === "KeyP" && (!S.essai || S.essai.essai.partition)) ouvrirEditeur();
     else if (c === "Escape" && S.essai) quitterEssai();
@@ -166,7 +181,10 @@ addEventListener("keydown", (e) => {
     } else if (c === "KeyN") nouvelleChanson();
     else if (c === "KeyB" && S.mode === "done" && !S.essai && !enComposition()) basculerBoss();
     else if (c === "KeyE" && S.essai) menuEssais();
-    // Une composition jouée (#28) revient à l'éditeur
+    // Un air joué (ADR-0018) revient au répertoire, une composition jouée (#28) à l'éditeur
+    else if (c === "KeyM") ouvrirRepertoire();
+    else if (c === "KeyP" && airEnCours()) editerAir();
+    else if (c === "Escape" && airEnCours()) ouvrirRepertoire();
     else if (c === "KeyP" && enComposition()) ouvrirEditeur();
     else if (c === "Escape" && S.essai) quitterEssai();
     else if (c === "Escape" && enComposition()) ouvrirEditeur();

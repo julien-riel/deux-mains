@@ -16,6 +16,26 @@ export const GY = 505,
   HITX = 300,
   PPB = 150;
 export const LANE_Y = [395, 315, 235, 155];
+/** Une palette : la teinte, la saturation et la luminosité d'une couleur, désaturée pour une silhouette */
+export type Palette = (h: number, s: number, l: number, a?: number) => string;
+/**
+ * Le dessin d'un ennemi de la mélodie, centré en (x, y) : `ev` sa note (`kind === "refrain"` le grossit, `beat`
+ * décale son animation), `col` la couleur de sa note, `a` son opacité, `nb` le temps de la chanson, `m` la menace
+ * (de 0 à 1) qui monte à l'approche de la ligne de tir. Chaque lieu a le sien, dans chaque univers.
+ */
+export type DessinEnnemi = (
+  x: number,
+  y: number,
+  ev: { kind: string; beat: number },
+  col: string,
+  a: number,
+  nb: number,
+  hsl: Palette,
+  m?: number,
+) => void;
+/** Un ennemi raté plonge sur le joueur : il le frappe au bout de `PLONGEE` ms, à hauteur de poitrine (`CIBLE_Y`) */
+export const PLONGEE = 260,
+  CIBLE_Y = GY - 44;
 /** Le boss de fin (#26) plane à droite de la scène, derrière les couloirs d'où sortent ses ennemis */
 export const BOSS_X = W - 130,
   BOSS_Y = 275;

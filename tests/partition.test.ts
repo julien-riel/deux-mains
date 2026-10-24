@@ -8,6 +8,7 @@ import {
   composer,
   empreinteDe,
   graineDe,
+  lireAccord,
   lirePartition,
   normaliser,
   notesDeMelodie,
@@ -15,13 +16,14 @@ import {
 } from "../src/chanson/partition";
 import { surLaGrille } from "../src/chanson/temps";
 import { gammeDe, makeChord, PROGS } from "../src/chanson/theorie";
+import { REPERTOIRE } from "../src/chanson/repertoire";
 import { partitionExemple } from "../src/essais/registre";
 import { PREFIXE_PARTITION, base64url, decoderPartition, encoderPartition } from "../src/sauvegarde/code";
 import { decrireChanson } from "./support/instantane";
 
-// Une partition qui écrit tous les signes de la notation, en croches et en triolets
+// Une partition qui écrit tous les signes de la notation v1, en croches et en triolets
 const riche = (): Partition => ({
-  v: VERSION_PARTITION,
+  v: 1,
   titre: "Toute la notation",
   ton: 2,
   bpm: 104,
@@ -40,6 +42,28 @@ const riche = (): Partition => ({
     { genre: "polyrythmie", mesures: 2, basse: ["SWSS..SWSS.."], melodie: ["01..23.."] },
     { genre: "refrain", mesures: 2, basse: ["S.W.S.W."], melodie: ["012301230123"] },
     { genre: "outro", mesures: 1, basse: ["S......."], melodie: ["0-------"] },
+  ],
+});
+
+// Une partition v2 (ADR-0018) : des accords écrits, repris en boucle, et des petites notes dans la gamme entière
+const avecAccords = (): Partition => ({
+  v: 2,
+  titre: "Accords écrits",
+  ton: 0,
+  bpm: 100,
+  diff: "normal",
+  prog: "I–V–vi–IV",
+  sections: [
+    { genre: "intro", mesures: 1, basse: ["S......."], melodie: [] },
+    {
+      genre: "couplet",
+      mesures: 4,
+      accords: ["I", "V7", "vi", "bVII"],
+      basse: ["S...W..."],
+      melodie: ["1.1.b.2.", "0.a.1.2.", "0.1.2.3.", "2c2.0..."],
+    },
+    { genre: "refrain", mesures: 3, accords: ["IVM7", "ii7"], basse: ["S.W.S.W."], melodie: ["0.1.2.3."] },
+    { genre: "outro", mesures: 1, accords: ["#iv"], basse: ["S......."], melodie: ["0-------"] },
   ],
 });
 
@@ -117,12 +141,80 @@ describe("composer une partition", () => {
 
   it("l'exemple de l'essai et la partition riche donnent toujours les mêmes chansons (instantané des partitions)", async () => {
     const resultat = Object.fromEntries(
-      [partitionExemple(), riche()].map((p) => [
+      [partitionExemple(), riche(), avecAccords(), ...REPERTOIRE.map((a) => a.partition)].map((p) => [
         p.titre,
         { empreinte: empreinteDe(p), chanson: decrireChanson(composer(p)) },
       ]),
     );
     await expect(JSON.stringify(resultat, null, 2) + "\n").toMatchFileSnapshot("./instantanes/partitions.json");
+  });
+});
+
+describe("les accords écrits et la gamme entière (version 2, ADR-0018)", () => {
+  it("un accord s'écrit en chiffres romains, relatif à la tonique", () => {
+    expect(["I", "V7", "vi", "ii7", "IVM7", "bVII", "#iv", "bII", "VII"].map((a) => lireAccord(a))).toEqual([
+      [0, "M"],
+      [7, "7"],
+      [9, "m"],
+      [2, "m7"],
+      [5, "M7"],
+      [10, "M"],
+      [6, "m"],
+      [1, "M"],
+      [11, "M"],
+    ]);
+    for (const faux of ["", "viM7", "VIII", "Iv", "I9", "C", "bbII", " I"]) expect(lireAccord(faux)).toBeNull();
+  });
+
+  it("chaque section suit ses accords, repris en boucle ; sans accords, la progression", () => {
+    const c = composer(avecAccords()),
+      noms = c.chords.map((ch) => ch.name);
+    expect(noms).toEqual(["C", "C", "G7", "Am", "Bb", "Fmaj7", "Dm7", "Fmaj7", "F#m"]);
+    expect(c.chords[2]).toEqual(makeChord(0, [7, "7"]));
+    expect(c.progLabel).toBe("C – G7 – Am – Bb – Fmaj7 – Dm7");
+    // Une partition sans accords écrits garde le nom de sa progression
+    expect(composer(riche()).progLabel).toBe("Gmaj7 – A7 – F#m7 – Bm7");
+  });
+
+  it("les couloirs jouent les degrés de l'accord écrit, et les petites notes la gamme entière", () => {
+    const c = composer(avecAccords()),
+      mesure = (bar: number) => c.ev.filter((e) => e.hand === "R" && e.bar === bar).map((e) => e.midi);
+    // Mi Mi Fa Sol : le Fa, absent de la pentatonique, est entre la tierce et la quinte de Do
+    expect(mesure(1)).toEqual([64, 64, 65, 67]);
+    // Sol La Si Ré sur Sol7
+    expect(mesure(2)).toEqual([67, 69, 71, 74]);
+    // Sur Si♭ (bVII), Fa Sol Fa Si♭ : la petite note prend la gamme corrigée par l'accord
+    expect(mesure(4)).toEqual([77, 79, 77, 70]);
+    // En version 1, la petite note disparaît : la pentatonique de Ré n'a rien entre la tierce et la quinte de Sol
+    const v1 = { ...riche(), sections: [{ genre: "couplet" as const, mesures: 1, basse: [], melodie: ["1.1.b.2."] }] };
+    expect(composer(v1).ev.map((e) => e.midi)).toEqual([71, 71, 74]);
+    expect(composer({ ...v1, v: 2 }).ev.map((e) => e.midi)).toEqual([71, 71, 73, 74]);
+  });
+
+  it("les accords ne s'écrivent qu'en version 2, valides, de 1 à 32 ; une partition v1 garde sa forme", () => {
+    expect(lirePartition(JSON.parse(JSON.stringify(avecAccords())))).toEqual(avecAccords());
+    const avec = (f: (p: Partition) => void) => {
+      const p = avecAccords();
+      f(p);
+      return lirePartition(JSON.parse(JSON.stringify(p)));
+    };
+    for (const faux of [
+      avec((p) => (p.v = 1)),
+      avec((p) => (p.sections[1].accords = [])),
+      avec((p) => (p.sections[1].accords = ["I", "X"])),
+      avec((p) => (p.sections[1].accords = Array(33).fill("I"))),
+      avec((p) => ((p.sections[1] as unknown as { accords: string }).accords = "I")),
+      avec((p) => ((p.sections[1] as unknown as { accords: number[] }).accords = [1])),
+    ])
+      expect(faux).toBeNull();
+    expect(Object.keys(normaliser(riche()).sections[1])).toEqual(["genre", "mesures", "basse", "melodie"]);
+    expect(Object.keys(normaliser(avecAccords()).sections[1])).toEqual([
+      "genre",
+      "mesures",
+      "basse",
+      "melodie",
+      "accords",
+    ]);
   });
 });
 
@@ -153,7 +245,7 @@ describe("ce qu'une partition permet", () => {
       avec((p) => (p.bpm = 59)),
       avec((p) => (p.bpm = 181)),
       avec((p) => (p.diff = "extreme")),
-      avec((p) => (p.prog = "Blues")),
+      avec((p) => (p.prog = "Bossa nova")),
       avec((p) => (p.sections = [])),
       avec((p) => (p.sections = Array.from({ length: 17 }, () => (p.sections as unknown[])[1]))),
       avec((p) => ((p.sections as Record<string, unknown>[])[1].genre = "pont-levis")),
@@ -202,7 +294,7 @@ describe("empreinte et code de partage", () => {
 
   it("le code DMP recrée la partition à l'identique, même coupé ou recopié avec des espaces", () => {
     const code = encoderPartition(riche());
-    expect(code.startsWith(`${PREFIXE_PARTITION}${VERSION_PARTITION}.`)).toBe(true);
+    expect(code.startsWith(`${PREFIXE_PARTITION}1.`)).toBe(true);
     expect(decoderPartition(code)).toEqual({ etat: "ok", partition: normaliser(riche()) });
     const coupe = ` ${code.slice(0, 12)}\n${code.slice(12)} `;
     expect(decoderPartition(coupe)).toEqual({ etat: "ok", partition: normaliser(riche()) });
@@ -223,7 +315,8 @@ describe("empreinte et code de partage", () => {
       `DMP1.${base64url(json.replace('"ton":2', '"ton":13'))}`,
     ])
       expect(decoderPartition(faux).etat).toBe("invalide");
-    const futur = `DMP2.${base64url(json.replace('"v":1', '"v":2'))}`;
-    expect(decoderPartition(futur)).toEqual({ etat: "plus-recente", version: 2 });
+    const v = VERSION_PARTITION + 1,
+      futur = `DMP${v}.${base64url(json.replace('"v":1', `"v":${v}`))}`;
+    expect(decoderPartition(futur)).toEqual({ etat: "plus-recente", version: v });
   });
 });

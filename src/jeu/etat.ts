@@ -25,6 +25,7 @@ export type Mode =
   | "title"
   | "essais"
   | "carte"
+  | "repertoire"
   | "sauvegarde"
   | "editeur"
   | "calib"
@@ -364,6 +365,8 @@ export function tracesAffichees(): number[] {
 
 /** La chanson installée vient d'une partition écrite à la main (#28, ADR-0016) */
 export const enComposition = () => S.song?.source?.genre === "partition";
+/** L'air du répertoire joué (ADR-0018), ou undefined : une chanson connue est aussi une partition */
+export const airEnCours = () => (S.song?.source?.genre === "partition" ? S.song.source.repertoire : undefined);
 
 // Le combo qui fait le multiplicateur d'une main : en duo, celui de son joueur (#6) ; sinon le combo commun
 export const comboDe = (hand?: Main) => (hand && S.practice === "duo" ? S.parMain[hand].combo : S.combo);
