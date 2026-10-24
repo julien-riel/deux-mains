@@ -11,7 +11,7 @@ import { NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/genera
 import { VERSION_PARTITION, composer, type Partition } from "../chanson/partition";
 import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
-import type { IdScene } from "../jeu/scenes";
+import { sceneDuLieu, type IdScene } from "../jeu/scenes";
 import { reunir, trace } from "../jeu/traces";
 import { cleEssai, sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
 import { accorder, assembler, chanter, fantomeFictif, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
@@ -829,6 +829,22 @@ export const ESSAIS: Essai[] = [
     // Chaque note de la mélodie pince ou casse une corde
     repere: (ev) => ev.hand === "R",
   })),
+  {
+    id: "carte-scenes",
+    titre: "Une scène par lieu",
+    verifier:
+      "Ouvre la Carte (C) : chaque quartier porte l'étiquette de sa scène, un pictogramme et un nom. Les deux premiers sont de côté, puis viennent les colonnes, le disque et l'horizon. La chanson de l'essai, celle de la cadence andalouse, se joue en colonnes comme son quartier, même si ton réglage « Scène » en fixe une autre, et l'essai ne change pas ce réglage. Hors des essais, choisis un lieu sur la carte : sa chanson s'ouvre dans sa scène ; le réglage « Scène » en fixe une pour toutes les chansons.",
+    issue: 83,
+    univers: "ville",
+    diff: "normal",
+    // La scène du lieu de sa chanson, quel que soit le réglage du joueur
+    scene: sceneDuLieu(progressionDe(GRAINE).name),
+    mains: "both",
+    chanson: () => assembler(GRAINE, "normal", [INTRO, couplet(2, 8), OUTRO]),
+    // La carte ne fait pas de notes : le repère est toute la chanson, jouée dans la scène de son lieu
+    repere: () => true,
+    progression: progressionFictive,
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

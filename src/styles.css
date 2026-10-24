@@ -347,7 +347,7 @@ button kbd {
 }
 /* Les esquisses rapetissent sur une scène basse (téléphone à l'horizontale) : elles sont rognées, pas déformées.
    Trois rangées de trois lieux tiennent sur la scène, dont la hauteur suit la largeur. */
-.carte .lieu svg {
+.carte .lieu > svg {
   display: block;
   width: 100%;
   height: clamp(30px, min(9vh, 5.5vw), 84px);
@@ -364,7 +364,36 @@ button kbd {
   font-weight: 400;
   color: var(--muted);
 }
-.carte .lieu.a-faire svg {
+/* La scène du lieu (#83), en étiquette sur le coin de l'esquisse */
+.carte .lieu {
+  position: relative;
+}
+.carte .lieu .scene-lieu {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 999px;
+  background: rgb(10 8 20 / 0.82);
+  color: #f3eee2;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 16px;
+  pointer-events: none;
+}
+.carte .lieu .scene-lieu svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.carte .lieu.a-faire > svg {
   opacity: 0.75;
 }
 .carte .lieu.reussi small {
@@ -376,7 +405,7 @@ button kbd {
 .carte .lieu:disabled {
   cursor: default;
 }
-.carte.boite .lieu.reussi svg {
+.carte.boite .lieu.reussi > svg {
   outline: 3px solid #a07a3c;
   outline-offset: -3px;
 }
@@ -464,6 +493,7 @@ button kbd {
 #seed,
 #decalage,
 #boucle,
+#scene,
 #separation {
   font-family: var(--mono);
   font-size: 14px;
@@ -475,6 +505,7 @@ button kbd {
   padding: 6px 8px;
 }
 #boucle,
+#scene,
 #separation {
   width: auto;
   max-width: 100%;
@@ -731,7 +762,8 @@ html.tactile.menu #fermer-reglages {
 /* 16 px : en dessous, Safari zoome sur le champ quand on le touche */
 html.tactile #seed,
 html.tactile #decalage,
-html.tactile #boucle {
+html.tactile #boucle,
+html.tactile #scene {
   font-size: 16px;
 }
 @media (orientation: portrait) {

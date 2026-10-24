@@ -125,13 +125,16 @@ describe.each(["ville", "boite"] as Univers[])("carte dans l'univers %s", (unive
   });
 
   it("la progression persiste d'une visite à l'autre, et change le décor dès le départ", async () => {
-    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers } });
+    // Le décor de la scène de côté : la chanson tirée au hasard ne doit pas changer de scène d'une visite à l'autre
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers, "deux-mains-scene": "cote" } });
     nav.image();
     const avant = univers === "ville" ? fenetresAllumees(nav) : photographies(nav);
     nav.fermer();
 
     const sauvegarde: Sauvegarde = { v: VERSION, carte: { [univers]: LIEUX }, chansons: {} };
-    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers, [CLE]: JSON.stringify(sauvegarde) } });
+    nav = await Navigateur.ouvrir({
+      stockage: { "deux-mains-theme": univers, "deux-mains-scene": "cote", [CLE]: JSON.stringify(sauvegarde) },
+    });
     nav.presser("KeyC");
     expect(nav.overlay.innerHTML.match(/class="lieu reussi/g)).toHaveLength(9);
     expect(nav.overlay.innerHTML).toContain(`9 sur 9 ${U.carte.reussis}`);

@@ -3,6 +3,7 @@
 // niveau du boss de fin qui s'y joue, et le dessin de ce qui dure le long des anneaux, dans le faux navigateur.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sceneDuLieu } from "../src/jeu/scenes";
 import type { Pose, Scene, Voie } from "../src/rendu/scenes/contrat";
 import { Navigateur, type Univers } from "./support/navigateur";
 
@@ -149,9 +150,9 @@ describe.each<Univers>(["ville", "boite"])("le niveau du boss de fin, %s", (univ
     nav.presser("KeyA");
     nav.avancerJusqua((s) => s.mode !== "play", (S.song.endBeat * 60) / S.song.bpm + 10);
     expect([S.mode, S.miss, S.health, S.boss.vie]).toEqual(["done", 0, 100, 0]);
-    // La chanson suivante revient à la scène de côté
+    // La chanson suivante revient à la scène de son lieu (#83)
     nav.jeu.load(4242, "normal");
-    expect(S.scene).toBe("cote");
+    expect(S.scene).toBe(sceneDuLieu(S.song.prog.name));
   });
 });
 

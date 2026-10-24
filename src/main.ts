@@ -6,6 +6,7 @@ import { update } from "./jeu/deroulement";
 import { effets } from "./jeu/effets";
 import { S, VITESSES, type Mains } from "./jeu/etat";
 import { brancherEffets } from "./jeu/jugement";
+import { lireReglageScene } from "./jeu/scenes";
 import { cv } from "./rendu/outils";
 import { render, visualBeat } from "./rendu/scene";
 import "./ui/clavier";
@@ -22,6 +23,7 @@ import {
   setFormes,
   setPianiste,
   setPractice,
+  setScene,
   setTheme,
   setVitesse,
 } from "./ui/reglages";
@@ -85,6 +87,7 @@ let savedHands = null,
   savedFormes = null,
   savedPianiste = null,
   savedFantome = null,
+  savedScene = null,
   savedVitesse = null;
 try {
   savedDiff = localStorage.getItem("deux-mains-diff");
@@ -95,6 +98,7 @@ try {
   savedFormes = localStorage.getItem("deux-mains-formes");
   savedPianiste = localStorage.getItem("deux-mains-pianiste");
   savedFantome = localStorage.getItem("deux-mains-fantome");
+  savedScene = localStorage.getItem("deux-mains-scene");
   savedVitesse = Number(localStorage.getItem("deux-mains-vitesse"));
 } catch {
   /* stockage indisponible */
@@ -125,6 +129,8 @@ const boot = (data) => {
   // Le mode pianiste (#53) est désactivé par défaut
   setPianiste(savedPianiste === "oui");
   setFantome(savedFantome !== "masquer");
+  // La scène de chaque lieu par défaut (#83) ; avant la première chanson, qui la choisit en se mettant en place
+  setScene(lireReglageScene(savedScene));
   demarrerMidi();
   setTheme(THEMES[data.theme] ? data.theme : THEMES[savedTheme] ? savedTheme : "ville");
   setPractice(HANDS.includes(data.practice) ? data.practice : HANDS.includes(savedHands) ? savedHands : "both");

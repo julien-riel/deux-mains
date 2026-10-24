@@ -248,7 +248,8 @@ describe.each(["ville", "boite"] as Univers[])("traces dans l'univers %s", (univ
   });
 
   it("le décor les montre pendant la partie", async () => {
-    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers } });
+    // Les coulures de peinture sont celles du décor de côté : la chanson tirée au hasard y reste (#83)
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers, "deux-mains-scene": "cote" } });
     const S = nav.jeu.state;
     nav.presser("KeyA");
     nav.avancerJusqua((s) => s.perfect >= 6, 60);
