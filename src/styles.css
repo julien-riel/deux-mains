@@ -673,12 +673,14 @@ html.tactile .overlay .hint {
   font-size: 13px;
   max-width: 60ch;
 }
-/* Le bouton pause se place entre la barre d'harmonie et le score de la scène */
+/* Le bouton pause se place entre la barre d'harmonie et le score de la scène. La scène n'occupe que ce que laissent
+   les zones tactiles (ADR-0019, src/rendu/zones.ts) : les 80 % de droite de la largeur, les 80 % du haut de la
+   hauteur ; le bandeau d'un essai reste au bas de la scène, au-dessus des zones des doigts. */
 html.tactile .pause {
   display: inline-flex;
   position: absolute;
-  top: 2%;
-  left: calc(76.5% - 22px);
+  top: 1.6%;
+  left: calc(81.2% - 22px);
   width: 44px;
   height: 44px;
   padding: 0;
@@ -686,6 +688,11 @@ html.tactile .pause {
   gap: 5px;
   background: var(--scrim);
   opacity: 0.85;
+}
+html.tactile .essai-bandeau {
+  left: 60%;
+  bottom: 21.5%;
+  max-width: min(76%, 70ch);
 }
 .pause span {
   width: 5px;

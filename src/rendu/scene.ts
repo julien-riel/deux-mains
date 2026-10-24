@@ -33,6 +33,7 @@ import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt, etiquettesMidi, n
 import { TH, ennemiDuLieu, placeName } from "../univers/univers";
 import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
+import { dessinerZones } from "./commandes";
 import { dessinerRemontage } from "./remontage";
 import {
   boiteBlock,
@@ -511,6 +512,8 @@ export function render(nb, dt) {
   }
   // Le remontage entre deux lieux (#27), par-dessus la scène au repos du lieu qui suit
   if (S.mode === "remontage") dessinerRemontage(pnow);
+  // En mode tactile, les zones fixes autour de la scène (#79, ADR-0019)
+  if (COMMANDES.tactile) dessinerZones(nb, pnow);
 }
 
 export function keycap(x, y, label, color, down) {

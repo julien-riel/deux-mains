@@ -1,13 +1,12 @@
-// Commandes tactiles (ADR-0008) : la moitié gauche de l'écran commande la basse (en haut : sauter, en bas : glisser),
-// la moitié droite est coupée en quatre bandes, chacune à la hauteur de son couloir tel qu'il est affiché. Chaque
-// doigt est suivi à part.
+// Commandes tactiles (ADR-0008, ADR-0019) : des zones fixes dessinées dans l'écran, les mêmes dans toutes les scènes.
+// La colonne gauche commande la basse (en haut : sauter, en bas : glisser), la rangée du bas joue les quatre couloirs
+// (`src/rendu/zones.ts`). Chaque doigt est suivi à part.
 import { heureDe, retardDe } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { pause } from "../jeu/deroulement";
 import { COULOIRS, S, type Action } from "../jeu/etat";
-import { H, cv } from "../rendu/outils";
-// Les bandes suivent encore les couloirs de la scène de côté : les zones fixes d'ADR-0019 les remplaceront (#79)
-import { LANE_Y } from "../rendu/scenes/cote";
+import { cv } from "../rendu/outils";
+import { actionAuPoint } from "../rendu/zones";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { taperRemontage } from "./remontage";
@@ -17,16 +16,18 @@ const scene = document.querySelector<HTMLElement>(".stage");
 const racine = document.documentElement;
 const doigts = new Map<number, Action>();
 
-// Limites des bandes de droite, à mi-chemin entre deux couloirs voisins (du plus grave au plus aigu)
-const LIMITES = LANE_Y.slice(1).map((y, i) => (y + LANE_Y[i]) / 2);
-function zone(x: number, y: number): Action {
-  const r = scene.getBoundingClientRect();
-  if (x - r.left < r.width / 2) return y - r.top < r.height / 2 ? "sauter" : "glisser";
-  // Les bandes suivent les couloirs affichés : le toucher est ramené dans la scène avant de chercher sa bande
+// La zone sous le doigt, dans le canvas où elle est dessinée ; un doigt posé sur la scène ne joue rien (null). Un
+// doigt sur les bords de la page, hors du canvas, compte pour la zone la plus proche.
+function zone(x: number, y: number): Action | null {
   const c = cv.getBoundingClientRect(),
-    sy = ((y - c.top) / c.height) * H,
-    i = LIMITES.findIndex((l) => sy > l);
-  return COULOIRS[i < 0 ? 3 : i];
+    dedans = (v: number, max: number) => Math.min(max, Math.max(0, v));
+  return actionAuPoint(dedans(x - c.left, c.width), dedans(y - c.top, c.height), c.width, c.height);
+}
+// Pendant le remontage (#27), seule la main compte : une zone fait le tour de sa main, et un doigt sur la scène
+// (ou n'importe où, au clavier, où les zones ne sont pas dessinées) celui de la main de sa moitié de l'écran
+function main(x: number, y: number): Action {
+  const r = scene.getBoundingClientRect();
+  return (COMMANDES.tactile && zone(x, y)) || (x - r.left < r.width / 2 ? "sauter" : COULOIRS[0]);
 }
 // Le temps écoulé depuis le toucher, et son heure sur l'horloge de la chanson (ADR-0004)
 const retard = (e: PointerEvent) => retardDe(e.timeStamp);
@@ -39,13 +40,13 @@ scene.addEventListener("pointerdown", (e) => {
   // Pendant le remontage (#27), un doigt sur la moitié d'une main fait le tour de cette main
   if (S.mode === "remontage") {
     e.preventDefault();
-    return taperRemontage(zone(e.clientX, e.clientY), retard(e));
+    return taperRemontage(main(e.clientX, e.clientY), retard(e));
   }
   if (!COMMANDES.tactile || S.mode !== "play") return;
   e.preventDefault();
   const a = zone(e.clientX, e.clientY);
-  // Un deuxième doigt sur la même zone ne fait rien : seul le premier la relâchera
-  if (S.keys[a]) return;
+  // Un doigt sur la scène ne joue rien ; un deuxième doigt sur la même zone non plus : seul le premier la relâchera
+  if (!a || S.keys[a]) return;
   doigts.set(e.pointerId, a);
   presser(a, heure(e), true);
 });

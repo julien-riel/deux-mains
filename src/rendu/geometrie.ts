@@ -3,9 +3,11 @@
 // jugement passent par ici, jamais par une scène en particulier : `jeu/` n'importe rien de `rendu/scenes/`.
 import { S } from "../jeu/etat";
 import type { IdScene } from "../jeu/scenes";
+import { COMMANDES } from "../ui/touches";
 import { H, W } from "./outils";
 import type { Cadre, Scene } from "./scenes/contrat";
 import { COTE } from "./scenes/cote";
+import { zonesTactiles } from "./zones";
 
 /**
  * Les scènes dessinées, par nom (ADR-0019). Une scène nouvelle est un module de `src/rendu/scenes/` qui respecte le
@@ -17,7 +19,8 @@ export const SCENES_DESSINEES: Partial<Record<IdScene, Scene>> = { cote: COTE };
 export const scene = (): Scene => SCENES_DESSINEES[S.scene] ?? COTE;
 
 /**
- * Le cadre de la scène à l'écran, dans l'espace de la scène (W × H) : tout l'écran pour l'instant. Les zones
- * tactiles fixes (#79, ADR-0019) en prendront une part ; le rendu ramène alors la scène et son HUD dans ce cadre.
+ * Le cadre de la scène à l'écran, dans l'espace de la scène (W × H) : tout l'écran au clavier et au MIDI ; en mode
+ * tactile, ce que laissent les zones fixes (#79, ADR-0019, `zones.ts`). Le rendu y ramène la scène et son HUD.
  */
-export const cadreDeLaScene = (): Cadre => ({ x: 0, y: 0, largeur: W, hauteur: H });
+export const cadreDeLaScene = (): Cadre =>
+  COMMANDES.tactile ? zonesTactiles(W, H).scene : { x: 0, y: 0, largeur: W, hauteur: H };

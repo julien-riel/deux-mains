@@ -224,7 +224,7 @@ export function show(kind) {
       }</div>
       ${
         COMMANDES.tactile
-          ? `<p class="hint">Pouce gauche : en haut pour sauter (une seconde fois en l'air pour un double saut), en bas pour glisser ou écraser la plaque d'un refrain, le doigt posé pour tenir. Pouce droit : la bande du couloir de l'ennemi.</p>
+          ? `<p class="hint">Pouce gauche, sur la colonne de gauche : en haut pour sauter (une seconde fois en l'air pour un double saut), en bas pour glisser ou écraser la plaque d'un refrain, le doigt posé pour tenir. Pouce droit : la zone du bas qui a la forme et la couleur de l'ennemi.</p>
       <p class="hint">Sur iPhone, coupe le mode silencieux pour entendre la musique.</p>`
           : `<p class="hint">${duo ? "Basse" : "Gauche"} ${kc("KeyW")} ${kc("KeyS")} ${kc("Space")} · ${duo ? "Mélodie" : "Droite"} ${kc("KeyJ")} ${kc("KeyK")} ${kc("KeyL")} ${kc("Semicolon")}</p>`
       }${MIDI.etat === "connecte" ? ligneMidi(duo) : ""}`;

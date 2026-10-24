@@ -199,6 +199,24 @@ export const ESSAIS: Essai[] = [
     repere: (ev) => !!ev.grp && ev.grp.some((e) => e.hand === "L") && ev.grp.filter((e) => e.hand === "R").length > 1,
   },
   {
+    id: "zones-tactiles",
+    titre: "Zones tactiles",
+    verifier:
+      "En tactile (téléphone, ou Commandes : Tactile et la souris) : à gauche, saute en haut, glisse en bas ; en bas, une zone par doigt, à la forme et la couleur de son couloir. Elle s'allume avant sa note, s'enfonce sous le doigt ; une zone d'un accord le joue en entier. Tiens le bas pour un tunnel. Au clavier, aucune zone.",
+    issue: 79,
+    univers: "ville",
+    diff: "normal",
+    mains: "both",
+    chanson: () =>
+      accorder(
+        assembler(GRAINE, "normal", [INTRO, couplet(2, 4), refrain(10, 4), OUTRO], {
+          couplet: ["S...W...", "T------."],
+        }),
+      ),
+    // Les accords de la main droite, qu'un seul doigt joue en entier
+    repere: (ev) => ev.hand === "R" && !!ev.grp && ev.grp.filter((e) => e.hand === "R").length > 1,
+  },
+  {
     id: "vibrato",
     titre: "Vibrato",
     verifier:
