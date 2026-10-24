@@ -39,18 +39,16 @@ export const LIGNES: Ligne[] = [
 /** Les outils : poser ou retirer une note, ou allonger une note en note tenue */
 export type Outil = "note" | "tenue";
 
-/** Les genres qu'on choisit pour une section : le pont est un solo libre, ou un pont en mains croisées (#21) */
-export type ChoixDeGenre = Genre | "croisee";
-export const CHOIX_DE_GENRE: { choix: ChoixDeGenre; nom: string }[] = [
+/** Les genres qu'on choisit pour une section : le pont est un solo libre. Les mains croisées (#21) ne se choisissent
+ * plus (ADR-0019) : un pont écrit `croisee` s'affiche comme un pont, sa mélodie écrite restant modifiable. */
+export const CHOIX_DE_GENRE: { choix: Genre; nom: string }[] = [
   { choix: "intro", nom: "Intro" },
   { choix: "couplet", nom: "Couplet" },
   { choix: "refrain", nom: "Refrain" },
   { choix: "pont", nom: "Solo libre" },
-  { choix: "croisee", nom: "Mains croisées" },
   { choix: "polyrythmie", nom: "3 contre 2" },
   { choix: "outro", nom: "Outro" },
 ];
-export const choixDe = (s: SectionDePartition): ChoixDeGenre => (s.croisee ? "croisee" : s.genre);
 
 /* ---------- Une partition neuve ---------- */
 const silence = (n = 8) => ".".repeat(n);
@@ -239,12 +237,12 @@ export function retirerMesure(p: Partition, s: number): Partition {
 }
 
 /** Ajoute une section vide de ce genre après la section `apres` ; renvoie la partition inchangée sans place */
-export function ajouterSection(p: Partition, apres: number, choix: ChoixDeGenre = "couplet"): Partition {
+export function ajouterSection(p: Partition, apres: number, genre: Genre = "couplet"): Partition {
   const place = LIMITES.mesures - totalDesMesures(p);
   if (p.sections.length >= LIMITES.sections || place < 1) return p;
   const q = normaliser(p);
   q.sections.splice(apres + 1, 0, sectionVide("couplet", Math.min(4, place)));
-  return changerGenre(q, apres + 1, choix);
+  return changerGenre(q, apres + 1, genre);
 }
 
 /** Retire une section ; une partition en garde au moins une */
@@ -264,13 +262,13 @@ export function deplacerSection(p: Partition, s: number, sens: -1 | 1): Partitio
   return q;
 }
 
-/** Change le genre d'une section. Un solo libre n'a pas de mélodie écrite : elle est effacée en y passant. */
-export function changerGenre(p: Partition, s: number, choix: ChoixDeGenre): Partition {
+/** Change le genre d'une section. Un solo libre n'a pas de mélodie écrite : elle est effacée en y passant. Un pont
+ * écrit en mains croisées (#21) qui change de genre perd sa marque (ADR-0019). */
+export function changerGenre(p: Partition, s: number, genre: Genre): Partition {
   const q = deplier(p, s),
     sec = q.sections[s];
-  sec.genre = choix === "croisee" ? "pont" : choix;
-  if (choix === "croisee") sec.croisee = true;
-  else delete sec.croisee;
+  sec.genre = genre;
+  delete sec.croisee;
   if (estSoloLibre(sec)) sec.melodie = [];
   else if (!sec.melodie.length) sec.melodie = sec.basse.map((b) => silence(b.length));
   return q;

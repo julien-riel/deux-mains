@@ -10,8 +10,8 @@ export interface Voix {
 }
 
 export type Main = "L" | "R";
-/** « pont » est le solo libre (ou le pont en mains croisées, #21) ; « polyrythmie » est la section en 3 contre 2
- * (#19, ADR-0013), où la basse joue en triolets pendant que la mélodie reste en croches. */
+/** « pont » est le solo libre (ou un pont écrit en mains croisées d'une partition, #21) ; « polyrythmie » est la
+ * section en 3 contre 2 (#19, ADR-0013), où la basse joue en triolets pendant que la mélodie reste en croches. */
 export type Genre = "intro" | "couplet" | "refrain" | "pont" | "polyrythmie" | "outro";
 export type EtatNote = "pending" | "hit" | "holding" | "done" | "miss" | "broken" | "skip";
 
@@ -32,8 +32,8 @@ export interface Section {
   kind: Genre;
   bars: number;
   start: number;
-  /** Un pont en mains croisées (#21) : la scène s'y retourne, mais les touches et le jugement restent les mêmes.
-   * Ce pont a une mélodie écrite : ce n'est pas un solo libre. */
+  /** Un pont écrit en mains croisées (#21), lu d'une partition (ADR-0016) : sa mélodie est écrite, ce n'est pas un
+   * solo libre. Depuis ADR-0019, la scène ne s'y retourne plus : il se joue comme un pont à l'endroit. */
   croisee?: true;
   /** Une phase du boss de fin (#26), de 1 à 3 : il y joue ses phrases en canon, de plus en plus serrées */
   boss?: number;

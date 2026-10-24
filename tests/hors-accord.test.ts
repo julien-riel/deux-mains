@@ -75,10 +75,8 @@ describe("petites notes (#14)", () => {
       for (const ev of petites(chanson)) {
         expect(ev.beat % 1).toBe(0.5);
         expect([0.5, 1.5, 2.5]).toContain(ev.lane);
-        // Et dans le pont en mains croisées (#21), qui reprend des phrases du couplet, jamais au solo libre
-        const sec = chanson.sections.find((s) => ev.bar >= s.start && ev.bar < s.start + s.bars);
-        expect(["couplet", "refrain", "pont"]).toContain(ev.kind);
-        expect(sec.kind !== "pont" || sec.croisee).toBe(true);
+        // Jamais au solo libre
+        expect(["couplet", "refrain"]).toContain(ev.kind);
         expect([ev.dur, ev.grp?.filter((e) => e.hand === "R").length ?? 1]).toEqual([0, 1]);
       }
   });

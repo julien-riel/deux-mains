@@ -21,7 +21,6 @@ import {
   spb,
   type Action,
 } from "../jeu/etat";
-import { retournement } from "../jeu/croisement";
 import { DUREE_TIR, ecartAvecLeFantome, poseDuFantome } from "../jeu/fantome";
 import { couloirDe, notesDuRelais, pasDuSerpent, seuilTrille, tempsDuPassage } from "../jeu/jugement";
 import { nomDeClasse, notesDeLEcrasement } from "../jeu/pianiste";
@@ -51,7 +50,6 @@ import {
   drawComb,
 } from "./boite";
 import {
-  AXE,
   BOSS_X,
   BOSS_Y,
   CIBLE_Y,
@@ -79,9 +77,7 @@ import {
   rr,
   teinteDeCouloir,
   txt,
-  VUE,
   yDeCouloir,
-  yVu,
   type DessinEnnemi,
 } from "./outils";
 import {
@@ -202,20 +198,6 @@ export function render(nb, dt) {
   } else S.shake = 0;
   g.save();
   g.translate(shx, shy);
-
-  // Mains croisées (#21) : toute la scène, rail compris, se retourne autour de son axe ; les textes s'y redressent.
-  // Pendant la bascule, elle s'aplatit sur l'axe, devant le fond de l'univers. En jam (#24), sans obstacles ni
-  // ennemis à lire, elle reste à l'endroit.
-  const vue = playing && !S.jam ? retournement(song.sections, nb, S.bouclePartie?.sec) : { k: 1, annonce: null };
-  VUE.k = Math.sign(vue.k || 1) * Math.max(0.02, Math.abs(vue.k));
-  if (VUE.k < 1) {
-    g.fillStyle = TH().under;
-    g.fillRect(-12, -12, W + 24, H + 24);
-    g.translate(0, AXE);
-    g.scale(1, VUE.k);
-    g.translate(0, -AXE);
-  }
-  VUE.dedans = true;
 
   // Décor de l'univers choisi
   if (S.theme === "boite") boiteBack(nb, hsl, bp);
@@ -388,9 +370,7 @@ export function render(nb, dt) {
     txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
   }
 
-  VUE.dedans = false;
   g.restore();
-  croisement(vue.annonce, bp);
 
   // HUD : une composition (#28) ou un air du répertoire (ADR-0018) montre son titre à la place du lieu
   const compo = S.song.source?.genre === "partition" ? S.song.source : null;
@@ -417,7 +397,6 @@ export function render(nb, dt) {
         : ({ L: "MAIN GAUCHE SEULE", R: "MAIN DROITE SEULE", duo: "DUO" }[S.practice] ?? ""),
     S.vitessePartie < 1 ? `VITESSE ${Math.round(S.vitessePartie * 100)} %` : "",
     S.bouclePartie ? "BOUCLE" : "",
-    VUE.k < 0 ? "MAINS CROISÉES" : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -555,35 +534,12 @@ export function render(nb, dt) {
   for (const p of S.pops) {
     const k = (pnow - p.at) / 650;
     g.globalAlpha = 1 - k;
-    // Le jugement s'affiche près de sa note, dans la scène retournée ou non (#21)
-    txt(p.text, p.x, yVu(p.y) - k * 28, `700 15px ${FONT.display}`, p.color, "center");
+    // Le jugement s'affiche près de sa note
+    txt(p.text, p.x, p.y - k * 28, `700 15px ${FONT.display}`, p.color, "center");
     g.globalAlpha = 1;
   }
   // Le remontage entre deux lieux (#27), par-dessus la scène au repos du lieu qui suit
   if (S.mode === "remontage") dessinerRemontage(pnow);
-}
-
-/**
- * Les mains croisées (#21) : pendant la bascule, l'axe de la scène s'allume aux couleurs des deux mains, qui se
- * croisent (la basse passe en haut, la mélodie en bas) ; une mesure avant l'entrée et pendant la sortie, une annonce.
- */
-function croisement(annonce: "entree" | "sortie" | null, bp: number) {
-  const a = 1 - Math.abs(VUE.k);
-  if (a > 0.01) {
-    g.fillStyle = hexA(COL.bass, a);
-    g.fillRect(0, AXE - 1.5, W / 2, 3);
-    g.fillStyle = hexA(COL.mel, a);
-    g.fillRect(W / 2, AXE - 1.5, W / 2, 3);
-  }
-  if (!annonce) return;
-  txt(
-    annonce === "entree" ? "⇅  MAINS CROISÉES : LES TOUCHES NE CHANGENT PAS" : "⇅  RETOUR À L'ENDROIT",
-    W / 2 + 60,
-    226,
-    `600 15px ${FONT.mono}`,
-    hexA(COL.fg, 0.55 + 0.45 * bp),
-    "center",
-  );
 }
 
 export function keycap(x, y, label, color, down) {

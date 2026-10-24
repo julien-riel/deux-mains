@@ -5,6 +5,7 @@ import { playHit } from "../audio/instruments";
 import { AC, B, initAudio } from "../audio/moteur";
 import { composer, empreinteDe, lirePartition, type Partition } from "../chanson/partition";
 import { PAS_PAR_MESURE, enTemps, memeTemps } from "../chanson/temps";
+import type { Genre } from "../chanson/types";
 import {
   LIGNES,
   ajouterMesure,
@@ -17,7 +18,6 @@ import {
   retirerMesure,
   retirerSection,
   toucher,
-  type ChoixDeGenre,
   type Outil,
   type Reglage,
 } from "../jeu/editeur";
@@ -229,6 +229,6 @@ overlay.addEventListener("change", (e) => {
   const champ = (e.target as HTMLInputElement)?.dataset?.champ,
     valeur = (e.target as HTMLInputElement).value;
   if (!champ || !S.editeur || S.mode !== "editeur") return;
-  if (champ === "genre") modifier(changerGenre(S.editeur.partition, S.editeur.section, valeur as ChoixDeGenre));
+  if (champ === "genre") modifier(changerGenre(S.editeur.partition, S.editeur.section, valeur as Genre));
   else modifier(regler(S.editeur.partition, champ as Reglage, valeur));
 });

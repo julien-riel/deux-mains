@@ -1,11 +1,11 @@
 // Commandes tactiles (ADR-0008) : la moitié gauche de l'écran commande la basse (en haut : sauter, en bas : glisser),
-// la moitié droite est coupée en quatre bandes, chacune à la hauteur de son couloir tel qu'il est affiché, même dans
-// la scène retournée des mains croisées (#21). Chaque doigt est suivi à part.
+// la moitié droite est coupée en quatre bandes, chacune à la hauteur de son couloir tel qu'il est affiché. Chaque
+// doigt est suivi à part.
 import { heureDe, retardDe } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { pause } from "../jeu/deroulement";
 import { COULOIRS, S, type Action } from "../jeu/etat";
-import { H, LANE_Y, cv, yDeLaScene } from "../rendu/outils";
+import { H, LANE_Y, cv } from "../rendu/outils";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { taperRemontage } from "./remontage";
@@ -20,10 +20,9 @@ const LIMITES = LANE_Y.slice(1).map((y, i) => (y + LANE_Y[i]) / 2);
 function zone(x: number, y: number): Action {
   const r = scene.getBoundingClientRect();
   if (x - r.left < r.width / 2) return y - r.top < r.height / 2 ? "sauter" : "glisser";
-  // Les bandes suivent les couloirs affichés : en mains croisées (#21), la scène retournée les met en bas, et le
-  // toucher est ramené dans la scène avant de chercher sa bande
+  // Les bandes suivent les couloirs affichés : le toucher est ramené dans la scène avant de chercher sa bande
   const c = cv.getBoundingClientRect(),
-    sy = yDeLaScene(((y - c.top) / c.height) * H),
+    sy = ((y - c.top) / c.height) * H,
     i = LIMITES.findIndex((l) => sy > l);
   return COULOIRS[i < 0 ? 3 : i];
 }

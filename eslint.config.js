@@ -25,7 +25,6 @@ export default defineConfig([
       "src/jeu/variations.ts",
       "src/jeu/style.ts",
       "src/jeu/enregistrement.ts",
-      "src/jeu/croisement.ts",
       "src/jeu/jam.ts",
       "src/jeu/remontage.ts",
       "src/jeu/editeur.ts",

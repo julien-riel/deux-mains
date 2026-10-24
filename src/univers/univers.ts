@@ -15,8 +15,6 @@ export interface Univers {
    */
   ennemis: Record<string, { dessin: string; timbre: string; nom: string; instrument: string }>;
   solo: string;
-  /** Sous le nom du pont en mains croisées (#21), quand la scène se retourne */
-  croisee: string;
   /** Sous le nom de la section en 3 contre 2 (#19) : ce que joue chaque main */
   polyrythmie: string;
   /** Le boss de fin (#26) : son nom, ce que dit la bannière de chaque phase, à sa chute, et quand il s'enfuit */
@@ -103,7 +101,6 @@ export const THEMES: Record<string, Univers> = {
       "Vamp lydien": { dessin: "satellite", timbre: "theremine", nom: "Satellite espion", instrument: "thérémine" },
     },
     solo: "En ondes : la radio pirate est à toi",
-    croisee: "La ville à l'envers : tes touches ne changent pas",
     polyrythmie: "Trois pas par temps, deux tirs : la grosse caisse garde le temps",
     boss: {
       nom: "Le Grand Drone",
@@ -188,7 +185,6 @@ export const THEMES: Record<string, Univers> = {
       },
     },
     solo: "La figurine se souvient : joue ce que tu veux",
-    croisee: "La boîte se renverse : tes touches ne changent pas",
     polyrythmie: "Le cylindre en trois, le carillon en deux : la grosse caisse garde le temps",
     boss: {
       nom: "La Mite reine",

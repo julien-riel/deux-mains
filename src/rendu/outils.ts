@@ -50,16 +50,6 @@ export interface PoseDuBoss {
   t: number;
   rot: number;
 }
-/**
- * Le retournement de la scène en mains croisées (#21) : son échelle verticale autour de l'axe `AXE` (1 à l'endroit,
- * -1 retournée), et si l'on dessine en ce moment dans la scène retournée, où `txt` redresse les textes. L'axe est
- * au milieu de la scène, du haut du ciel au bas du sol : retournée, le sol passe en haut et les couloirs en bas.
- */
-export const VUE = { k: 1, dedans: false };
-export const AXE = (92 + GY + 40) / 2;
-/** La hauteur à l'écran d'un point de la scène, retournée ou non, et le point de la scène sous une hauteur de l'écran */
-export const yVu = (y: number) => AXE + VUE.k * (y - AXE);
-export const yDeLaScene = (y: number) => AXE + (y - AXE) / VUE.k;
 export const LANE_HUE = [198, 262, 320, 168];
 /** La hauteur et la teinte d'un couloir, ou du milieu de deux couloirs pour une petite note (#14, n + 0,5) */
 export const yDeCouloir = (l: number) => (Number.isInteger(l) ? LANE_Y[l] : (LANE_Y[l - 0.5] + LANE_Y[l + 0.5]) / 2);
@@ -141,14 +131,7 @@ export function txt(s, x, y, font, color, align: CanvasTextAlign = "left") {
   g.fillStyle = color;
   g.textAlign = align;
   g.textBaseline = "alphabetic";
-  if (!(VUE.dedans && VUE.k < 0)) return g.fillText(s, x, y);
-  // Dans la scène retournée (#21), le texte reste à sa place mais se redresse autour de son milieu, pour se lire
-  const m = y - 0.35 * Number(/(\d+)px/.exec(font)?.[1] ?? 12);
-  g.save();
-  g.translate(0, 2 * m);
-  g.scale(1, -1);
   g.fillText(s, x, y);
-  g.restore();
 }
 
 // Hachage déterministe : le décor est toujours le même pour un même endroit de la chanson

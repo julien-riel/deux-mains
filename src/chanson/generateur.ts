@@ -395,14 +395,6 @@ export function phraseEnRelais(monte: boolean, bar: number, chords: Accord[], ki
   return notes;
 }
 
-/* ---------- Pont en mains croisées (#21) ---------- */
-
-export const NOM_CROISEE = "Mains croisées";
-
-/** La mélodie du pont en mains croisées : le thème du couplet, puis sa réponse qui se pose sur la fondamentale.
- * Une mélodie déjà entendue, pour que le joueur n'ait à réapprendre que la lecture de la scène retournée. */
-export const phrasesCroisees = <T>(couplet: T[]): T[] => [couplet[0], couplet[3]];
-
 /* ---------- Section en 3 contre 2 (#19, ADR-0013) ---------- */
 
 export const NOM_POLYRYTHMIE = "3 contre 2";
@@ -444,7 +436,7 @@ export function melodieEnPolyrythmie(
  * régénération de l'instantané (ADR-0005). Ce que la sauvegarde range sur les notes exactes d'une chanson (meilleur
  * score, tags, fantôme) porte cette version dans sa clé, et celui d'une autre version est ignoré.
  */
-export const VERSION_GENERATEUR = 3;
+export const VERSION_GENERATEUR = 4;
 
 // Le tirage d'une chanson : sa progression est le premier nombre tiré, avant la tonalité et le tempo
 const tirage = (seed: number) => mulberry32(seed * 9301 + 49297);
@@ -475,9 +467,6 @@ export function buildSong(seed: number, diffKey: string): Chanson {
   const prog = tirerProgression(rng);
   const keyPc = Math.floor(rng() * 12);
   const bpm = 88 + 4 * Math.floor(rng() * 7);
-  // Le pont en mains croisées (#21) a son propre tirage : sans lui, la chanson ne change pas, et avec lui, elle
-  // ne fait que s'allonger de ses mesures
-  const croisee = D.croiseeP > 0 && mulberry32(seed * 2749 + 3001)() < D.croiseeP;
   // La section en 3 contre 2 (#19) aussi, présence et mélodie : elle s'ajoute entre le dernier refrain et l'outro,
   // après la reprise du solo (ADR-0012), et Débutant, Facile et Normal, qui n'en ont pas, n'y tirent rien
   const rngPoly = D.polyrythmie ? mulberry32(seed * 1693 + 2903) : null,
@@ -486,12 +475,11 @@ export function buildSong(seed: number, diffKey: string): Chanson {
     ["Intro", "intro", 2],
     ["Couplet", "couplet", 8],
     ["Refrain", "refrain", 8],
-    ...(croisee ? [[NOM_CROISEE, "pont", 4]] : []),
     ["Solo libre", "pont", 4],
     ["Refrain", "refrain", 8],
     ...(polyrythmie ? [[NOM_POLYRYTHMIE, "polyrythmie", 4]] : []),
     ["Outro", "outro", 2],
-  ].map(([name, kind, bars]) => ({ name, kind, bars, ...(name === NOM_CROISEE ? { croisee: true } : {}) }) as Section);
+  ].map(([name, kind, bars]) => ({ name, kind, bars }) as Section);
   let bar = 0;
   for (const s of sections) {
     s.start = bar;
@@ -579,7 +567,7 @@ export function buildSong(seed: number, diffKey: string): Chanson {
       ev.push(...melodieEnPolyrythmie(rngPoly, D.polyrythmie, s.start, s.bars, chords));
       continue;
     }
-    const ph = s.croisee ? phrasesCroisees(phrases.couplet) : phrases[s.kind];
+    const ph = phrases[s.kind];
     if (!ph) continue;
     for (let k = 0; k < s.bars / 2; k++) {
       // La phrase en relais (#20) : les deux mains se passent l'arpège
