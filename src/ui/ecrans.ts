@@ -272,10 +272,11 @@ export function show(kind) {
   } else if (kind === "dead") {
     const bar = clamp(mesureDeLaChanson(Math.floor(S.deathBeat / 4)), 0, s.totalBars - 1),
       sec = sectionAtBar(bar);
+    // Un pont écrit en mains croisées d'une partition (#21) n'est pas un solo : sa mélodie est écrite
     const where = S.cp?.sec.boss
       ? `à la phase ${S.cp.sec.boss}`
       : S.cp?.sec.croisee
-        ? "aux mains croisées"
+        ? "au pont"
         : {
             intro: "au début",
             couplet: "au couplet",

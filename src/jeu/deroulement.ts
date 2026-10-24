@@ -333,23 +333,21 @@ function avancer(nb: number) {
         relais: { ...S.relais },
         boss: S.boss && { ...S.boss },
       };
-      // Le pont en mains croisées (#21) rappelle que les touches ne changent pas, la section en 3 contre 2 (#19) dit
-      // ce que joue chaque main ; une phase du boss (#26) dit ce qu'il fait, et à l'outro, s'il tient encore, il s'enfuit
+      // La section en 3 contre 2 (#19) dit ce que joue chaque main ; une phase du boss (#26) dit ce qu'il fait, et à
+      // l'outro, s'il tient encore, il s'enfuit
       const fuite = S.boss && S.boss.vaincu === null && sec.kind === "outro" && !S.bouclePartie;
       if (sec.kind !== "intro")
         S.banner = {
           text: sec.boss ? `${TH().boss.nom} · ${sec.name}` : fuite ? TH().boss.nom : sec.name,
           sub: estSolo(sec)
             ? TH().solo
-            : sec.croisee
-              ? TH().croisee
-              : sec.kind === "polyrythmie"
-                ? TH().polyrythmie
-                : sec.boss
-                  ? TH().boss.phases[sec.boss - 1]
-                  : fuite
-                    ? TH().boss.fuite
-                    : "",
+            : sec.kind === "polyrythmie"
+              ? TH().polyrythmie
+              : sec.boss
+                ? TH().boss.phases[sec.boss - 1]
+                : fuite
+                  ? TH().boss.fuite
+                  : "",
           at: performance.now(),
         };
     }

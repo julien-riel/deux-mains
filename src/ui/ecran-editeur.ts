@@ -5,7 +5,7 @@
 import { DIFFS } from "../chanson/difficultes";
 import { LIMITES, empreinteDe, estSoloLibre, type Partition } from "../chanson/partition";
 import { NOTE_FR, PROGS } from "../chanson/theorie";
-import { CHOIX_DE_GENRE, LIGNES, choixDe, lireCase, motifsDeLaMesure } from "../jeu/editeur";
+import { CHOIX_DE_GENRE, LIGNES, lireCase, motifsDeLaMesure } from "../jeu/editeur";
 import { S, progression, type EditeurEnCours } from "../jeu/etat";
 import { echapper } from "../outils";
 import { LANE_HUE } from "../rendu/outils";
@@ -74,7 +74,7 @@ function grille(E: EditeurEnCours) {
   const sections = p.sections
     .map(
       (s, i) =>
-        `<button type="button" role="tab" data-act="ed-section" data-section="${i}" aria-selected="${i === E.section}">${CHOIX_DE_GENRE.find((c) => c.choix === choixDe(s)).nom} <small>${s.mesures}</small></button>`,
+        `<button type="button" role="tab" data-act="ed-section" data-section="${i}" aria-selected="${i === E.section}">${CHOIX_DE_GENRE.find((c) => c.choix === s.genre).nom} <small>${s.mesures}</small></button>`,
     )
     .join("");
   const etiquettes = `<div class="etiquettes" aria-hidden="true">
@@ -105,7 +105,7 @@ function grille(E: EditeurEnCours) {
       <div class="outils-compo">
         <label>Genre <select data-champ="genre">${options(
           CHOIX_DE_GENRE.map((c) => [c.choix, c.nom]),
-          choixDe(sec),
+          sec.genre,
         )}</select></label>
         <span class="groupe">Mesures <button type="button" data-act="ed-moins" aria-label="Retirer une mesure">−</button><b>${sec.mesures}</b><button type="button" data-act="ed-plus" aria-label="Ajouter une mesure">+</button></span>
         <span class="groupe"><button type="button" data-act="ed-avant" aria-label="Avancer la section">←</button><button type="button" data-act="ed-apres" aria-label="Reculer la section">→</button></span>

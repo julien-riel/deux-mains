@@ -33,8 +33,6 @@ export interface Morceau {
   /** Des accords à la place de ceux de la chanson générée, en boucle (décalage depuis la tonique, qualité) : la
    * mélodie de ce genre doit alors être réécrite (`melodie`), pour jouer les degrés de ces accords */
   accords?: [number, string][];
-  /** Un pont en mains croisées (#21) : la scène s'y retourne */
-  croisee?: true;
 }
 
 /** Les motifs de basse par genre de section, comme dans `DIFFS` : S glisser, W sauter, D double saut, T tunnel,
@@ -68,7 +66,7 @@ export function assembler(
     ev: Note[] = [];
   let bar = 0;
   for (const m of morceaux) {
-    sections.push({ name: m.nom, kind: m.genre, bars: m.mesures, start: bar, ...(m.croisee && { croisee: true }) });
+    sections.push({ name: m.nom, kind: m.genre, bars: m.mesures, start: bar });
     const de = m.de < 0 ? source.totalBars + m.de : m.de,
       decale = bar - de;
     for (let i = 0; i < m.mesures; i++)

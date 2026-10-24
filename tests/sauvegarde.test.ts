@@ -211,6 +211,8 @@ const EMPREINTES_DE_L_INSTANTANE: Record<number, string[]> = {
   2: ["90dc55f2eef50c061df8a1e81b07d8be0d32abfaf22a03f6a62f667b7cbc0dd1"],
   // Trois progressions de plus (ii–V–I, Blues, Vamp lydien) : neuf lieux par univers
   3: ["e3d621bb7a49f9f6aa8647919b49701dbb114aecc385001d43909582151f8cbd"],
+  // Plus de pont en mains croisées en Difficile (#77, ADR-0019)
+  4: ["d04c7bff6374b34147c2d97a67070a430629a248f90fb2649be123d459394e4b"],
 };
 it("VERSION_GENERATEUR change avec l'instantané du générateur", () => {
   const instantane = readFileSync(new URL("./instantanes/chansons.json", import.meta.url), "utf8").replace(

@@ -38,7 +38,8 @@ export const NOTES_MIN = 3;
 /** Une phrase dure deux mesures, soit 16 croches */
 const PHRASE = 16;
 
-/** Le solo libre : un pont, sauf le pont en mains croisées (#21), dont la mélodie est écrite */
+/** Le solo libre : un pont, sauf un pont écrit en mains croisées d'une partition (#21, ADR-0019), dont la mélodie
+ * est écrite */
 export const estSolo = (sec: Section) => sec.kind === "pont" && !sec.croisee;
 
 /** Le solo libre dont la phrase revient, et le refrain qui le suit : le dernier refrain de la forme fixe */

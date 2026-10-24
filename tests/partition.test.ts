@@ -19,6 +19,7 @@ import { gammeDe, makeChord, PROGS } from "../src/chanson/theorie";
 import { REPERTOIRE } from "../src/chanson/repertoire";
 import { partitionExemple } from "../src/essais/registre";
 import { PREFIXE_PARTITION, base64url, decoderPartition, encoderPartition } from "../src/sauvegarde/code";
+import { estSolo } from "../src/jeu/variations";
 import { decrireChanson } from "./support/instantane";
 
 // Une partition qui écrit tous les signes de la notation v1, en croches et en triolets
@@ -301,6 +302,17 @@ describe("empreinte et code de partage", () => {
     expect(composer((decoderPartition(code) as { partition: Partition }).partition).ev.length).toBe(
       composer(riche()).ev.length,
     );
+  });
+
+  it("un pont écrit en mains croisées (#21) se lit toujours, sans effet : un pont à l'endroit, sa mélodie écrite (ADR-0019)", () => {
+    const p = riche(),
+      code = encoderPartition(p),
+      lue = (decoderPartition(code) as { partition: Partition }).partition;
+    expect([lue.sections[3].croisee, empreinteDe(lue), encoderPartition(lue)]).toEqual([true, empreinteDe(p), code]);
+    const c = composer(lue),
+      pont = c.sections[3];
+    expect([pont.kind, pont.croisee, estSolo(pont)]).toEqual(["pont", true, false]);
+    expect(c.ev.filter((e) => e.hand === "R" && e.bar === pont.start).map((e) => e.lane)).toEqual([0, 1, 2, 3]);
   });
 
   it("un code abîmé, étranger ou interdit est refusé ; celui d'une notation plus récente est signalé", () => {

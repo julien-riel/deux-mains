@@ -7,7 +7,7 @@
 import { buildBoss } from "../chanson/boss";
 import type { Chanson, Note } from "../chanson/types";
 import type { Mains } from "../jeu/etat";
-import { NOM_CROISEE, NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/generateur";
+import { NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/generateur";
 import { VERSION_PARTITION, composer, type Partition } from "../chanson/partition";
 import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
@@ -96,8 +96,6 @@ const INTRO: Morceau = { nom: "Intro", genre: "intro", de: 0, mesures: 2 },
   OUTRO: Morceau = { nom: "Outro", genre: "outro", de: -2, mesures: 2 };
 const couplet = (de: number, mesures: number): Morceau => ({ nom: "Couplet", genre: "couplet", de, mesures }),
   refrain = (de: number, mesures: number): Morceau => ({ nom: "Refrain", genre: "refrain", de, mesures }),
-  // Un pont en mains croisées (#21) de quatre mesures, qui recopie la mélodie de la chanson générée à partir de `de`
-  pontCroise = (de: number): Morceau => ({ nom: NOM_CROISEE, genre: "pont", de, mesures: 4, croisee: true }),
   // Une section en 3 contre 2 (#19) de quatre mesures, sur les accords de la chanson générée à partir de `de` : sa
   // basse vient des motifs en triolets de Difficile, sa mélodie de `polyrythmer`
   polyrythmie = (de: number): Morceau => ({ nom: NOM_POLYRYTHMIE, genre: "polyrythmie", de, mesures: 4 });
@@ -499,19 +497,6 @@ export const ESSAIS: Essai[] = [
       ]),
     // Toutes les notes se réécoutent
     repere: () => true,
-  },
-  {
-    id: "mains-croisees",
-    titre: "Mains croisées",
-    verifier:
-      "Une mesure avant le pont, l'annonce « Mains croisées » ; la scène bascule autour de son milieu : le sol, le personnage et les obstacles passent en haut, les ennemis en bas, et le rail suit ses couloirs. Les touches ne changent pas (S et W pour la basse, J K L ; pour la mélodie), ni les fenêtres de jugement. À la fin du pont, « Retour à l'endroit » et la scène se remet droite. Il y a deux ponts : compare avec l'autre univers dans les réglages.",
-    issue: 21,
-    univers: "ville",
-    diff: "difficile",
-    mains: "both",
-    // Deux ponts en mains croisées, sur la mélodie du couplet, séparés par deux mesures à l'endroit
-    chanson: () => assembler(GRAINE, "difficile", [INTRO, pontCroise(2), couplet(6, 2), pontCroise(10), OUTRO]),
-    repere: (ev) => ev.kind === "pont",
   },
   {
     id: "jam",

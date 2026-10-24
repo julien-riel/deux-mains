@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { composer, empreinteDe, estSoloLibre, lirePartition, type Partition } from "../src/chanson/partition";
 import { partitionExemple } from "../src/essais/registre";
 import {
+  CHOIX_DE_GENRE,
   LIGNES,
   ajouterMesure,
   ajouterSection,
@@ -41,6 +42,22 @@ afterEach(() => nav?.fermer());
 // Les lignes de la grille : 0 à 3 les couloirs (octave à fondamentale), 4 sauter, 5 glisser
 const [OCTAVE, QUINTE, , FOND, SAUTER, GLISSER] = [0, 1, 2, 3, 4, 5];
 const couplet = (p: Partition) => p.sections[1];
+// Une partition qui écrit un pont en mains croisées (#21), comme avant ADR-0019, et son code de partage
+const PONT_CROISE: Partition = {
+  v: 1,
+  titre: "Pont croisé",
+  ton: 7,
+  bpm: 112,
+  diff: "facile",
+  prog: "I–V–vi–IV",
+  sections: [
+    { genre: "intro", mesures: 1, basse: ["S......."], melodie: [] },
+    { genre: "pont", mesures: 2, basse: ["S...W..."], melodie: ["0.1.2.3.", "3.2.1.0."], croisee: true },
+    { genre: "outro", mesures: 1, basse: ["S......."], melodie: ["0-------"] },
+  ],
+};
+const CODE_PONT_CROISE =
+  "DMP1.eyJ2IjoxLCJ0aXRyZSI6IlBvbnQgY3JvaXPDqSIsInRvbiI6NywiYnBtIjoxMTIsImRpZmYiOiJmYWNpbGUiLCJwcm9nIjoiSeKAk1bigJN2aeKAk0lWIiwic2VjdGlvbnMiOlt7ImdlbnJlIjoiaW50cm8iLCJtZXN1cmVzIjoxLCJiYXNzZSI6WyJTLi4uLi4uLiJdLCJtZWxvZGllIjpbXX0seyJnZW5yZSI6InBvbnQiLCJtZXN1cmVzIjoyLCJiYXNzZSI6WyJTLi4uVy4uLiJdLCJtZWxvZGllIjpbIjAuMS4yLjMuIiwiMy4yLjEuMC4iXSwiY3JvaXNlZSI6dHJ1ZX0seyJnZW5yZSI6Im91dHJvIiwibWVzdXJlcyI6MSwiYmFzc2UiOlsiUy4uLi4uLi4iXSwibWVsb2RpZSI6WyIwLS0tLS0tLSJdfV19";
 
 describe("la grille de l'éditeur", () => {
   it("un cylindre neuf est une partition valide et vide : intro, couplet de quatre mesures, outro", () => {
@@ -110,13 +127,25 @@ describe("la grille de l'éditeur", () => {
     expect(changerDivision(p, 1, 0, "R")).toBe(p);
     expect(couplet(toucher(p, 1, 0, GLISSER, 0, "note")).melodie).toEqual([]);
     expect(lirePartition(ajouterMesure(p, 1))).not.toBeNull();
-    const croisee = changerGenre(p, 1, "croisee");
-    expect([couplet(croisee).genre, couplet(croisee).croisee, couplet(croisee).melodie.length]).toEqual([
+  });
+
+  it("les mains croisées ne se choisissent plus ; un pont écrit en mains croisées s'affiche comme un pont (ADR-0019)", () => {
+    expect(CHOIX_DE_GENRE.map((c) => c.choix)).toEqual(["intro", "couplet", "refrain", "pont", "polyrythmie", "outro"]);
+    expect(CHOIX_DE_GENRE.map((c) => c.nom)).not.toContain("Mains croisées");
+    const p = lirePartition(PONT_CROISE),
+      pont = p.sections[1];
+    expect([pont.genre, pont.croisee, CHOIX_DE_GENRE.find((c) => c.choix === pont.genre).nom]).toEqual([
       "pont",
       true,
-      4,
+      "Solo libre",
     ]);
-    expect(couplet(changerGenre(croisee, 1, "refrain")).croisee).toBeUndefined();
+    // Sa mélodie écrite reste modifiable ; changer son genre lui retire sa marque
+    expect(toucher(p, 1, 0, QUINTE, 1, "note").sections[1]).toMatchObject({
+      croisee: true,
+      melodie: ["021.2.3.", "3.2.1.0."],
+    });
+    expect(changerGenre(p, 1, "refrain").sections[1]).not.toHaveProperty("croisee");
+    expect(changerGenre(p, 1, "pont").sections[1]).toMatchObject({ genre: "pont", melodie: [] });
   });
 
   it("passer une main en triolets ne garde que les notes sur les temps, en notes simples (ADR-0013)", () => {
@@ -332,5 +361,39 @@ describe("l'éditeur dans le jeu", () => {
       { genre: "graine", graine, diff: "difficile" },
     ]);
     expect(nav.stockage.get("deux-mains-diff")).toBe("difficile");
+  });
+
+  it("un code DMP1 avec un pont en mains croisées se colle, s'affiche comme un pont et se joue à l'endroit (ADR-0019)", async () => {
+    nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": "ville" } });
+    const S = nav.jeu.state;
+    nav.presser("KeyP");
+    nav.toucherBouton("ed-rangement");
+    nav.trouver("#code-partition-colle").value = CODE_PONT_CROISE;
+    nav.toucherBouton("ed-coller");
+    expect([S.editeur.partition, S.editeur.vue]).toEqual([lirePartition(PONT_CROISE), "grille"]);
+    // Dans les onglets et dans la liste des genres, le pont écrit est un pont ; les mains croisées n'y sont plus
+    nav.toucherBouton("ed-section", { section: "1" });
+    expect(nav.overlay.innerHTML).toContain('aria-selected="true">Solo libre <small>2</small>');
+    expect(nav.overlay.innerHTML).not.toContain("Mains croisées");
+    expect(nav.overlay.innerHTML).not.toContain('value="croisee"');
+
+    // Écouter : l'auto-play le joue sans faute, sans annonce ni bascule de la scène, ses notes écrites jouées
+    nav.presser("KeyA");
+    const textes = new Set<string>(),
+      bannieres = new Set<string>();
+    nav.avancerJusqua(
+      (s) => {
+        nav.textes.forEach((t) => textes.add(t));
+        if (s.curSec?.croisee && s.banner) bannieres.add(`${s.banner.text} · ${s.banner.sub}`);
+        return s.mode !== "play";
+      },
+      (S.song.endBeat * 60) / S.song.bpm + 10,
+    );
+    expect([S.mode, S.miss, S.health]).toEqual(["done", 0, 100]);
+    expect(S.song.ev.filter((e) => e.hand === "R" && e.bar >= 1 && e.bar < 3).map((e) => e.state)).toEqual(
+      Array(8).fill("hit"),
+    );
+    expect([...textes].filter((t) => /CROIS|ENDROIT|⇅/.test(t))).toEqual([]);
+    expect([...bannieres]).toEqual(["Mains croisées · "]);
   });
 });

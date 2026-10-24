@@ -17,15 +17,7 @@
 // minuscules pour un accord mineur, suivis de 7 ou de M7, précédés de b ou # pour un degré abaissé ou haussé) ; sans
 // accords écrits, elle suit la progression. Les petites notes y prennent la gamme entière, et plus la pentatonique.
 import { DIFFS } from "./difficultes";
-import {
-  NOM_CROISEE,
-  NOM_POLYRYTHMIE,
-  couloirsDuSerpent,
-  noteDeMelodie,
-  notesDeBasse,
-  petiteNote,
-  voisin,
-} from "./generateur";
+import { NOM_POLYRYTHMIE, couloirsDuSerpent, noteDeMelodie, notesDeBasse, petiteNote, voisin } from "./generateur";
 import { PAS_PAR_MESURE, enTemps, relierAccords } from "./temps";
 import { NOTE_FR, PROGS, gammeDe, makeChord } from "./theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "./types";
@@ -43,7 +35,9 @@ export interface SectionDePartition {
   /** Depuis la version 2 (ADR-0018) : les accords de la section, un par mesure en chiffres romains (« I », « V7 »,
    * « vi », « bVII »), repris en boucle s'il y en a moins que de mesures. Sans eux, elle suit la progression. */
   accords?: string[];
-  /** Un pont en mains croisées (#21) : la scène s'y retourne, et sa mélodie est écrite */
+  /** Un pont écrit en mains croisées (#21) : sa mélodie est écrite, ce n'est pas un solo libre. Depuis ADR-0019, la
+   * scène ne se retourne plus : il se joue comme un pont à l'endroit. Encore lu, pour que les partitions et les codes
+   * qui l'écrivent donnent toujours la même chanson, mais l'éditeur ne le propose plus. */
   croisee?: true;
 }
 
@@ -86,6 +80,9 @@ export function lireAccord(symbole: string): [number, string] | null {
   const decalage = (DEGRES[degre.toUpperCase()] + (alteration === "b" ? 11 : alteration === "#" ? 1 : 0)) % 12;
   return [decalage, mineur ? (septieme ? "m7" : "m") : (septieme ?? "M")];
 }
+
+/** Le nom d'un pont écrit `croisee` : il reste le même pour que ces partitions donnent toujours la même chanson */
+export const NOM_CROISEE = "Mains croisées";
 
 /** Le solo libre : la mélodie y est à celui qui joue, une partition n'en écrit pas */
 export const estSoloLibre = (s: SectionDePartition) => s.genre === "pont" && !s.croisee;
