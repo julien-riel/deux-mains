@@ -671,6 +671,52 @@ export const ESSAIS: Essai[] = [
     repere: (ev) => ev.canon !== undefined,
   },
   {
+    id: "disque-ville",
+    titre: "Le disque, dans la Ville",
+    verifier:
+      "Dès la première mesure, la planète-quartier tourne au centre : le personnage court à son sommet, les obstacles montent vers lui sur le bord, la mélodie arrive par la droite sur quatre anneaux (fondamentale au plus près) jusqu'à l'antenne au-dessus de lui. Les tunnels et les pentes se courbent avec le sol, les notes tenues et les trilles avec leurs anneaux, le fil du relais passe d'une main à l'autre. Un accord relie deux anneaux par un éclair ; chaque Parfait grave un arc lumineux qui tourne avec le disque, et les fenêtres se rallument avec le combo ; un raté raye son anneau et fait vaciller la planète.",
+    issue: 80,
+    univers: "ville",
+    diff: "normal",
+    scene: "disque",
+    mains: "both",
+    // Un couplet en relais (#20) avec tunnels et pentes, puis un refrain de notes tenues, de trilles et d'accords
+    chanson: () =>
+      accorder(
+        relayer(
+          assembler(
+            GRAINE,
+            "normal",
+            [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+            { couplet: ["T--.W...", "S...M--."], refrain: ["S.W.S.W.", "S.W.B--."] },
+            { refrain: ["0---2...", "1~~~..3."] },
+          ),
+          [[3, false]],
+        ),
+      ),
+    repere: (ev) => ev.hand === "R",
+  },
+  {
+    id: "disque-boite",
+    titre: "Le disque, dans la Boîte",
+    verifier:
+      "Dès la première mesure, le disque de laiton perforé tourne, la petite danseuse pirouette en son centre, et les papillons arrivent par la droite sur quatre anneaux jusqu'au peigne, dont les dents vibrent quand on joue leur anneau. Les serpents s'enroulent sur les anneaux d'un passage à l'autre, les petites notes passent entre deux anneaux, les notes tenues suivent leur anneau ; en Difficile, les notes de l'anneau du dehors vont plus vite que celles du dedans. Un raté raye son anneau et fait vaciller le disque ; avec « Mouvement réduit », il tourne plus lentement et ne vacille plus.",
+    issue: 80,
+    univers: "boite",
+    diff: "difficile",
+    scene: "disque",
+    mains: "both",
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "difficile",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        { couplet: ["T--.WD..", "S.W.S.W."] },
+        { couplet: ["0///..2.", "2c3.1---"], refrain: ["3-\\-\\-..", "1b2.0---"] },
+      ),
+    repere: (ev) => ev.hand === "R",
+  },
+  {
     id: "editeur",
     titre: "Éditeur de cylindre",
     verifier:

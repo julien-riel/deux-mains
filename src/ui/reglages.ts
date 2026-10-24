@@ -48,7 +48,7 @@ function installer(song: Chanson, diff: string) {
   S.diff = diff;
   S.song = song;
   // La scène ne change jamais en pleine chanson (ADR-0019) : elle se choisit avec elle
-  S.scene = sceneDeLaPartie(S.essai?.essai);
+  S.scene = sceneDeLaPartie(S.essai?.essai, song);
   // Le remontage (#27) ne vaut que pour la chanson qui le suit
   S.remontage = null;
   S.depart = null;

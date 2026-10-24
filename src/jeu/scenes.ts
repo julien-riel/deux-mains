@@ -12,7 +12,9 @@ export const SCENES = ["cote", "colonnes", "disque", "horizon"] as const;
 export type IdScene = (typeof SCENES)[number];
 
 /**
- * La scène d'une partie : celle que l'essai impose, sinon la scène de côté. Une scène ne change jamais en pleine
- * chanson (ADR-0019). La scène de chaque lieu et le réglage « Scène » (#83) viendront s'ajouter ici.
+ * La scène d'une partie : celle que l'essai impose, sinon le disque pour le niveau du boss de fin (#26, #80), quel
+ * que soit son lieu, sinon la scène de côté. Une scène ne change jamais en pleine chanson (ADR-0019). La scène de
+ * chaque lieu et le réglage « Scène » (#83) viendront s'ajouter ici.
  */
-export const sceneDeLaPartie = (essai?: { scene?: IdScene } | null): IdScene => essai?.scene ?? "cote";
+export const sceneDeLaPartie = (essai?: { scene?: IdScene } | null, chanson?: { boss?: unknown } | null): IdScene =>
+  essai?.scene ?? (chanson?.boss ? "disque" : "cote");

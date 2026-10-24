@@ -25,6 +25,13 @@ describe("choix de la scène", () => {
     expect(sceneDeLaPartie({ scene: "disque" })).toBe("disque");
   });
 
+  it("joue le niveau du boss de fin sur le disque, sauf si l'essai impose une autre scène", () => {
+    expect(sceneDeLaPartie(null, { boss: {} })).toBe("disque");
+    expect(sceneDeLaPartie({}, { boss: {} })).toBe("disque");
+    expect(sceneDeLaPartie({ scene: "cote" }, { boss: {} })).toBe("cote");
+    expect(sceneDeLaPartie(null, {})).toBe("cote");
+  });
+
   it("chaque essai qui impose une scène impose une scène dessinée", async () => {
     nav = await Navigateur.ouvrir();
     const { SCENES_DESSINEES } = await import("../src/rendu/geometrie");
@@ -43,9 +50,11 @@ describe("choix de la scène", () => {
   it("dessine la scène de côté à la place d'une scène qui n'est pas encore dessinée", async () => {
     nav = await Navigateur.ouvrir();
     const { scene, SCENES_DESSINEES } = await import("../src/rendu/geometrie");
-    expect(Object.keys(SCENES_DESSINEES)).toEqual(["cote", "colonnes"]);
+    expect(Object.keys(SCENES_DESSINEES)).toContain("cote");
     expect(scene().id).toBe("cote");
-    nav.jeu.state.scene = "disque";
+    const absente = SCENES.find((id) => !(id in SCENES_DESSINEES));
+    if (!absente) return;
+    nav.jeu.state.scene = absente;
     expect(scene().id).toBe("cote");
   });
 });

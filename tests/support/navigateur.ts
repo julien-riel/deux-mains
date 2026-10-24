@@ -42,6 +42,8 @@ export interface Options {
   /** Web MIDI, absent si l'option manque : la permission retenue par le navigateur (« prompt » par défaut), une
    * demande d'accès refusée (comme dans la page d'artefact), et les claviers branchés */
   midi?: { permission?: "granted" | "prompt" | "denied"; refuse?: boolean; claviers?: string[] };
+  /** Le navigateur demande « Mouvement réduit » (prefers-reduced-motion) */
+  mouvementReduit?: boolean;
 }
 
 type Ecouteur = (e: Record<string, unknown>) => void;
@@ -281,6 +283,7 @@ export class Navigateur {
     if (options.midi) nav.midi = new FauxMidi(options.midi);
     nav.installer();
     nav.media("(hover: none) and (pointer: coarse)").matches = !!options.tactile;
+    nav.media("(prefers-reduced-motion: reduce)").matches = !!options.mouvementReduit;
     vi.resetModules();
     await import("../../src/main");
     // L'accès MIDI déjà accordé se branche tout seul : on laisse ses promesses aboutir
