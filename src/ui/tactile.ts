@@ -5,7 +5,9 @@ import { heureDe, retardDe } from "../audio/moteur";
 import { presser, relacher } from "../jeu/actions";
 import { pause } from "../jeu/deroulement";
 import { COULOIRS, S, type Action } from "../jeu/etat";
-import { H, LANE_Y, cv } from "../rendu/outils";
+import { H, cv } from "../rendu/outils";
+// Les bandes suivent encore les couloirs de la scène de côté : les zones fixes d'ADR-0019 les remplaceront (#79)
+import { LANE_Y } from "../rendu/scenes/cote";
 import { taper } from "./calibrage";
 import { overlay, show } from "./ecrans";
 import { taperRemontage } from "./remontage";

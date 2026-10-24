@@ -2,24 +2,18 @@
 import { glisserVoix, harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
 import { AC, timeOfBeat } from "../audio/moteur";
 import { TH } from "../univers/univers";
+import { scene } from "../rendu/geometrie";
 import {
-  BOSS_X,
-  BOSS_Y,
   COL,
-  CIBLE_Y,
-  GY,
-  HITX,
   HUE_BASS,
   LANE_HUE,
-  LANE_Y,
   PLONGEE,
+  POITRINE,
   PW,
-  PX,
   burst,
   popup,
   reduced,
   teinteDeCouloir,
-  yDeCouloir,
 } from "../rendu/outils";
 import { die } from "./deroulement";
 import { S, chordAtBeat, layers } from "./etat";
@@ -39,6 +33,26 @@ export function aLHeure(t: number, f: () => void) {
   }
 }
 
+// Où se montrent les effets, dans la scène de la partie (ADR-0019) : près du point d'impact d'un couloir, au-dessus
+// du personnage (la basse), autour du boss
+const couloir = (voie: number) => scene().impact(voie);
+const joueur = () => scene().impact("basse");
+// Le jugement d'une note de la basse s'affiche au-dessus du personnage
+const popupJoueur = (texte: string, couleur: string) => {
+  const j = joueur();
+  popup(texte, j.x - PW / 2 + 20, j.y - 140, couleur);
+};
+// Celui d'une note de la mélodie, au-dessus de son couloir, juste après la ligne de tir
+const popupCouloir = (texte: string, voie: number, couleur: string) => {
+  const c = couloir(voie);
+  popup(texte, c.x + 30, c.y - 26, couleur);
+};
+// Une gerbe d'éclats au point d'impact d'un couloir, décalée de `dx` pixels
+const gerbe = (voie: number, n: number, dx = 0) => {
+  const c = couloir(voie);
+  burst(c.x + dx, c.y, LANE_HUE[voie], n);
+};
+
 export const effets: Effets = {
   jouer(ev, beat, lane) {
     playHit(ev, beat === null ? maintenant() : timeOfBeat(beat), lane);
@@ -51,28 +65,33 @@ export const effets: Effets = {
       color = perfect ? COL.good : COL.fg;
     // La trille réussie (#15) annonce ses points en plus, entre ses deux couloirs
     if (ev.trille !== undefined) {
-      const y = (LANE_Y[ev.lane] + LANE_Y[ev.trille]) / 2;
-      popup(bonus ? `Trille +${bonus}` : "Trille", HITX + 30, y - 26, COL.good);
-      burst(HITX, y, LANE_HUE[ev.lane], 22);
+      const a = couloir(ev.lane),
+        y = (a.y + couloir(ev.trille).y) / 2;
+      popup(bonus ? `Trille +${bonus}` : "Trille", a.x + 30, y - 26, COL.good);
+      burst(a.x, y, LANE_HUE[ev.lane], 22);
       return;
     }
     if (ev.hand === "L" && ev.lane === 3) {
       // L'écrasement (#8) secoue la scène et projette des éclats au ras du sol
-      popup(label, PX + 20, GY - 140, color);
-      burst(PX + PW / 2, GY - 4, HUE_BASS, 26);
+      const j = joueur();
+      popupJoueur(label, color);
+      burst(j.x, j.y - 4, HUE_BASS, 26);
       S.shake = reduced ? 0 : 7;
     } else if (ev.hand === "L") {
-      popup(label, PX + 20, GY - 140, color);
-      burst(PX + PW / 2, ev.lane === 0 || ev.lane === 5 ? GY - 55 : GY - 20, HUE_BASS, 8);
+      const j = joueur();
+      popupJoueur(label, color);
+      burst(j.x, ev.lane === 0 || ev.lane === 5 ? j.y - 55 : j.y - 20, HUE_BASS, 8);
     } else {
       // Une petite note (#14) éclate moins, entre ses deux couloirs
-      const petite = !Number.isInteger(ev.lane);
-      popup(label, HITX + 30, yDeCouloir(ev.lane) - 26, color);
-      burst(HITX, yDeCouloir(ev.lane), teinteDeCouloir(ev.lane), petite ? 8 : 16);
+      const petite = !Number.isInteger(ev.lane),
+        c = couloir(ev.lane);
+      popupCouloir(label, ev.lane, color);
+      burst(c.x, c.y, teinteDeCouloir(ev.lane), petite ? 8 : 16);
     }
   },
   accord(grp) {
-    popup(grp.some((e) => e.hand === "L") ? "Accord à deux mains" : "Accord", HITX + 140, LANE_Y[3] - 30, COL.good);
+    const haut = couloir(3);
+    popup(grp.some((e) => e.hand === "L") ? "Accord à deux mains" : "Accord", haut.x + 140, haut.y - 30, COL.good);
   },
   rate(ev) {
     ev.missAt = performance.now();
@@ -80,9 +99,9 @@ export const effets: Effets = {
       S.hurtAt = performance.now();
       S.shake = reduced ? 0 : 9;
       thud();
-      popup("Aïe", PX + 20, GY - 140, COL.bad);
+      popupJoueur("Aïe", COL.bad);
     } else {
-      popup("Raté", HITX + 30, yDeCouloir(ev.lane) - 26, COL.bad);
+      popupCouloir("Raté", ev.lane, COL.bad);
       // L'ennemi raté plonge sur le joueur : il le frappe à la fin de sa plongée. Ce n'est qu'une image, les
       // dégâts tombent au raté ; une petite note (#14) ne plonge pas. Le choc sonne à l'heure de l'horloge audio
       // (ADR-0004), l'image le suit
@@ -91,79 +110,81 @@ export const effets: Effets = {
         setTimeout(() => {
           S.hurtAt = performance.now();
           S.shake = reduced ? 0 : 6;
-          popup("Aïe", PX + 20, GY - 140, COL.bad);
-          burst(PX + PW / 2, CIBLE_Y, 355, 12);
+          const j = joueur();
+          popupJoueur("Aïe", COL.bad);
+          burst(j.x, j.y - POITRINE, 355, 12);
         }, PLONGEE);
       }
     }
   },
   lache(ev) {
     // Le serpent (#16) casse sur le couloir où il en était
-    popup(
-      "Lâché",
-      ev.hand === "L" ? PX + 20 : HITX + 30,
-      ev.hand === "L" ? GY - 140 : LANE_Y[couloirDe(ev)] - 26,
-      COL.bad,
-    );
+    if (ev.hand === "L") popupJoueur("Lâché", COL.bad);
+    else popupCouloir("Lâché", couloirDe(ev), COL.bad);
   },
   mauvaisCouloir(lane) {
     tick();
-    popup("Mauvais couloir", HITX + 30, LANE_Y[lane] - 26, COL.bad);
+    popupCouloir("Mauvais couloir", lane, COL.bad);
   },
   solo(lane, nb) {
     const ch = chordAtBeat(nb);
     leadV(maintenant(), ch.lanes[lane], 0, leadTimbre("refrain"));
     if (layers().choir) harmV(maintenant(), lane < 3 ? ch.lanes[lane + 1] : ch.lanes[1] + 12);
-    burst(HITX + 40, LANE_Y[lane], LANE_HUE[lane], 10);
+    gerbe(lane, 10, 40);
   },
   vibrato(ev, points) {
     ev.voice?.vibrer?.(maintenant());
     ev.vibreAt = performance.now();
-    if (points) popup(`Vibrato +${points}`, HITX + 30, LANE_Y[ev.lane] - 26, COL.good);
+    if (points) popupCouloir(`Vibrato +${points}`, ev.lane, COL.good);
   },
   trille(ev, lane) {
     ev.trilleAt = performance.now();
-    burst(HITX, LANE_Y[lane], LANE_HUE[lane], 4);
+    gerbe(lane, 4);
   },
   glisser(ev, k, beat) {
     glisserVoix(ev, k, beat === null ? maintenant() : timeOfBeat(beat));
   },
   passage(ev, k, parfait) {
-    const lane = ev.serpent[k],
-      y = LANE_Y[lane] - 26;
+    const lane = ev.serpent[k];
     if (parfait === null) {
       tick();
-      popup("Raté", HITX + 30, y, COL.bad);
+      popupCouloir("Raté", lane, COL.bad);
       return;
     }
     ev.passeAt = performance.now();
-    popup(parfait ? "Parfait" : "Bien", HITX + 30, y, parfait ? COL.good : COL.fg);
-    burst(HITX, LANE_Y[lane], LANE_HUE[lane], 10);
+    popupCouloir(parfait ? "Parfait" : "Bien", lane, parfait ? COL.good : COL.fg);
+    gerbe(lane, 10);
   },
   phrase(notes, points) {
     // La réponse au chanteur (#18) entièrement juste : une gerbe dans chaque couloir de la phrase
-    popup(`Phrase juste +${points}`, HITX + 30, LANE_Y[3] - 40, COL.good);
-    for (const lane of new Set(notes.map((n) => n.lane))) burst(HITX, LANE_Y[lane], LANE_HUE[lane], 14);
+    const haut = couloir(3);
+    popup(`Phrase juste +${points}`, haut.x + 30, haut.y - 40, COL.good);
+    for (const lane of new Set(notes.map((n) => n.lane))) gerbe(lane, 14);
   },
   relais(notes, points) {
     // Le relais réussi (#20) : le bonus entre les deux mains, et une gerbe de chaque côté du passage
     const m = notes.filter((n) => n.hand === "R");
-    popup(`Relais +${points}`, HITX + 30, LANE_Y[0] + 44, COL.good);
-    burst(HITX, LANE_Y[m[m.length - 1].lane], LANE_HUE[m[m.length - 1].lane], 14);
-    burst(PX + PW / 2, GY - 20, HUE_BASS, 14);
+    const bas = couloir(0),
+      j = joueur();
+    popup(`Relais +${points}`, bas.x + 30, bas.y + 44, COL.good);
+    gerbe(m[m.length - 1].lane, 14);
+    burst(j.x, j.y - 20, HUE_BASS, 14);
   },
   canon(notes, points, touche) {
     // La phrase du canon rejouée juste (#26) : le bonus, une gerbe dans chaque couloir, et le boss touché recule
-    popup(`Canon +${points}`, HITX + 30, LANE_Y[3] - 40, COL.good);
-    for (const lane of new Set(notes.map((n) => n.lane))) burst(HITX, LANE_Y[lane], LANE_HUE[lane], 10);
+    const haut = couloir(3);
+    popup(`Canon +${points}`, haut.x + 30, haut.y - 40, COL.good);
+    for (const lane of new Set(notes.map((n) => n.lane))) gerbe(lane, 10);
     if (!touche || !S.boss) return;
     S.boss.toucheAt = performance.now();
-    burst(BOSS_X - 40, BOSS_Y, LANE_HUE[notes[notes.length - 1].lane], 18);
+    const boss = scene().boss;
+    burst(boss.x - 40, boss.y, LANE_HUE[notes[notes.length - 1].lane], 18);
   },
   bossVaincu(points) {
     // Le boss tombe (#26) : il se tait, la scène tremble, et le joueur finit le canon seul
-    popup(`Victoire +${points}`, BOSS_X - 60, BOSS_Y - 110, COL.good);
-    for (const hue of LANE_HUE) burst(BOSS_X, BOSS_Y, hue, 22);
+    const boss = scene().boss;
+    popup(`Victoire +${points}`, boss.x - 60, boss.y - 110, COL.good);
+    for (const hue of LANE_HUE) burst(boss.x, boss.y, hue, 22);
     S.shake = reduced ? 0 : 10;
     S.banner = { text: TH().boss.nom, sub: TH().boss.vaincu, at: performance.now() };
   },

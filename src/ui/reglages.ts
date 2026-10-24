@@ -12,6 +12,7 @@ import { resetRun } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
 import { S, airEnCours, spb, type EssaiEnCours, type Mains } from "../jeu/etat";
 import { abandonnerReecoute, mainsDuJoueur } from "../jeu/reecoute";
+import { sceneDeLaPartie } from "../jeu/scenes";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
 import { show } from "./ecrans";
@@ -46,6 +47,8 @@ function installer(song: Chanson, diff: string) {
   }
   S.diff = diff;
   S.song = song;
+  // La scène ne change jamais en pleine chanson (ADR-0019) : elle se choisit avec elle
+  S.scene = sceneDeLaPartie(S.essai?.essai);
   // Le remontage (#27) ne vaut que pour la chanson qui le suit
   S.remontage = null;
   S.depart = null;

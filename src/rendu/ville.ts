@@ -2,33 +2,19 @@ import { S, layers, progression } from "../jeu/etat";
 import { COULEUR_BASSE } from "../jeu/traces";
 import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
-import {
-  COL,
-  GY,
-  PPB,
-  PW,
-  PX,
-  W,
-  energy,
-  formeCouloir,
-  g,
-  hexA,
-  hh,
-  reduced,
-  rr,
-  teinteDeTrace,
-  tracesVisibles,
-  type PoseDuBoss,
-} from "./outils";
+import { scene } from "./geometrie";
+import { COL, PW, W, energy, formeCouloir, g, hexA, hh, reduced, rr, teinteDeTrace, type PoseDuBoss } from "./outils";
+import type { SceneDeCote } from "./scenes/cote";
 
-/* La Ville Muette */
-export function villeBack(nb, hsl, bp) {
-  const sky = g.createLinearGradient(0, 0, 0, GY);
+/* La Ville Muette, dans la scène de côté (ADR-0019) : elle défile avec la scène `cote` */
+export function villeBack(nb, hsl, bp, cote: SceneDeCote) {
+  const sol = cote.impact("basse").y;
+  const sky = g.createLinearGradient(0, 0, 0, sol);
   sky.addColorStop(0, hsl(250, 45, 8));
   sky.addColorStop(0.7, hsl(290, 38, 17));
   sky.addColorStop(1, hsl(320, 45, 24));
   g.fillStyle = sky;
-  g.fillRect(-12, -12, W + 24, GY + 12);
+  g.fillRect(-12, -12, W + 24, sol + 12);
   // Lune imprimée en risographie : deux passages d'encre légèrement décalés
   g.globalAlpha = 0.5;
   g.beginPath();
@@ -51,17 +37,17 @@ export function villeBack(nb, hsl, bp) {
     [0.1, 70, 130, 270, 13, 0],
     [0.28, 110, 90, 220, 9, 1],
   ]) {
-    const off = nb * PPB * speed,
+    const off = cote.defile(nb) * speed,
       k0 = Math.floor(off / slot) - 1;
     for (let k = k0; k < k0 + W / slot + 3; k++) {
       const x = k * slot - off,
         bw = slot - 8 - hh(k, layer) * 20,
         bh = minH + hh(k, layer + 7) * (maxH - minH),
-        top = GY - bh;
+        top = sol - bh;
       g.fillStyle = hsl(255, 28, l);
       g.fillRect(x, top, bw, bh);
       if (hh(k, layer + 3) < 0.3) g.fillRect(x + bw * 0.6, top - 18, 10, 18);
-      for (let wy = top + 12, r = 0; wy < GY - 30; wy += 18, r++)
+      for (let wy = top + 12, r = 0; wy < sol - 30; wy += 18, r++)
         for (let wx = x + 8, c = 0; wx < x + bw - 10; wx += 14, c++) {
           const v = hh(k * 977 + r * 31 + c, layer + 50);
           if (v < lit && !(flicker && Math.random() < 0.4)) {
@@ -87,24 +73,24 @@ export function villeBack(nb, hsl, bp) {
       }
     }
   }
-  villeTags(nb, hsl, bp);
+  villeTags(nb, hsl, bp, cote);
   // Lampadaires, un toutes les deux mesures
   for (let b = Math.floor((nb - 4) / 8) * 8; b < nb + 12; b += 8) {
-    const x = PX + PW / 2 + (b - nb) * PPB + 60;
+    const x = cote.poser(b, "basse", nb).x + 60;
     const on = !(flicker && hh(b, Math.floor(nb * 4)) < 0.4);
     g.fillStyle = hsl(255, 15, 22);
-    g.fillRect(x, GY - 150, 4, 150);
-    g.fillRect(x - 20, GY - 150, 24, 4);
+    g.fillRect(x, sol - 150, 4, 150);
+    g.fillRect(x - 20, sol - 150, 24, 4);
     if (on) {
       g.beginPath();
-      g.moveTo(x - 18, GY - 146);
-      g.lineTo(x - 64, GY);
-      g.lineTo(x + 28, GY);
+      g.moveTo(x - 18, sol - 146);
+      g.lineTo(x - 64, sol);
+      g.lineTo(x + 28, sol);
       g.closePath();
       g.fillStyle = hsl(45, 90, 70, 0.05 + 0.04 * bp);
       g.fill();
       g.fillStyle = hsl(45, 95, 75);
-      g.fillRect(x - 20, GY - 146, 10, 4);
+      g.fillRect(x - 20, sol - 146, 10, 4);
     }
   }
 }
@@ -113,13 +99,14 @@ export function villeBack(nb, hsl, bp) {
 // basse. Plus la note est haute, plus le tag est haut sur le mur. Un tag qu'on vient de bomber est plus grand et
 // plus vif pendant un temps. Les immeubles sont ceux de villeBack : même pas, même hachage.
 const PLAN_TAGS = { vitesse: 0.28, slot: 110, minH: 90, maxH: 220, plan: 1 };
-function villeTags(nb, hsl, bp) {
-  const { vitesse, slot, minH, maxH, plan } = PLAN_TAGS,
-    off = nb * PPB * vitesse;
+function villeTags(nb, hsl, bp, cote: SceneDeCote) {
+  const sol = cote.impact("basse").y,
+    { vitesse, slot, minH, maxH, plan } = PLAN_TAGS,
+    off = cote.defile(nb) * vitesse;
   g.save();
   g.lineCap = "round";
   g.lineJoin = "round";
-  for (const { t, couleur, x, frais } of tracesVisibles(nb, vitesse)) {
+  for (const { t, couleur, x, frais } of cote.traces(nb, vitesse)) {
     // L'immeuble sous la note, et le tag ramené sur son mur s'il tombait dans la ruelle
     const X = x + off,
       k = Math.floor(X / slot),
@@ -127,7 +114,7 @@ function villeTags(nb, hsl, bp) {
       bh = minH + hh(k, plan + 7) * (maxH - minH),
       cx = clamp(X, k * slot + 12, k * slot + bw - 12) - off,
       rang = couleur === COULEUR_BASSE ? 0 : couleur + 1,
-      cy = GY - 26 - ((rang + 0.15 + 0.7 * hh(t, 61)) / 5) * (bh - 46),
+      cy = sol - 26 - ((rang + 0.15 + 0.7 * hh(t, 61)) / 5) * (bh - 46),
       r = 6 * (1 + 0.7 * frais),
       teinte = teinteDeTrace(couleur),
       tracer = () => {
@@ -153,50 +140,52 @@ function villeTags(nb, hsl, bp) {
   }
   g.restore();
 }
-export function villeGround(nb, hsl) {
+export function villeGround(nb, hsl, cote: SceneDeCote) {
+  const sol = cote.impact("basse").y;
   g.fillStyle = hsl(250, 14, 12);
-  g.fillRect(-12, GY, W + 24, 45);
-  const off = (nb * PPB) % 80;
+  g.fillRect(-12, sol, W + 24, 45);
+  const off = cote.defile(nb) % 80;
   g.fillStyle = hsl(50, 80, 70, 0.45);
-  for (let x = -off; x < W; x += 80) g.fillRect(x, GY + 26, 40, 3);
+  for (let x = -off; x < W; x += 80) g.fillRect(x, sol + 26, 40, 3);
 }
+// Les obstacles de la basse se dessinent debout sur le sol de leur pose, en (x, sol) (ADR-0019)
 // Barrière de chantier
-export function villeBlock(x, fill) {
+export function villeBlock(x, sol, fill) {
   g.save();
-  rr(x - 18, GY - 34, 36, 22, 3);
+  rr(x - 18, sol - 34, 36, 22, 3);
   g.fillStyle = fill;
   g.fill();
   g.clip();
   g.fillStyle = hexA(COL.ink, 0.8);
   for (let s = -40; s < 50; s += 12) {
     g.beginPath();
-    g.moveTo(x + s, GY - 34);
-    g.lineTo(x + s + 6, GY - 34);
-    g.lineTo(x + s - 16, GY - 12);
-    g.lineTo(x + s - 22, GY - 12);
+    g.moveTo(x + s, sol - 34);
+    g.lineTo(x + s + 6, sol - 34);
+    g.lineTo(x + s - 16, sol - 12);
+    g.lineTo(x + s - 22, sol - 12);
     g.closePath();
     g.fill();
   }
   g.restore();
   g.fillStyle = fill;
-  g.fillRect(x - 15, GY - 12, 4, 12);
-  g.fillRect(x + 11, GY - 12, 4, 12);
+  g.fillRect(x - 15, sol - 12, 4, 12);
+  g.fillRect(x + 11, sol - 12, 4, 12);
 }
 // Pile de trois barrières, à franchir d'un double saut (#7)
-export function villeHaut(x, fill) {
+export function villeHaut(x, sol, fill) {
   for (let i = 0; i < 3; i++) {
     g.save();
     g.translate(0, -34 * i);
-    villeBlock(x, fill);
+    villeBlock(x, sol, fill);
     g.restore();
   }
 }
 // Plaque d'égout à écraser (#8) : vue de biais, elle s'enfonce une fois écrasée
-export function villePlaque(x, fill, enfoncee) {
-  const y = GY - (enfoncee ? 1 : 5);
+export function villePlaque(x, sol, fill, enfoncee) {
+  const y = sol - (enfoncee ? 1 : 5);
   g.fillStyle = hexA(COL.ink, 0.7);
   g.beginPath();
-  g.ellipse(x, GY, 30, 7, 0, 0, Math.PI * 2);
+  g.ellipse(x, sol, 30, 7, 0, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = fill;
   g.beginPath();
@@ -213,25 +202,25 @@ export function villePlaque(x, fill, enfoncee) {
   g.stroke();
 }
 // Rideau de fer suspendu
-export function villeBeam(x, fill) {
+export function villeBeam(x, sol, fill) {
   g.strokeStyle = hexA(COL.fg, 0.18);
   g.lineWidth = 1.5;
   g.beginPath();
-  g.moveTo(x - 12, 280);
-  g.lineTo(x - 12, 438);
-  g.moveTo(x + 12, 280);
-  g.lineTo(x + 12, 438);
+  g.moveTo(x - 12, sol - 225);
+  g.lineTo(x - 12, sol - 67);
+  g.moveTo(x + 12, sol - 225);
+  g.lineTo(x + 12, sol - 67);
   g.stroke();
-  rr(x - 18, 436, 36, 24, 3);
+  rr(x - 18, sol - 69, 36, 24, 3);
   g.fillStyle = fill;
   g.fill();
   g.fillStyle = hexA(COL.ink, 0.3);
-  for (let yy = 440; yy < 458; yy += 5) g.fillRect(x - 16, yy, 32, 1.5);
+  for (let yy = sol - 65; yy < sol - 47; yy += 5) g.fillRect(x - 16, yy, 32, 1.5);
 }
 // Pont du métro
-export function villeTunnel(a, b, fill) {
+export function villeTunnel(a, b, sol, fill) {
   g.save();
-  rr(a, 420, b - a, 42, 4);
+  rr(a, sol - 85, b - a, 42, 4);
   g.fillStyle = fill;
   g.fill();
   g.clip();
@@ -239,25 +228,25 @@ export function villeTunnel(a, b, fill) {
   g.lineWidth = 2;
   g.beginPath();
   for (let rx = a; rx < b; rx += 24) {
-    g.moveTo(rx, 422);
-    g.lineTo(rx + 24, 460);
-    g.moveTo(rx + 24, 422);
-    g.lineTo(rx, 460);
+    g.moveTo(rx, sol - 83);
+    g.lineTo(rx + 24, sol - 45);
+    g.moveTo(rx + 24, sol - 83);
+    g.lineTo(rx, sol - 45);
   }
   g.stroke();
   g.restore();
   g.fillStyle = hexA(COL.fg, 0.3);
-  g.fillRect(a, 414, b - a, 3);
+  g.fillRect(a, sol - 91, b - a, 3);
 }
 // Rampe de rue (#12) : un plan incliné de béton rayé, de la hauteur ya en a à la hauteur yb en b, avec sa main
 // courante
-export function villePente(a, b, ya, yb, fill) {
+export function villePente(a, b, sol, ya, yb, fill) {
   g.save();
   g.beginPath();
-  g.moveTo(a, GY);
+  g.moveTo(a, sol);
   g.lineTo(a, ya);
   g.lineTo(b, yb);
-  g.lineTo(b, GY);
+  g.lineTo(b, sol);
   g.closePath();
   g.fillStyle = hexA(COL.ink, 0.6);
   g.fill();
@@ -266,8 +255,8 @@ export function villePente(a, b, ya, yb, fill) {
   g.lineWidth = 2;
   g.beginPath();
   for (let x = a; x < b + 60; x += 18) {
-    g.moveTo(x, GY);
-    g.lineTo(x - 60, GY - 60);
+    g.moveTo(x, sol);
+    g.lineTo(x - 60, sol - 60);
   }
   g.stroke();
   g.restore();
@@ -292,7 +281,7 @@ export function villePente(a, b, ya, yb, fill) {
 // Drone du Bureau du Silence : le son capturé bat dans son bocal, au temps. `m`, la menace (de 0 à 1), monte à
 // l'approche de la ligne de tir : le drone pique du nez vers le joueur, son œil cesse de balayer la rue pour le
 // fixer et le viser, ses pinces s'ouvrent, ses hélices s'emballent, il grossit et il tremble.
-export function villeEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
+export function villeEnemy(x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) {
   const big = ev.kind === "refrain",
     j = big ? 20 : 15,
     top = -j / 2 + 4,
@@ -301,6 +290,8 @@ export function villeEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
     rot = -0.08 - 0.22 * m + (reduced ? 0 : 0.05 * Math.sin(nb * Math.PI + ev.beat));
   g.save();
   g.translate(x + tremble * Math.sin(nb * 53 + ev.beat), y + tremble * Math.cos(nb * 41));
+  if (angle) g.rotate(angle);
+  if (echelle !== 1) g.scale(echelle, echelle);
   g.rotate(rot);
   g.scale(1 + 0.2 * m, 1 + 0.2 * m);
   // L'œil, sous le capot : il balaie loin de la ligne, puis se pose sur le joueur
@@ -308,7 +299,8 @@ export function villeEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
     ey = top - 4.5;
   // La visée : un cône rouge vers le joueur, qui s'allume sur les derniers temps
   if (m > 0.4) {
-    const ang = Math.atan2(GY - 34 - y, PX - x) - rot,
+    const joueur = scene().impact("basse"),
+      ang = Math.atan2(joueur.y - 34 - y, joueur.x - PW / 2 - x) - rot,
       k = (m - 0.4) / 0.6,
       cone = g.createRadialGradient(ex, ey, 0, ex, ey, 90);
     cone.addColorStop(0, hsl(355, 90, 60, 0.32 * k * a));
@@ -398,19 +390,19 @@ export function villePetite(x, y, col, a, nb, hsl) {
 }
 // La marche d'un escalier (#13) : un bloc de béton à la hauteur de sa note, avec son nez de marche et une rampe
 // qui monte ou descend dans le sens de l'escalier
-export function villeMarche(x, haut, fill, monte) {
-  rr(x - 17, GY - haut, 34, haut, 2);
+export function villeMarche(x, sol, haut, fill, monte) {
+  rr(x - 17, sol - haut, 34, haut, 2);
   g.fillStyle = fill;
   g.fill();
   g.fillStyle = hexA(COL.ink, 0.35);
-  for (let yy = GY - haut + 8; yy < GY - 2; yy += 7) g.fillRect(x - 15, yy, 30, 1.5);
+  for (let yy = sol - haut + 8; yy < sol - 2; yy += 7) g.fillRect(x - 15, yy, 30, 1.5);
   g.fillStyle = hexA(COL.fg, 0.55);
-  g.fillRect(x - 17, GY - haut, 34, 3);
+  g.fillRect(x - 17, sol - haut, 34, 3);
   g.strokeStyle = hexA(COL.fg, 0.4);
   g.lineWidth = 2;
   g.beginPath();
-  g.moveTo(x - 17, GY - haut - 14 + (monte ? 6 : -6));
-  g.lineTo(x + 17, GY - haut - 14 + (monte ? -6 : 6));
+  g.moveTo(x - 17, sol - haut - 14 + (monte ? 6 : -6));
+  g.lineTo(x + 17, sol - haut - 14 + (monte ? -6 : 6));
   g.stroke();
 }
 // Le serpent (#16) : un câble lumineux tendu d'un couloir à l'autre, avec un halo, une âme claire et des

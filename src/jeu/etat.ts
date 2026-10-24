@@ -18,6 +18,7 @@ import type { Enregistrement } from "./enregistrement";
 import type { Fantome } from "./fantome";
 import type { Jam } from "./jam";
 import type { Relecture } from "./reecoute";
+import type { IdScene } from "./scenes";
 import type { Remontage } from "./remontage";
 import type { Reprise } from "./variations";
 
@@ -226,6 +227,8 @@ export interface Etat {
   keyAng: number;
   /** Le mode essai : l'essai ouvert, ou null pour une chanson générée */
   essai: EssaiEnCours | null;
+  /** La scène de la partie (ADR-0019), choisie quand sa chanson se met en place (`sceneDeLaPartie`) */
+  scene: IdScene;
   /** Les coups de la partie en cours (#23), ou null quand elle ne s'enregistre pas (boucle) */
   enregistrement: Enregistrement | null;
   /** La réécoute en cours (#23) : la partie rejoue les coups enregistrés, et ceux du joueur sont ignorés */
@@ -313,6 +316,7 @@ export const S: Etat = {
   fantome: null,
   keyAng: 0,
   essai: null,
+  scene: "cote",
   enregistrement: null,
   relecture: null,
   jam: null,

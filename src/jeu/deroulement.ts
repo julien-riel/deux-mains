@@ -3,7 +3,8 @@ import { tapeStop } from "../audio/instruments";
 import { AC, B, initAudio, songNow } from "../audio/moteur";
 import { startScheduler, stopScheduler } from "../audio/sequenceur";
 import { DIFFS } from "../chanson/difficultes";
-import { burst, COL, HITX, LANE_HUE, LANE_Y, popup, W } from "../rendu/outils";
+import { scene } from "../rendu/geometrie";
+import { burst, COL, LANE_HUE, popup, W } from "../rendu/outils";
 import { overlay, show } from "../ui/ecrans";
 import { COMMANDES } from "../ui/touches";
 import { fantomeEnJeu, noterFinDePartie } from "../ui/progression";
@@ -315,7 +316,7 @@ function avancer(nb: number) {
   if (soloEnCours && S.reprise.style) {
     const points = pointsDeStyle(S.reprise.style);
     gagner(points, "R");
-    popup(`+${points} STYLE`, W / 2 + 60, LANE_Y[1] + 40, COL.good);
+    popup(`+${points} STYLE`, W / 2 + 60, scene().impact(1).y + 40, COL.good);
   }
   if (bar >= 0 && mesureDeLaChanson(bar) < song.totalBars) {
     const sec = sectionAtBar(bar);
@@ -378,7 +379,8 @@ function avancer(nb: number) {
       S.keyFlash[COULOIRS[q.solo]] = pnow;
       S.laneFlash[q.solo] = pnow;
       S.beams.push({ lane: q.solo, at: pnow, ok: true });
-      burst(HITX + 40, LANE_Y[q.solo], LANE_HUE[q.solo], 10);
+      const c = scene().impact(q.solo);
+      burst(c.x + 40, c.y, LANE_HUE[q.solo], 10);
       gagner(25, "R");
     }
   }

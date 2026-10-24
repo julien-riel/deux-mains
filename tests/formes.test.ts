@@ -54,10 +54,12 @@ describe("formes des couloirs", () => {
 
   it("dessine les formes sur la ligne de tir, dans les deux univers", async () => {
     nav = await Navigateur.ouvrir();
-    const { outils, g } = await espionnerDessin();
+    const { g } = await espionnerDessin(),
+      { scene } = await import("../src/rendu/geometrie"),
+      cible = scene().impact(2);
     const carreSurLaCible = () =>
       g.rect.mock.calls.some(
-        ([x, y, w]) => Math.abs(x + w / 2 - outils.HITX) < 1e-9 && Math.abs(y + w / 2 - outils.LANE_Y[2]) < 1e-9,
+        ([x, y, w]) => Math.abs(x + w / 2 - cible.x) < 1e-9 && Math.abs(y + w / 2 - cible.y) < 1e-9,
       );
     for (const univers of ["ville", "boite"] as const) {
       nav.jeu.setTheme(univers);
