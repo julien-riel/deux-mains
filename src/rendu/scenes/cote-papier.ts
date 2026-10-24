@@ -46,7 +46,7 @@ const AVANT_LA_MESURE = 0.25,
 /** De combien les cordes pendent au milieu de deux poteaux */
 export const PEND = 14;
 // Le haut des poteaux, au-dessus de la corde de l'octave
-const HAUT_POTEAU = LANE_Y[3] - 40;
+const HAUT_POTEAU = LANE_Y[3] - 26;
 
 /** Le nombre de pixels de défilement de la corde au temps nb, depuis le premier poteau */
 const defilement = (nb: number) => (nb + AVANT_LA_MESURE) * PPB;
@@ -157,10 +157,14 @@ function poteaux(vue: VueDeScene, D: Diorama, k: Rebond) {
     if (m < 0 || m >= vue.fin) continue;
     // La pancarte de l'accord, au sommet du poteau, à la teinte de l'accord
     const c = vue.accord(m),
-      y = HAUT_POTEAU - 20 + (GY - HAUT_POTEAU) * (1 - sq.y);
+      y = HAUT_POTEAU - 12 + (GY - HAUT_POTEAU) * (1 - sq.y),
+      passe = clamp((x - HITX + 80) / 60, 0, 1);
+    if (passe <= 0) continue;
     g.font = `700 17px ${FONT.display}`;
     const w = Math.max(34, g.measureText(c.name).width + 16);
     g.save();
+    // Passé la ligne de tir, l'accord est celui de l'étiquette pendue en haut à gauche : la pancarte s'efface
+    g.globalAlpha = passe;
     g.translate(x, y);
     g.rotate((hh(m, 3) - 0.5) * 0.12);
     g.fillStyle = "rgba(0,0,0,.35)";

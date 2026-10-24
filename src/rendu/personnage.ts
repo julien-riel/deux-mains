@@ -48,9 +48,9 @@ function forme(p: PoseDePapier) {
     penche = -0.18 + 0.38 * p.saut;
   } else if (p.glisse) {
     // Couché en arrière, les pieds devant : il passe sous les obstacles hauts
-    sy = 0.78;
-    sx = 1.12;
-    penche = -1.12;
+    sy = 0.66;
+    sx = 1.05;
+    penche = -1.38;
   } else if (p.ecrase > 0) {
     sy = 1 - 0.35 * p.ecrase;
     sx = 1 + 0.35 * p.ecrase;
@@ -100,7 +100,7 @@ export function dessinerPersonnage(x: number, y: number, sol: number, p: PoseDeP
   g.fill();
 
   g.save();
-  g.translate(x, y - (p.glisse ? 14 : 0));
+  g.translate(x, y - (p.glisse ? 10 : 0));
   g.rotate(penche);
   g.scale(sx * TAILLE, sy * TAILLE);
   g.lineCap = "round";
@@ -395,5 +395,5 @@ export function dessinerPersonnage(x: number, y: number, sol: number, p: PoseDeP
     s = Math.sin(penche),
     X = bx * sx * TAILLE,
     Y = by * sy * TAILLE;
-  return [x + c * X - s * Y, y - (p.glisse ? 14 : 0) + s * X + c * Y];
+  return [x + c * X - s * Y, y - (p.glisse ? 10 : 0) + s * X + c * Y];
 }

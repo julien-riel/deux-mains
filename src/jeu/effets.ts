@@ -42,7 +42,7 @@ const joueur = () => scene().impact("basse");
 // Le jugement d'une note de la basse s'affiche au-dessus du personnage
 const popupJoueur = (texte: string, couleur: string) => {
   const j = joueur();
-  popup(texte, j.x - PW / 2 + 20, j.y - 140, couleur);
+  popup(texte, j.x - PW / 2 + 20, j.y - 175, couleur);
 };
 // Celui d'une note de la mélodie, au-dessus de son couloir, juste après la ligne de tir
 const popupCouloir = (texte: string, voie: number, couleur: string) => {

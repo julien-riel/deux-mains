@@ -35,7 +35,10 @@ import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerZones } from "./commandes";
 import { cintrer, posesLeLong, voieDroite, voieEnProfondeur } from "./cintrage";
+import { dessinerAutocollants } from "./autocollants";
 import { aLaMesure, medaille } from "./ennemis-papier";
+import { cible, etiquetteDAccord, legendeComplete, touchesDeLaBasse } from "./hud-papier";
+import { dessinerFroisse, fibre } from "./papier";
 import { dessinerPersonnage } from "./personnage";
 import { dessinerRemontage } from "./remontage";
 import {
@@ -230,17 +233,19 @@ export function render(nb, dt) {
     refrain: playing && curSec.kind === "refrain" ? refrainEnCours(nb, curSec) : null,
   };
   sc.fond(vue);
-  // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt
+  // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt, et portent leur touche (#78).
+  // En mode pianiste (#53), les touches sont les notes de l'accord, à jouer à n'importe quelle octave
+  const pianiste = nomsDeNotes();
   for (let i = 0; i < 4; i++) {
     const held = S.keys[COULOIRS[i]],
-      fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1),
-      p = sc.impact(i);
-    formeCouloir(i, p.x, p.y, 17 * p.echelle);
-    g.fillStyle = hsl(LANE_HUE[i], 80, 65, held ? 0.3 : fl * 0.5);
-    g.fill();
-    g.strokeStyle = hsl(LANE_HUE[i], 80, 70, 0.7);
-    g.lineWidth = 2;
-    g.stroke();
+      fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1);
+    cible(
+      i,
+      sc.impact(i),
+      COMMANDES.tactile ? "" : pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]],
+      (a) => hsl(LANE_HUE[i], 80, 65, a),
+      held ? 0.6 : fl,
+    );
   }
   // Le sol, par-dessus les cibles, sous les notes
   sc.sol(vue);
@@ -300,57 +305,28 @@ export function render(nb, dt) {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.vy += 260 * dt;
-    g.fillStyle = hsl(p.hue, 85, 72, 1 - p.life / p.max);
-    g.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    // Des confettis de papier, qui se retournent en tombant (#78)
+    const retourne = Math.cos(p.life * 14 + p.hue),
+      w = p.size * 1.4 * Math.abs(retourne) + 0.5;
+    g.fillStyle = hsl(p.hue, 85, retourne > 0 ? 72 : 52, 1 - p.life / p.max);
+    g.fillRect(p.x - w / 2, p.y - p.size / 2, w, p.size);
   }
+  // Le papier froissé du dernier raté (#78)
+  dessinerFroisse(pnow);
 
-  // Rail de gauche : ce que joue chaque touche maintenant, à la hauteur du point d'impact de son couloir, et de
-  // celui du personnage pour la basse
-  const sol = sc.impact("basse").y;
-  const rail = g.createLinearGradient(0, 0, 200, 0);
-  const rc = TH().rail;
-  rail.addColorStop(0, hexA(rc, 0.94));
-  rail.addColorStop(0.75, hexA(rc, 0.6));
-  rail.addColorStop(1, hexA(rc, 0));
-  g.fillStyle = rail;
-  g.fillRect(-12, 92, 212, sol - 92);
-  txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
-  txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
-  // En mode pianiste (#53), les touches sont les notes de l'accord, à jouer à n'importe quelle octave
-  const pianiste = nomsDeNotes();
-  for (let i = 0; i < 4; i++) {
-    // La légende se lit là où la scène la place, sur le rail sans autre place (ADR-0019)
-    const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]],
-      { x, y } = sc.etiquette?.(i) ?? { x: 24, y: sc.impact(i).y };
-    keycap(x, y - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
-    txt(DEG[i], x + 40, y - 3, `600 10px ${FONT.mono}`, COL.muted);
-    txt(NOTE[ch.lanes[i] % 12], x + 40, y + 13, `600 15px ${FONT.mono}`, COL.fg);
-    if (S.formes) {
-      formeCouloir(i, x + 134, y, 8);
-      g.fillStyle = hsl(LANE_HUE[i], 80, 70);
-      g.fill();
-    }
-  }
-  const fond = pianiste ? nomDeClasse(ch.bass) : null;
-  keycap(24, sol - 80, fond ?? KEYLABEL.KeyW, COL.bass, down("sauter"));
-  keycap(24, sol - 40, fond ?? KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
-  // Dans un escalier (#13), sauter monte d'une marche et glisser en descend une : le rail montre la marche
-  const marche = marcheProche(nb);
-  if (marche) {
-    const monte = marche.lane === 4,
-      [yl, ye] = monte ? [sol - 68, sol - 52] : [sol - 28, sol - 12];
-    txt(monte ? "MONTER ↑" : "DESCENDRE ↓", 64, yl, `600 10px ${FONT.mono}`, hsl(HUE_BASS, 90, 70));
-    txt(noteName(marche.midi), 64, ye, `600 14px ${FONT.mono}`, COL.fg);
-    txt(monte ? "GLISSER · FOND." : "OCTAVE", 64, monte ? sol - 28 : sol - 68, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(monte ? ch.bass : ch.bass + 12), 64, monte ? sol - 12 : sol - 52, `600 14px ${FONT.mono}`, COL.fg);
-  } else {
-    // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
-    txt("OCTAVE · 2× QUINTE", 64, sol - 68, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(ch.bass + 12), 64, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
-    txt(noteName(ch.bass + 12 + ch.ints[2]), 118, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
-    txt("GLISSER · FOND.", 64, sol - 28, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(ch.bass), 64, sol - 12, `600 14px ${FONT.mono}`, COL.fg);
-  }
+  // La légende complète à gauche, en Débutant et dans les essais ; ailleurs, l'accord pend en haut à gauche, et les
+  // touches de la basse sont aux pieds du personnage (#78). En mode tactile, les zones fixes sont la seule légende
+  // des couloirs et de la basse (#79)
+  const ici = sc.impact("basse"),
+    fondamentale = pianiste ? nomDeClasse(ch.bass) : null,
+    glisse = down("glisser") || (autoFor("L") && ns < S.slideUntil);
+  if (legendeComplete() && !COMMANDES.tactile) railDeGauche(sc, ch, nb, hsl, down, glisse);
+  else etiquetteDAccord(ch.name, ch.hue, hsl, pnow);
+  if (!COMMANDES.tactile)
+    touchesDeLaBasse(ici.x, ici.y, fondamentale ?? KEYLABEL.KeyW, fondamentale ?? KEYLABEL.KeyS, COL.bass, [
+      down("sauter"),
+      glisse,
+    ]);
 
   g.restore();
 
@@ -511,19 +487,64 @@ export function render(nb, dt) {
     g.fillStyle = vg;
     g.fillRect(0, 0, W, H);
   }
-  // Jugements
-  S.pops = S.pops.filter((p) => pnow - p.at < 650);
-  for (const p of S.pops) {
-    const k = (pnow - p.at) / 650;
-    g.globalAlpha = 1 - k;
-    // Le jugement s'affiche près de sa note
-    txt(p.text, p.x, p.y - k * 28, `700 15px ${FONT.display}`, p.color, "center");
-    g.globalAlpha = 1;
-  }
+  // Les jugements, en autocollants près de leur note (#78)
+  dessinerAutocollants(pnow);
+  // La fibre du papier sur toute la scène
+  fibre();
   // Le remontage entre deux lieux (#27), par-dessus la scène au repos du lieu qui suit
   if (S.mode === "remontage") dessinerRemontage(pnow);
   // En mode tactile, les zones fixes autour de la scène (#79, ADR-0019)
   if (COMMANDES.tactile) dessinerZones(nb, pnow);
+}
+
+/** Le rail de gauche, la légende complète (#78 : en Débutant et dans les essais seulement) */
+function railDeGauche(sc: Scene, ch, nb: number, hsl, down: (a: Action) => boolean, glisse: boolean) {
+  // Ce que joue chaque touche maintenant, à la hauteur du point d'impact de son couloir, et de
+  // celui du personnage pour la basse
+  const sol = sc.impact("basse").y;
+  const rail = g.createLinearGradient(0, 0, 200, 0);
+  const rc = TH().rail;
+  rail.addColorStop(0, hexA(rc, 0.94));
+  rail.addColorStop(0.75, hexA(rc, 0.6));
+  rail.addColorStop(1, hexA(rc, 0));
+  g.fillStyle = rail;
+  g.fillRect(-12, 92, 212, sol - 92);
+  txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
+  txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
+  const pianiste = nomsDeNotes();
+  for (let i = 0; i < 4; i++) {
+    // La légende se lit là où la scène la place, sur le rail sans autre place (ADR-0019)
+    const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]],
+      { x, y } = sc.etiquette?.(i) ?? { x: 24, y: sc.impact(i).y };
+    keycap(x, y - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
+    txt(DEG[i], x + 40, y - 3, `600 10px ${FONT.mono}`, COL.muted);
+    txt(NOTE[ch.lanes[i] % 12], x + 40, y + 13, `600 15px ${FONT.mono}`, COL.fg);
+    if (S.formes) {
+      formeCouloir(i, x + 134, y, 8);
+      g.fillStyle = hsl(LANE_HUE[i], 80, 70);
+      g.fill();
+    }
+  }
+  const fond = pianiste ? nomDeClasse(ch.bass) : null;
+  keycap(24, sol - 80, fond ?? KEYLABEL.KeyW, COL.bass, down("sauter"));
+  keycap(24, sol - 40, fond ?? KEYLABEL.KeyS, COL.bass, glisse);
+  // Dans un escalier (#13), sauter monte d'une marche et glisser en descend une : le rail montre la marche
+  const marche = marcheProche(nb);
+  if (marche) {
+    const monte = marche.lane === 4,
+      [yl, ye] = monte ? [sol - 68, sol - 52] : [sol - 28, sol - 12];
+    txt(monte ? "MONTER ↑" : "DESCENDRE ↓", 64, yl, `600 10px ${FONT.mono}`, hsl(HUE_BASS, 90, 70));
+    txt(noteName(marche.midi), 64, ye, `600 14px ${FONT.mono}`, COL.fg);
+    txt(monte ? "GLISSER · FOND." : "OCTAVE", 64, monte ? sol - 28 : sol - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(monte ? ch.bass : ch.bass + 12), 64, monte ? sol - 12 : sol - 52, `600 14px ${FONT.mono}`, COL.fg);
+  } else {
+    // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
+    txt("OCTAVE · 2× QUINTE", 64, sol - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass + 12), 64, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt(noteName(ch.bass + 12 + ch.ints[2]), 118, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt("GLISSER · FOND.", 64, sol - 28, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass), 64, sol - 12, `600 14px ${FONT.mono}`, COL.fg);
+  }
 }
 
 /** Le refrain en cours, en temps de la partie : en boucle, ses mesures reviennent (ADR-0009) */
