@@ -3,7 +3,9 @@
 // sa voie. Dans la scène de côté, une voie est une ligne droite : la chose s'y dessine d'un seul tenant, comme
 // avant les scènes (`voieDroite`). Ailleurs (les colonnes, les anneaux du disque), on échantillonne ses poses tous
 // les `echantillon` temps : une tenue ou une trille suit ses poses en ruban (`src/rendu/scene.ts`), et un dessin
-// droit, le tunnel ou la pente, est découpé en tranches, chacune posée sur son bout de voie (`cintrer`).
+// droit, le tunnel ou la pente, est découpé en tranches, chacune posée sur son bout de voie (`cintrer`). Sur une
+// voie qui s'enfonce vers l'horizon (#82), le tunnel et la pente se dessinent de face, en coupes posées le long de
+// la voie (`voieEnProfondeur`, `posesLeLong`).
 import { g } from "./outils";
 import type { Pose, Scene, Voie } from "./scenes/contrat";
 
@@ -97,4 +99,29 @@ export function cintrer(
     dessin((b) => u(b) - um, 0);
     g.restore();
   }
+}
+
+/**
+ * La voie s'enfonce dans la profondeur de b1 à b2, vue au temps nb : l'échelle de ses poses change, comme sur la
+ * route de la scène vers l'horizon (#82). Une chose droite qui dure n'y est pas couchée le long de la voie
+ * (`cintrer`) : elle se dessine de face, en coupes posées sur la voie (`posesLeLong`), du plus loin au plus proche.
+ */
+export function voieEnProfondeur(sc: Scene, voie: Voie, b1: number, b2: number, nb: number) {
+  // Debout tout du long (le sol du disque, lui, tourne), et de plus en plus petite au loin
+  const poses = [b1, (b1 + b2) / 2, b2].map((b) => sc.poser(b, voie, nb));
+  return poses.every((p) => p.angle === 0) && Math.abs(poses[0].echelle - poses[2].echelle) > 1e-6;
+}
+
+/**
+ * Les poses d'une voie de b1 à b2, tous les `pas` temps (bornes comprises), avec leur temps, dans l'ordre du temps,
+ * jusqu'au bord d'où arrivent les notes
+ */
+export function posesLeLong(sc: Scene, voie: Voie, b1: number, b2: number, nb: number, pas = sc.echantillon) {
+  const poses: [number, Pose][] = [];
+  for (const b of temps(b1, b2, pas)) {
+    const p = sc.poser(b, voie, nb);
+    if (sc.horsChamp(p, "devant", 0)) break;
+    poses.push([b, p]);
+  }
+  return poses;
 }

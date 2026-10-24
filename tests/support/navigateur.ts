@@ -33,6 +33,8 @@ export interface InterfaceJeu {
 export interface Options {
   /** Un écran tactile sans survol, comme un téléphone */
   tactile?: boolean;
+  /** Le réglage « Mouvement réduit » du système (prefers-reduced-motion) */
+  mouvementReduit?: boolean;
   /** Ce que le navigateur a gardé d'une visite précédente */
   stockage?: Record<string, string>;
   /** Le stockage refuse toute lecture et toute écriture, comme en navigation privée stricte */

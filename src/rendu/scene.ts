@@ -34,7 +34,7 @@ import { TH, ennemiDuLieu, placeName } from "../univers/univers";
 import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerZones } from "./commandes";
-import { cintrer, voieDroite } from "./cintrage";
+import { cintrer, posesLeLong, voieDroite, voieEnProfondeur } from "./cintrage";
 import { dessinerRemontage } from "./remontage";
 import {
   boiteBlock,
@@ -688,6 +688,72 @@ export const hauteurPente = (ev, p) => RAMPE * (ev.fin > ev.midi ? p : 1 - p);
 /** La hauteur d'une marche d'escalier (#13) : elle suit sa note, pour que l'escalier se lise en montant ou en descendant */
 export const hauteurMarche = (midi: number) => clamp(14 + (midi - 31) * 2, 12, 70);
 
+/** Un point d'une pose décalé de (dx, dy) dans son repère, à son échelle et à son angle */
+function decale(p: Pose, dx: number, dy: number): [number, number] {
+  const [ex, ey] = ecartALaPose(p, dx, dy);
+  return [p.x + ex, p.y + ey];
+}
+/** Trace un chemin fermé par ces points */
+function polygone(points: [number, number][]) {
+  g.beginPath();
+  for (const [x, y] of points) g.lineTo(x, y);
+  g.closePath();
+}
+// La demi-largeur d'une arche de tunnel vue de face, à l'échelle 1
+const ARCHE = 120;
+/**
+ * Le tunnel sur une voie qui s'enfonce vers l'horizon (#82, `voieEnProfondeur`) : une arche de face par quart de
+ * temps, deux piliers et le tablier de l'univers à hauteur de glissade, du plus loin au plus proche, au-dessus d'une
+ * bande de sol qui s'éclaire quand on glisse dessous. Une arche passée au-dessus du personnage disparaît.
+ */
+function tunnelDeFace(sc: Scene, ev, nb, fill, hsl) {
+  const debut = ev.beat + 0.1,
+    fin = ev.beat + ev.dur - 0.13,
+    bande = posesLeLong(sc, "basse", Math.max(debut, nb - 0.4), fin, nb);
+  if (bande.length > 1) {
+    polygone([...bande.map(([, p]) => decale(p, -60, 0)), ...bande.map(([, p]) => decale(p, 60, 0)).reverse()]);
+    g.fillStyle = hsl(HUE_BASS, 90, 70, ev.state === "holding" ? 0.4 : 0.14);
+    g.fill();
+  }
+  for (let b = fin; b >= Math.max(debut, nb) - 1e-6; b -= 0.25) {
+    const q = sc.poser(b, "basse", nb);
+    if (sc.horsChamp(q, "derriere", 80) || sc.horsChamp(q, "devant", 0)) continue;
+    aLaPose(q, (x, sol) => {
+      g.fillStyle = hexA(COL.ink, 0.7);
+      g.fillRect(x - ARCHE, sol - 85, 7, 85);
+      g.fillRect(x + ARCHE - 7, sol - 85, 7, 85);
+      (S.theme === "boite" ? boiteTunnel : villeTunnel)(x - ARCHE, x + ARCHE, sol, fill);
+    });
+  }
+}
+/**
+ * La pente sur une voie qui s'enfonce vers l'horizon (#82) : un plan incliné de face, de la largeur du personnage,
+ * qui monte ou descend avec la note, avec ses deux flancs et ses deux rampes
+ */
+function penteDeFace(sc: Scene, ev, nb, fill) {
+  const poses = posesLeLong(sc, "basse", Math.max(ev.beat, nb - 0.4), ev.beat + ev.dur, nb, 1 / 16);
+  if (poses.length < 2) return;
+  const bord = (dx: number, haut: boolean) =>
+      poses.map(([b, p]) => decale(p, dx, haut ? -hauteurPente(ev, clamp((b - ev.beat) / ev.dur, 0, 1)) : 0)),
+    rampes = [bord(-30, true), bord(30, true)];
+  for (const dx of [-30, 30]) {
+    polygone([...bord(dx, false), ...bord(dx, true).reverse()]);
+    g.fillStyle = hexA(COL.ink, 0.6);
+    g.fill();
+  }
+  polygone([...rampes[0], ...[...rampes[1]].reverse()]);
+  g.fillStyle = hexA(fill, 0.35);
+  g.fill();
+  g.strokeStyle = fill;
+  g.lineWidth = 3;
+  g.lineCap = "round";
+  for (const r of rampes) {
+    g.beginPath();
+    for (const [x, y] of r) g.lineTo(x, y);
+    g.stroke();
+  }
+}
+
 // L'obstacle est dessiné légèrement en avance sur le temps : on appuie quand il est encore devant,
 // et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) et les marches (#13)
 // ne le sont pas : on y arrive pile sur le temps. Il se dessine debout sur le sol de sa pose ; le tunnel et la
@@ -697,7 +763,12 @@ export function drawObstacle(sc: Scene, ev, nb, hsl) {
     p0 = sc.poser(ev.beat, "basse", nb),
     p = sc.poser(ev.beat + devance, "basse", nb);
   // Un obstacle long n'est oublié devant qu'à sa longueur du bord
-  if (sc.horsChamp(p, "derriere", 80) || sc.horsChamp(sc.poser(ev.beat - ev.dur, "basse", nb), "devant", 80)) return;
+  // Un obstacle long n'est oublié derrière qu'une fois sa fin passée (vers l'horizon, son début sort vite de l'écran)
+  if (
+    sc.horsChamp(sc.poser(ev.beat + Math.max(devance, ev.dur), "basse", nb), "derriere", 80) ||
+    sc.horsChamp(sc.poser(ev.beat - ev.dur, "basse", nb), "devant", 80)
+  )
+    return;
   if (!p.visible) return;
   if (ev.state === "pending")
     aLaPose(p0, (x0, sol) => {
@@ -769,20 +840,22 @@ export function drawObstacle(sc: Scene, ev, nb, hsl) {
     // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps. Elle
     // se tend le long du sol, et se courbe avec lui
     const monte = ev.fin > ev.midi;
-    cintrer(sc, "basse", ev.beat, ev.beat + ev.dur, nb, (x, sol) => {
-      const a = x(ev.beat),
-        b = x(ev.beat + ev.dur);
-      (boite ? boitePente : villePente)(a, b, sol, sol - hauteurPente(ev, 0), sol - hauteurPente(ev, 1), fill);
-      if (ev.state === "holding") {
-        const px = clamp(x(nb), a, b);
-        g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
-        g.lineWidth = 3;
-        g.beginPath();
-        g.moveTo(a, sol - hauteurPente(ev, 0) - 6);
-        g.lineTo(px, sol - hauteurPente(ev, (px - a) / (b - a)) - 6);
-        g.stroke();
-      }
-    });
+    if (voieEnProfondeur(sc, "basse", ev.beat, ev.beat + ev.dur, nb)) penteDeFace(sc, ev, nb, fill);
+    else
+      cintrer(sc, "basse", ev.beat, ev.beat + ev.dur, nb, (x, sol) => {
+        const a = x(ev.beat),
+          b = x(ev.beat + ev.dur);
+        (boite ? boitePente : villePente)(a, b, sol, sol - hauteurPente(ev, 0), sol - hauteurPente(ev, 1), fill);
+        if (ev.state === "holding") {
+          const px = clamp(x(nb), a, b);
+          g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
+          g.lineWidth = 3;
+          g.beginPath();
+          g.moveTo(a, sol - hauteurPente(ev, 0) - 6);
+          g.lineTo(px, sol - hauteurPente(ev, (px - a) / (b - a)) - 6);
+          g.stroke();
+        }
+      });
     aLaPose(p0, (a, sol) => {
       const ly = sol - RAMPE - 46;
       rr(a + 4, ly - 14, note ? 102 : 84, 18, 4);
@@ -792,29 +865,31 @@ export function drawObstacle(sc: Scene, ev, nb, hsl) {
     });
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti. Il se courbe avec le sol
-    cintrer(
-      sc,
-      "basse",
-      ev.beat,
-      ev.beat + ev.dur,
-      nb,
-      (x, sol) => {
-        const a = x(ev.beat + devance) - 16,
-          b = x(ev.beat + ev.dur) - 20;
-        g.fillStyle = hsl(HUE_BASS, 40, 60, 0.1);
-        g.fillRect(a, sol - 409, b - a, 324);
-        if (boite) boiteTunnel(a, b, sol, fill);
-        else villeTunnel(a, b, sol, fill);
-        if (ev.state === "holding") {
-          const px = clamp(x(nb), a, b);
-          rr(a, sol - 85, px - a, 42, 6);
-          g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
-          g.fill();
-        }
-        // Sur une voie courbe, l'ombre du tunnel ne monte pas plus haut que lui
-      },
-      { haut: 110 },
-    );
+    if (voieEnProfondeur(sc, "basse", ev.beat, ev.beat + ev.dur, nb)) tunnelDeFace(sc, ev, nb, fill, hsl);
+    else
+      cintrer(
+        sc,
+        "basse",
+        ev.beat,
+        ev.beat + ev.dur,
+        nb,
+        (x, sol) => {
+          const a = x(ev.beat + devance) - 16,
+            b = x(ev.beat + ev.dur) - 20;
+          g.fillStyle = hsl(HUE_BASS, 40, 60, 0.1);
+          g.fillRect(a, sol - 409, b - a, 324);
+          if (boite) boiteTunnel(a, b, sol, fill);
+          else villeTunnel(a, b, sol, fill);
+          if (ev.state === "holding") {
+            const px = clamp(x(nb), a, b);
+            rr(a, sol - 85, px - a, 42, 6);
+            g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
+            g.fill();
+          }
+          // Sur une voie courbe, l'ombre du tunnel ne monte pas plus haut que lui
+        },
+        { haut: 110 },
+      );
     aLaPose(p, (x, sol) => {
       rr(x - 12, sol - 73, note ? 84 : 66, 18, 4);
       g.fillStyle = hexA(COL.ink, 0.7);
@@ -1551,6 +1626,21 @@ export function drawPlayer(
     g.ellipse(cx, sol + 3, Math.max(6, w * 0.6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2);
     g.fill();
     g.lineCap = "round";
+    // Une scène qui le voit sous un autre angle le dessine elle-même, au même geste (vu de dos vers l'horizon, #82)
+    if (sc.personnage)
+      return sc.personnage({
+        x: cx,
+        sol,
+        haut: yOff,
+        glisse: sliding,
+        ecrase,
+        court: run,
+        phase: ph,
+        blesse: hurt,
+        fantome,
+        univers: S.theme,
+        hsl,
+      });
 
     if (S.theme === "boite") {
       // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui

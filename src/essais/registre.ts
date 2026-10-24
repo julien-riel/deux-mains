@@ -771,6 +771,51 @@ export const ESSAIS: Essai[] = [
     chanson: chansonDesColonnes,
     repere: (ev) => ev.hand === "R",
   },
+  {
+    id: "horizon-ville",
+    titre: "Vers l'horizon (Ville)",
+    verifier:
+      "Dès la première mesure, la caméra est derrière le coursier, vu de dos : la route de néon file vers le soleil, les obstacles naissent à l'horizon et foncent vers lui. La mélodie arrive par quatre fils électriques, de gauche à droite comme J K L ; ; chaque note touche son point d'impact pile sur son temps. Les tunnels sont des arches qui suivent la route, les pentes montent ou descendent avec elle, les notes tenues et les trilles suivent leur fil. Chaque « Parfait » rallume un immeuble ; rejoue l'essai (Entrée) : ils se rallument au même endroit. Avec « Mouvement réduit », pas de tremblement ni de lignes de vitesse.",
+    issue: 82,
+    univers: "ville",
+    diff: "normal",
+    scene: "horizon",
+    mains: "both",
+    // Des notes qui durent à chaque mesure, des deux mains : tunnels et pentes sur la route, tenues et trilles sur
+    // les fils
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "normal",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        { couplet: ["S...W...", "T--.M--."], refrain: ["W.S.W.S.", "S.W.B--."] },
+        { couplet: ["0.1.2-..", "3~~~..1."], refrain: ["3.2.1.0.", "1-----.."] },
+      ),
+    repere: (ev) => ev.dur > 0,
+    progression: progressionTracee("horizon-ville"),
+  },
+  {
+    id: "horizon-boite",
+    titre: "Vers l'horizon (Boîte)",
+    verifier:
+      "Dès la première mesure, l'automate est vu de dos sur le carton perforé qui file vers le cylindre, entre deux rideaux de velours ; la mélodie arrive par quatre tiges de laiton. En Difficile, les triolets (trois notes par temps) et les petites notes (entre deux tiges) sont déjà bien séparés à un temps du point d'impact : on les compte avant de les jouer. Le serpent passe d'une tige à l'autre en suivant la perspective. Chaque « Parfait » laisse une étoile au ciel ; rejoue l'essai (Entrée) : elles y sont toujours.",
+    issue: 82,
+    univers: "boite",
+    diff: "difficile",
+    scene: "horizon",
+    mains: "R",
+    // Une mesure de triolets, une mesure de petites notes, puis un serpent et des triolets qui montent et descendent
+    chanson: () =>
+      assembler(
+        GRAINE,
+        "difficile",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        { couplet: ["012321012321", "2c3.1b2."], refrain: ["0///..2.", "321123321..."] },
+      ),
+    repere: (ev) => ev.hand === "R" && (estPetiteNote(ev) || !surLaCroche(ev.beat)),
+    progression: progressionTracee("horizon-boite"),
+  },
 ];
 
 export const trouverEssai = (id: string) => ESSAIS.find((e) => e.id === id);

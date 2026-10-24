@@ -98,6 +98,26 @@ export interface NoteDeScene {
   accord: boolean;
 }
 
+/**
+ * Le geste du personnage à l'image, calculé par le rendu commun, pour une scène qui le voit sous un autre angle
+ * (`personnage`) : sa place au sol, dans le repère de sa pose (x, sol), sa hauteur au-dessus du sol (`haut`, négative
+ * en l'air), s'il glisse, s'écrase (de 0 à 1) ou court (et la phase de sa course), s'il vient d'être blessé, et
+ * l'univers qui l'habille.
+ */
+export interface GesteDuPersonnage {
+  x: number;
+  sol: number;
+  haut: number;
+  glisse: boolean;
+  ecrase: number;
+  court: boolean;
+  phase: number;
+  blesse: boolean;
+  fantome: boolean;
+  univers: string;
+  hsl: Palette;
+}
+
 /** Une scène : sa géométrie, son champ et son décor */
 export interface Scene {
   id: IdScene;
@@ -122,4 +142,10 @@ export interface Scene {
   fond(vue: VueDeScene): void;
   /** Le sol, par-dessus les cibles et sous les notes : le sol de l'univers et ses repères */
   sol(vue: VueDeScene): void;
+  /**
+   * Le personnage vu sous l'angle de la scène, quand le dessin commun (de profil) ne convient pas : vu de dos vers
+   * l'horizon (#82). Il se dessine au geste donné, dans le repère de la pose du personnage, et renvoie le bout de
+   * son arme, d'où partent les tirs. Sans lui, le personnage est dessiné de profil.
+   */
+  personnage?(geste: GesteDuPersonnage): [number, number];
 }
