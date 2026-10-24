@@ -29,7 +29,7 @@ const grille = (x0: number, y0: number, colonnes: number, rangees: number, dx = 
   ]) as [number, number][];
 const BATI = "#3a3256";
 
-// Les six quartiers, par progression : leurs silhouettes, et leurs fenêtres
+// Les quartiers, un par progression : leurs silhouettes, et leurs fenêtres
 const QUARTIERS: Record<string, (lit: boolean) => string> = {
   "I–V–vi–IV": (lit) =>
     `<rect x="18" y="18" width="24" height="62" fill="${BATI}"/><rect x="48" y="8" width="26" height="72" fill="${BATI}"/><rect x="80" y="28" width="22" height="52" fill="${BATI}"/>` +
@@ -72,11 +72,29 @@ const QUARTIERS: Record<string, (lit: boolean) => string> = {
     `<rect x="26" y="40" width="68" height="40" fill="${BATI}"/><path d="M50 40 L60 6 L70 40 Z" fill="${BATI}"/>` +
     `<circle cx="60" cy="52" r="8" fill="${lit ? "#ffd36b" : "#2c2645"}"/><path d="M52 52 H68 M60 44 V60" stroke="${BATI}" stroke-width="1.5"/>` +
     fenetres(lit, [...grille(32, 64, 2, 1), ...grille(80, 64, 2, 1)]),
+  "ii–V–I": (lit) =>
+    `<rect x="14" y="26" width="92" height="54" fill="${BATI}"/><rect x="44" y="56" width="32" height="24" fill="#241f3a"/>` +
+    `<path d="M40 50 H80 L76 56 H44 Z" fill="${lit ? "#7a3b5c" : "#2c2645"}"/>` +
+    `<text x="60" y="44" text-anchor="middle" font-size="10" font-style="italic" font-family="serif" fill="${lit ? "#ffd36b" : "#4a4266"}">Jazz</text>` +
+    `<path d="M90 30 q6 -8 2 -14 M96 32 q6 -8 2 -14" stroke="${lit ? "#ffd36b" : "#4a4266"}" fill="none"/>` +
+    fenetres(lit, [...grille(20, 32, 2, 4), ...grille(88, 52, 2, 3)]),
+  Blues: (lit) =>
+    `<rect x="0" y="12" width="120" height="16" fill="${BATI}"/><path d="M0 80 V44 Q60 18 120 44 V80 Z" fill="#241f3a"/>` +
+    `<rect x="16" y="50" width="88" height="22" rx="4" fill="${BATI}"/><path d="M0 74 H120" stroke="#8a80b0"/>` +
+    `<circle cx="60" cy="20" r="5" fill="${lit ? "#ff5fa2" : "#2c2645"}"/><text x="60" y="23" text-anchor="middle" font-size="7" font-family="monospace" fill="#15112a">M</text>` +
+    fenetres(lit, grille(22, 56, 11, 1, 8)),
+  "Vamp lydien": (lit) =>
+    `<rect x="30" y="46" width="60" height="34" fill="${BATI}"/><path d="M34 46 A26 26 0 0 1 86 46 Z" fill="${BATI}"/>` +
+    `<path d="M58 22 L74 10 L78 16 L62 26 Z" fill="${lit ? "#8a80b0" : "#4a4266"}"/>` +
+    [18, 30, 96, 104, 112]
+      .map((x, i) => `<circle cx="${x}" cy="${[14, 30, 8, 26, 16][i]}" r="1.2" fill="${lit ? "#ffd36b" : "#4a4266"}"/>`)
+      .join("") +
+    fenetres(lit, [...grille(38, 56, 3, 2, 8), ...grille(70, 56, 2, 2, 8)]),
 };
 
 // Un trait de crayon sur le papier de l'album
 const TRAIT = `fill="none" stroke="#5b4026" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
-// Les six souvenirs, par progression
+// Les souvenirs, un par progression
 const SOUVENIRS: Record<string, string> = {
   "I–V–vi–IV": `<path d="M30 66 H90 V50 H30 Z M36 50 V40 H84 V50" ${TRAIT}/><path d="M48 40 V30 M60 40 V28 M72 40 V30" ${TRAIT}/><path d="M48 26 q2 -4 0 -7 M60 24 q2 -4 0 -7 M72 26 q2 -4 0 -7" stroke="#c0602a" fill="none" stroke-width="2"/>`,
   "vi–IV–I–V": `<rect x="34" y="38" width="38" height="28" rx="3" ${TRAIT}/><path d="M46 38 V32 H60 V38 M34 50 H72" ${TRAIT}/><path d="M80 66 L100 20" ${TRAIT}/><path d="M92 26 l8 -6 l2 10" ${TRAIT}/>`,
@@ -84,6 +102,9 @@ const SOUVENIRS: Record<string, string> = {
   "Vamp dorien": `<path d="M30 44 Q60 14 90 44 Z" ${TRAIT}/><path d="M60 44 V66 q0 6 -6 4" ${TRAIT}/><path d="M24 20 l-3 8 M40 14 l-3 8 M84 16 l-3 8 M100 24 l-3 8 M30 56 l-3 8 M94 54 l-3 8" stroke="#6f86a0" stroke-width="1.6" stroke-linecap="round"/>`,
   "Cadence andalouse": `<circle cx="34" cy="38" r="12" ${TRAIT}/><circle cx="86" cy="38" r="12" ${TRAIT}/><path d="M28 34 l4 2 M40 34 l-4 2 M80 34 l4 2 M92 34 l-4 2 M30 46 q4 -3 8 0 M82 46 q4 -3 8 0" ${TRAIT}/><path d="M52 30 L60 38 L54 42 L66 52" stroke="#c0602a" fill="none" stroke-width="2.2"/>`,
   "Canon de Pachelbel": `<circle cx="50" cy="44" r="14" ${TRAIT}/><circle cx="70" cy="44" r="14" ${TRAIT}/><path d="M60 22 q-5 -6 -9 -2 q-3 4 9 10 q12 -6 9 -10 q-4 -4 -9 2" stroke="#c0602a" fill="none" stroke-width="1.8"/>`,
+  "ii–V–I": `<path d="M30 40 Q38 28 52 34 Q60 38 68 34 Q82 28 90 40 Q82 52 68 46 Q60 42 52 46 Q38 52 30 40 Z" ${TRAIT}/><path d="M40 40 q5 -4 10 0 M70 40 q5 -4 10 0" ${TRAIT}/><path d="M90 40 L100 62" ${TRAIT}/><path d="M30 34 q-8 -10 -2 -18 M34 32 q-2 -12 6 -16" stroke="#c0602a" fill="none" stroke-width="1.8"/>`,
+  Blues: `<rect x="26" y="34" width="56" height="22" rx="3" ${TRAIT}/><path d="M82 40 H96 V56 H82 M30 40 H46 V48 H30 Z M52 40 H68 V48 H52 Z" ${TRAIT}/><circle cx="38" cy="60" r="4" ${TRAIT}/><circle cx="70" cy="60" r="4" ${TRAIT}/><path d="M14 66 H106" ${TRAIT}/><path d="M92 34 q2 -8 8 -10 q6 -2 8 -8" stroke="#6f86a0" fill="none" stroke-width="1.8"/>`,
+  "Vamp lydien": `<path d="M34 30 Q44 14 60 24 Q76 14 86 30 Q92 44 78 50 Q60 60 42 50 Q28 44 34 30 Z" ${TRAIT}/><path d="M60 50 V68" ${TRAIT}/><path d="M22 18 l3 3 l-3 3 l-3 -3 Z M98 20 l3 3 l-3 3 l-3 -3 Z M104 52 l2 2 l-2 2 l-2 -2 Z" stroke="#c0602a" fill="none" stroke-width="1.6"/><path d="M48 34 q4 -3 8 0 M64 34 q4 -3 8 0" ${TRAIT}/>`,
 };
 
 function esquisse(lieu: string, reussi: boolean) {
@@ -101,7 +122,7 @@ function esquisse(lieu: string, reussi: boolean) {
 /* ---------- Écrans ---------- */
 const kbd = (t: string) => `<kbd>${t}</kbd>`;
 
-/** La carte : les six lieux de l'univers et leur état, le prochain à faire mis en avant */
+/** La carte : les lieux de l'univers et leur état, le prochain à faire mis en avant */
 export function ecranCarte() {
   const C = TH().carte,
     reussis = lieuxReussis(progression(), S.theme),

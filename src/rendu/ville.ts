@@ -14,6 +14,7 @@ import {
   g,
   hexA,
   hh,
+  reduced,
   rr,
   teinteDeTrace,
   tracesVisibles,
@@ -288,34 +289,90 @@ export function villePente(a, b, ya, yb, fill) {
   g.lineTo(b, yb);
   g.stroke();
 }
-// Drone du Bureau du Silence : le son capturé brille dans son bocal
-export function villeEnemy(x, y, ev, col, a, nb, hsl) {
+// Drone du Bureau du Silence : le son capturé bat dans son bocal, au temps. `m`, la menace (de 0 à 1), monte à
+// l'approche de la ligne de tir : le drone pique du nez vers le joueur, son œil cesse de balayer la rue pour le
+// fixer et le viser, ses pinces s'ouvrent, ses hélices s'emballent, il grossit et il tremble.
+export function villeEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
   const big = ev.kind === "refrain",
     j = big ? 20 : 15,
-    top = y - j / 2 + 4;
-  rr(x - j / 2, top, j, j, 4);
+    top = -j / 2 + 4,
+    pouls = (1 - (nb - Math.floor(nb))) ** 3,
+    tremble = reduced ? 0 : 1.6 * m * m,
+    rot = -0.08 - 0.22 * m + (reduced ? 0 : 0.05 * Math.sin(nb * Math.PI + ev.beat));
+  g.save();
+  g.translate(x + tremble * Math.sin(nb * 53 + ev.beat), y + tremble * Math.cos(nb * 41));
+  g.rotate(rot);
+  g.scale(1 + 0.2 * m, 1 + 0.2 * m);
+  // L'œil, sous le capot : il balaie loin de la ligne, puis se pose sur le joueur
+  const ex = (1 - m) * 10 * Math.sin(nb * 1.3 + ev.beat) - 9 * m,
+    ey = top - 4.5;
+  // La visée : un cône rouge vers le joueur, qui s'allume sur les derniers temps
+  if (m > 0.4) {
+    const ang = Math.atan2(GY - 34 - y, PX - x) - rot,
+      k = (m - 0.4) / 0.6,
+      cone = g.createRadialGradient(ex, ey, 0, ex, ey, 90);
+    cone.addColorStop(0, hsl(355, 90, 60, 0.32 * k * a));
+    cone.addColorStop(1, hsl(355, 90, 60, 0));
+    g.beginPath();
+    g.moveTo(ex, ey);
+    g.arc(ex, ey, 90, ang - 0.13, ang + 0.13);
+    g.closePath();
+    g.fillStyle = cone;
+    g.fill();
+  }
+  // Les pinces, sous le bocal, qui claquent au temps et s'ouvrent à l'approche
+  const ouvre = 0.2 + 0.5 * m + 0.3 * m * pouls;
+  g.strokeStyle = hsl(250, 10, 70, a);
+  g.lineWidth = 1.8;
+  g.lineCap = "round";
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(s * (j / 2 - 3), top + j);
+    g.lineTo(s * (j / 2 + 1 + 4 * ouvre), top + j + 6);
+    g.lineTo(s * (4 - 3 * ouvre), top + j + 10);
+    g.stroke();
+  }
+  // Le bocal et le son capturé, qui bat au temps
+  rr(-j / 2, top, j, j, 4);
   g.fillStyle = hsl(250, 20, 90, 0.12 * a);
   g.fill();
   g.strokeStyle = hsl(250, 20, 90, 0.6 * a);
   g.lineWidth = 1.5;
   g.stroke();
   g.beginPath();
-  g.arc(x, y + 4, big ? 6 : 4.5, 0, Math.PI * 2);
+  g.arc(0, 4, (big ? 6 : 4.5) * (1 + 0.22 * pouls), 0, Math.PI * 2);
   g.fillStyle = col;
   g.fill();
-  rr(x - 16, top - 7, 32, 7, 3);
+  // Le capot, sa fente et l'œil
+  rr(-17, top - 9, 34, 9, 4);
   g.fillStyle = hsl(250, 10, 62, a);
   g.fill();
-  const spin = Math.abs(Math.sin(nb * 12 + ev.beat));
-  g.fillStyle = hsl(250, 10, 82, 0.6 * a);
-  g.fillRect(x - 14 - 9 * spin, top - 10, 18 * spin + 2, 2);
-  g.fillRect(x + 14 - 9 * spin, top - 10, 18 * spin + 2, 2);
-  if (big && Math.floor(nb * 2) % 2 === 0) {
+  rr(-13, ey - 2, 26, 4, 2);
+  g.fillStyle = hsl(250, 30, 8, a);
+  g.fill();
+  if (m > 0.3) {
     g.beginPath();
-    g.arc(x, top - 10, 2.5, 0, Math.PI * 2);
+    g.arc(ex, ey, 4 + 3 * m, 0, Math.PI * 2);
+    g.fillStyle = hsl(355, 90, 60, 0.3 * m * a);
+    g.fill();
+  }
+  g.beginPath();
+  g.arc(ex, ey, 1.6 + 1.2 * m, 0, Math.PI * 2);
+  g.fillStyle = hsl(355, 90, 50 + 15 * m, (0.45 + 0.55 * m) * a);
+  g.fill();
+  // Les hélices, plus vite à l'approche
+  const spin = Math.abs(Math.sin(nb * (12 + 14 * m) + ev.beat));
+  g.fillStyle = hsl(250, 10, 82, 0.6 * a);
+  g.fillRect(-14 - 9 * spin, top - 12, 18 * spin + 2, 2);
+  g.fillRect(14 - 9 * spin, top - 12, 18 * spin + 2, 2);
+  // La sirène du refrain, qui clignote plus vite à l'approche
+  if (big && Math.floor(nb * (2 + 2 * Math.round(m))) % 2 === 0) {
+    g.beginPath();
+    g.arc(0, top - 12, 2.5, 0, Math.PI * 2);
     g.fillStyle = hexA(COL.bad, a);
     g.fill();
   }
+  g.restore();
 }
 // La petite note (#14) : un mini-drone de surveillance, un losange qui clignote sous deux hélices
 export function villePetite(x, y, col, a, nb, hsl) {

@@ -345,11 +345,12 @@ button kbd {
   padding: 6px;
   border-radius: 10px;
 }
-/* Les esquisses rapetissent sur une scène basse (téléphone à l'horizontale) : elles sont rognées, pas déformées */
+/* Les esquisses rapetissent sur une scène basse (téléphone à l'horizontale) : elles sont rognées, pas déformées.
+   Trois rangées de trois lieux tiennent sur la scène, dont la hauteur suit la largeur. */
 .carte .lieu svg {
   display: block;
   width: 100%;
-  height: clamp(44px, 17vh, 148px);
+  height: clamp(30px, min(9vh, 5.5vw), 84px);
   border-radius: 6px;
 }
 .carte .lieu span {

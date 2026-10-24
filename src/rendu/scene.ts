@@ -29,7 +29,9 @@ import { CRITERES, conseil } from "../jeu/style";
 import { estSolo, soloEtRefrain } from "../jeu/variations";
 import { clamp } from "../outils";
 import { COMMANDES, KEYLABEL, LANE_CODES, MIDI, etatMidiCourt, etiquettesMidi, nomsDeNotes } from "../ui/touches";
-import { TH, placeName } from "../univers/univers";
+import { TH, ennemiDuLieu, placeName } from "../univers/univers";
+import { ENNEMIS_BOITE } from "./ennemis-boite";
+import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerRemontage } from "./remontage";
 import {
   boiteBack,
@@ -52,6 +54,7 @@ import {
   AXE,
   BOSS_X,
   BOSS_Y,
+  CIBLE_Y,
   COL,
   DEG,
   FONT,
@@ -63,6 +66,7 @@ import {
   LANE_HUE,
   LANE_Y,
   PH,
+  PLONGEE,
   PPB,
   PW,
   PX,
@@ -78,6 +82,7 @@ import {
   VUE,
   yDeCouloir,
   yVu,
+  type DessinEnnemi,
 } from "./outils";
 import {
   villeBack,
@@ -834,18 +839,29 @@ function bandeOndulee(x1, x2, y, amp, pnow) {
   for (let x = x2; x > x1 - 4; x -= 4) g.lineTo(Math.max(x, x1), y + 8 + onde(Math.max(x, x1)));
   g.closePath();
 }
+// Les ennemis de la mélodie de chaque univers, un par lieu : le drone et le papillon de nuit, puis les autres
+const DESSINS: Record<string, Record<string, DessinEnnemi>> = {
+  ville: { drone: villeEnemy, ...ENNEMIS_VILLE },
+  boite: { papillon: boiteEnemy, ...ENNEMIS_BOITE },
+};
+/** L'ennemi de la mélodie du lieu de la chanson, dans l'univers en cours */
+const dessinEnnemi = () => DESSINS[S.theme][ennemiDuLieu().dessin];
 export function drawEnemy(ev, nb, pnow, hsl) {
   if (ev.state === "hit" || ev.state === "done") return;
   let x = HITX + (ev.beat - nb) * PPB;
   const x2 = HITX + (ev.beat + ev.dur - nb) * PPB;
-  if (x2 < 0 || x > W + 40) return;
+  // Un ennemi raté plonge sur le joueur, même quand son couloir est déjà sorti de l'écran
+  if ((x2 < 0 && ev.state !== "miss") || x > W + 40) return;
   if (ev.reponse && ev.state === "pending") return dessinerSilhouette(ev, x, nb, hsl);
   const y = yDeCouloir(ev.lane) + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
-  if (a <= 0) return;
-  if (estPetiteNote(ev)) return dessinerPetite(ev, x, y, a, nb, hsl);
+  // Une petite note (#14) ratée s'efface sur place
+  if (estPetiteNote(ev)) return void (a > 0 && dessinerPetite(ev, x, y, a, nb, hsl));
+  // Raté, l'ennemi plonge sur le joueur : son couloir s'efface, lui survit jusqu'à la fin de son rebond
+  const plonge = ev.state === "miss" ? pnow - ev.missAt : null;
+  if (a <= 0 && (plonge === null || plonge >= PLONGEE + REBOND)) return;
   // Le couloir de l'ennemi : celui où en est le serpent (#16), qui change en chemin
   let yh = y,
     lane = ev.lane;
@@ -868,7 +884,7 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     }
     if (ev.state === "holding") x = HITX;
   }
-  // Halo à la forme du couloir, autour de l'ennemi de l'univers
+  // Halo à la forme du couloir : il reste sur le couloir, qu'il marque, même quand l'ennemi s'en écarte
   formeCouloir(lane, x, yh, 24);
   g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
   g.fill();
@@ -877,8 +893,20 @@ export function drawEnemy(ev, nb, pnow, hsl) {
     g.lineWidth = 2;
     g.stroke();
   }
-  if (S.theme === "boite") boiteEnemy(x, yh, ev, col, a, nb, hsl);
-  else villeEnemy(x, yh, ev, col, a, nb, hsl);
+  // La menace monte sur les quatre derniers temps avant la ligne de tir : l'ennemi se réveille et vise le joueur.
+  // Une note simple fond alors vers lui en courbe, et revient sur son couloir pile à la ligne ; ratée, elle plonge.
+  const m = clamp(1 - (x - HITX) / (4 * PPB), 0, 1);
+  let ex = x,
+    ey = yh,
+    ea = a;
+  if (plonge !== null) [ex, ey, ea] = plongee(x, yh, plonge);
+  else if (ev.state === "pending" && ev.dur === 0 && !reduced) {
+    const k = 22 * Math.sin(Math.PI * m);
+    ex -= 0.35 * k;
+    ey += 0.94 * k;
+  }
+  const ecol = ev.state === "miss" ? hexA(COL.bad, ea) : hsl(hue, 80, 68, ea);
+  dessinEnnemi()(ex, ey, ev, ecol, ea, nb, hsl, m);
   // En mode pianiste (#53), l'ennemi porte la note à jouer : les deux d'une trille, la prochaine d'un serpent
   if (nomsDeNotes() && ev.state !== "miss" && ev.state !== "broken") {
     const k = ev.serpent ? Math.min((ev.state === "holding" ? (ev.troncon ?? 0) : -1) + 1, ev.serpent.length - 1) : 0,
@@ -886,10 +914,27 @@ export function drawEnemy(ev, nb, pnow, hsl) {
         ev.trille !== undefined
           ? `${nomDeClasse(ev.midi)}~${nomDeClasse(ev.midiTrille)}`
           : nomDeClasse(ev.serpent ? ev.midiSerpent[k] : ev.midi);
-    txt(nom, x, yh - 30, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
+    txt(nom, ex, ey - 30, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
   }
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
-  if (ev.reprise) etoile(x, yh - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, a));
+  if (ev.reprise) etoile(ex, ey - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, ea));
+}
+/** Le rebond d'un ennemi après sa frappe, en ms */
+const REBOND = 380;
+/**
+ * La plongée d'un ennemi raté, `t` ms après le raté, depuis sa place sur le couloir : il prend un peu d'élan, fond
+ * sur le joueur et le frappe au bout de `PLONGEE` ms (le coup est dans `effets.rate`), puis rebondit en
+ * s'effaçant. Renvoie sa place et son opacité.
+ */
+function plongee(x: number, y: number, t: number): [number, number, number] {
+  const cx = PX + PW / 2;
+  if (t < PLONGEE) {
+    const p = t / PLONGEE,
+      e = p * p;
+    return [x + (cx - x) * e, y + (CIBLE_Y - y) * e - 18 * Math.sin(Math.PI * p), 1];
+  }
+  const q = clamp((t - PLONGEE) / REBOND, 0, 1);
+  return [cx + 40 * q, CIBLE_Y - 60 * q + 30 * q * q, 1 - q];
 }
 /**
  * Une silhouette de la réponse au chanteur (#18) : l'ennemi de l'univers en gris, entre deux couloirs, sans la
@@ -906,7 +951,7 @@ function dessinerSilhouette(ev, x, nb, hsl) {
   g.lineWidth = 1.5;
   g.stroke();
   g.setLineDash([]);
-  (S.theme === "boite" ? boiteEnemy : villeEnemy)(x, y, ev, gris(250, 10, 78), 0.85, nb, gris);
+  dessinEnnemi()(x, y, ev, gris(250, 10, 78), 0.85, nb, gris);
   txt("?", x, y - 26, `700 16px ${FONT.display}`, COL.muted, "center");
 }
 /**

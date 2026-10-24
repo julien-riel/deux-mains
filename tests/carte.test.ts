@@ -1,4 +1,4 @@
-// La carte du monde (#25) : six lieux par univers, un par progression ; une chanson réussie allume son lieu, et la
+// La carte du monde (#25) : neuf lieux par univers, un par progression ; une chanson réussie allume son lieu, et la
 // sauvegarde (ADR-0014) le garde d'une visite à l'autre. Les essais ne touchent jamais à la vraie sauvegarde. Les
 // règles pures d'abord, puis des parcours complets dans le faux navigateur.
 
@@ -16,10 +16,20 @@ let nav: Navigateur;
 afterEach(() => nav?.fermer());
 
 describe("lieux de la carte", () => {
-  it("six lieux, un par progression, nommés dans chaque univers", () => {
+  it("neuf lieux, un par progression, nommés dans chaque univers, chacun avec son ennemi et son instrument", () => {
     expect(LIEUX).toEqual(PROGS.map((p) => p.name));
-    expect(LIEUX.length).toBe(6);
-    for (const u of Object.values(THEMES)) for (const l of LIEUX) expect(u.places[l]).toBeTruthy();
+    expect(LIEUX.length).toBe(9);
+    for (const u of Object.values(THEMES))
+      for (const l of LIEUX) {
+        expect(u.places[l]).toBeTruthy();
+        expect(u.ennemis[l]).toBeTruthy();
+      }
+    // Un ennemi et un instrument par lieu : aucun ne revient dans le même univers
+    for (const u of Object.values(THEMES)) {
+      const e = Object.values(u.ennemis);
+      expect(new Set(e.map((x) => x.dessin)).size).toBe(LIEUX.length);
+      expect(new Set(e.map((x) => x.timbre)).size).toBe(LIEUX.length);
+    }
   });
 
   it("la progression d'une graine se lit sans construire la chanson", () => {
@@ -34,18 +44,19 @@ describe("lieux de la carte", () => {
       for (const diff of ["debutant", "facile", "normal", "difficile"])
         expect(buildSong(graine, diff).prog.name).toBe(lieu);
     }
-    expect(new Set(LIEUX.map(graineDuLieu)).size).toBe(6);
+    expect(new Set(LIEUX.map(graineDuLieu)).size).toBe(LIEUX.length);
     expect(() => graineDuLieu("Le Port")).toThrow();
   });
 
   it("le lieu suivant est le prochain à faire, en revenant au début ; tout réussi, simplement le suivant", () => {
-    const [a, b, c, d, e, f] = LIEUX;
+    const [a, b, c, d, e, f, g, h, i] = LIEUX;
     expect(lieuSuivant([], a)).toBe(b);
     expect(lieuSuivant([b, c], a)).toBe(d);
-    expect(lieuSuivant([a, b, c], f)).toBe(d);
-    expect(lieuSuivant([a, b, c, d, e], f)).toBe(f);
+    expect(lieuSuivant([a, b, c], f)).toBe(g);
+    expect(lieuSuivant([a, b, c, g, h, i], f)).toBe(d);
+    expect(lieuSuivant([a, b, c, d, e, g, h, i], f)).toBe(f);
     expect(lieuSuivant(LIEUX, c)).toBe(d);
-    expect(lieuSuivant(LIEUX, f)).toBe(a);
+    expect(lieuSuivant(LIEUX, i)).toBe(a);
   });
 });
 
@@ -65,7 +76,7 @@ const photographies = (n: Navigateur) => n.remplissages.filter((c) => c === "hsl
 describe.each(["ville", "boite"] as Univers[])("carte dans l'univers %s", (univers) => {
   const U = THEMES[univers];
 
-  it("l'écran de départ ouvre la carte ; elle montre les six lieux, tous à faire au premier passage", async () => {
+  it("l'écran de départ ouvre la carte ; elle montre les neuf lieux, tous à faire au premier passage", async () => {
     nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers } });
     const S = nav.jeu.state;
     expect(nav.overlay.innerHTML).toContain('data-act="carte"');
@@ -75,8 +86,8 @@ describe.each(["ville", "boite"] as Univers[])("carte dans l'univers %s", (unive
     const html = nav.overlay.innerHTML;
     expect(html).toContain(U.carte.titre);
     for (const lieu of LIEUX) expect(html).toContain(U.places[lieu]);
-    expect(html.match(/class="lieu a-faire/g)).toHaveLength(6);
-    expect(html).toContain(`0 sur 6 ${U.carte.reussis}`);
+    expect(html.match(/class="lieu a-faire/g)).toHaveLength(9);
+    expect(html).toContain(`0 sur 9 ${U.carte.reussis}`);
     nav.presser("Escape");
     expect(S.mode).toBe("title");
   });
@@ -119,11 +130,11 @@ describe.each(["ville", "boite"] as Univers[])("carte dans l'univers %s", (unive
     const avant = univers === "ville" ? fenetresAllumees(nav) : photographies(nav);
     nav.fermer();
 
-    const sauvegarde: Sauvegarde = { v: VERSION, carte: { [univers]: LIEUX.slice(0, 6) }, chansons: {} };
+    const sauvegarde: Sauvegarde = { v: VERSION, carte: { [univers]: LIEUX }, chansons: {} };
     nav = await Navigateur.ouvrir({ stockage: { "deux-mains-theme": univers, [CLE]: JSON.stringify(sauvegarde) } });
     nav.presser("KeyC");
-    expect(nav.overlay.innerHTML.match(/class="lieu reussi/g)).toHaveLength(6);
-    expect(nav.overlay.innerHTML).toContain(`6 sur 6 ${U.carte.reussis}`);
+    expect(nav.overlay.innerHTML.match(/class="lieu reussi/g)).toHaveLength(9);
+    expect(nav.overlay.innerHTML).toContain(`9 sur 9 ${U.carte.reussis}`);
     nav.presser("Escape");
     nav.image();
     // Ville : les habitants des quartiers rallumés restent aux fenêtres ; Boîte : les souvenirs pendent au mur
@@ -232,7 +243,7 @@ describe("code de sauvegarde", () => {
       chansons: { "g1:9:normal": { meilleur: 321 } },
     });
     expect(sauvegardeDe(nav)).toEqual(S.sauvegarde);
-    expect(nav.overlay.innerHTML).toContain("Code chargé : 3 lieux sur 6");
+    expect(nav.overlay.innerHTML).toContain("Code chargé : 3 lieux sur 9");
     nav.toucherBouton("carte");
     expect(nav.overlay.innerHTML.match(/class="lieu reussi/g)).toHaveLength(3);
   });
@@ -268,7 +279,7 @@ describe("essais de la carte", () => {
       const html = nav.overlay.innerHTML;
       expect(html.match(/class="lieu reussi/g)).toHaveLength(fictifs.length);
       expect(html).toContain("progression fictive");
-      expect(html.match(/disabled/g)).toHaveLength(6);
+      expect(html.match(/disabled/g)).toHaveLength(LIEUX.length);
       // Choisir un lieu quitterait l'essai : la carte de l'essai se regarde seulement
       nav.presser("Digit1");
       expect([S.mode, S.essai?.essai.id]).toEqual(["carte", id]);
@@ -286,7 +297,7 @@ describe("essais de la carte", () => {
       expect(nav.overlay.innerHTML).toContain(encoder(S.essai.sauvegarde));
       nav.trouver("#code-colle").value = encoder({ v: VERSION, carte: { [univers]: LIEUX }, chansons: {} });
       nav.toucherBouton("coller");
-      expect(S.essai.sauvegarde.carte[univers]).toHaveLength(6);
+      expect(S.essai.sauvegarde.carte[univers]).toHaveLength(LIEUX.length);
       expect(nav.stockage.get(CLE)).toBe(texte);
 
       nav.presser("Escape");
@@ -324,8 +335,9 @@ describe("enchaînement", () => {
     nav.avancerJusqua((s) => s.mode !== "remontage", 30);
     expect([S.mode, S.depart]).toEqual(["title", 100]);
     nav.presser("KeyC");
-    nav.toucherBouton("lieu", { lieu: LIEUX[5] });
-    expect([S.mode, S.seed]).toEqual(["title", graineDuLieu(LIEUX[5])]);
+    // Le dernier lieu : le suivant revient au début de la carte, au premier encore à faire
+    nav.toucherBouton("lieu", { lieu: LIEUX[8] });
+    expect([S.mode, S.seed]).toEqual(["title", graineDuLieu(LIEUX[8])]);
     nav.toucherBouton("carte");
     nav.toucherBouton("titre");
     expect(S.mode).toBe("title");

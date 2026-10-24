@@ -153,7 +153,7 @@ describe("ce qu'une partition permet", () => {
       avec((p) => (p.bpm = 59)),
       avec((p) => (p.bpm = 181)),
       avec((p) => (p.diff = "extreme")),
-      avec((p) => (p.prog = "Blues")),
+      avec((p) => (p.prog = "Bossa nova")),
       avec((p) => (p.sections = [])),
       avec((p) => (p.sections = Array.from({ length: 17 }, () => (p.sections as unknown[])[1]))),
       avec((p) => ((p.sections as Record<string, unknown>[])[1].genre = "pont-levis")),

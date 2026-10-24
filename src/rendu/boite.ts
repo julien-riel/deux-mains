@@ -14,6 +14,7 @@ import {
   g,
   hexA,
   hh,
+  reduced,
   rr,
   teinteDeTrace,
   tracesVisibles,
@@ -279,38 +280,114 @@ export function boiteTunnel(a, b, fill) {
     g.stroke();
   }
 }
-// Papillon de nuit qui a avalé une note : elle brille dans son ventre
-export function boiteEnemy(x, y, ev, col, a, nb, hsl) {
+// Papillon de nuit qui a avalé une note : elle bat dans son ventre, au temps. `m`, la menace (de 0 à 1), monte à
+// l'approche de la ligne de tir : il bat des ailes plus vite et volette par saccades, les faux yeux de ses ailes
+// s'ouvrent, ses vrais yeux rougeoient, ses pattes griffent l'air et il grossit.
+export function boiteEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
   const big = ev.kind === "refrain",
-    flap = 0.35 + 0.65 * Math.abs(Math.sin(nb * Math.PI * 2 + ev.beat * 3));
+    flap = 0.35 + 0.65 * Math.abs(Math.sin(nb * Math.PI * 2 * (1 + 0.8 * m) + ev.beat * 3)),
+    pouls = (1 - (nb - Math.floor(nb))) ** 3,
+    saccade = reduced ? 0 : 1 + 2.5 * m;
   const ww = big ? 17 : 13,
     wh = (big ? 15 : 11) * flap;
-  g.fillStyle = hsl(32, 25, big ? 70 : 62, 0.9 * a);
+  g.save();
+  g.translate(x + saccade * Math.sin(nb * 5.3 + ev.beat * 2), y + saccade * Math.sin(nb * 7.7 + ev.beat));
+  if (!reduced) g.rotate(0.12 * (0.5 + m) * Math.sin(nb * 3.1 + ev.beat));
+  g.scale(1 + 0.2 * m, 1 + 0.2 * m);
+  // Ailes postérieures, plus sombres, sous les antérieures
+  g.fillStyle = hsl(28, 22, big ? 46 : 40, 0.9 * a);
   for (const s of [-1, 1]) {
     g.beginPath();
-    g.ellipse(x + s * ww * 0.55, y - 3, ww * 0.6, wh, s * 0.5, 0, Math.PI * 2);
+    g.ellipse(s * ww * 0.4, 5, ww * 0.42, wh * 0.7, -s * 0.6, 0, Math.PI * 2);
     g.fill();
   }
-  if (big) {
-    g.fillStyle = col;
-    for (const s of [-1, 1]) {
-      g.beginPath();
-      g.arc(x + s * ww * 0.6, y - 3, 1 + 3 * flap, 0, Math.PI * 2);
-      g.fill();
-    }
+  // Ailes antérieures, bordées de sombre
+  g.strokeStyle = hsl(28, 30, 28, 0.7 * a);
+  g.lineWidth = 1;
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(s * ww * 0.55, -3, ww * 0.6, wh, s * 0.5, 0, Math.PI * 2);
+    g.fillStyle = hsl(32, 25, big ? 70 : 62, 0.9 * a);
+    g.fill();
+    g.stroke();
   }
+  // Les ocelles : de faux yeux sur les ailes, qui s'écarquillent à l'approche ; ceux du refrain ont la couleur
+  // de la note
+  const r = (big ? 4.4 : 3.2) * (0.6 + 0.4 * m);
+  for (const s of [-1, 1]) {
+    const cx = s * ww * 0.62,
+      cy = -3 - wh * 0.1;
+    g.beginPath();
+    g.ellipse(cx, cy, r + 1.4, (r + 1.4) * flap, 0, 0, Math.PI * 2);
+    g.fillStyle = hsl(28, 35, 20, a);
+    g.fill();
+    g.beginPath();
+    g.ellipse(cx, cy, r, r * flap, 0, 0, Math.PI * 2);
+    g.fillStyle = big ? col : hsl(42, 60, 58 + 18 * m, a);
+    g.fill();
+    g.beginPath();
+    g.ellipse(cx, cy, r * 0.45, r * 0.45 * flap, 0, 0, Math.PI * 2);
+    g.fillStyle = hsl(250, 30, 8, a);
+    g.fill();
+  }
+  // Pattes : trois crochets de chaque côté, qui griffent l'air au temps
+  const griffe = 1 + 2 * m * pouls;
+  g.strokeStyle = hsl(28, 25, 34, a);
+  g.lineWidth = 1.2;
+  g.lineCap = "round";
+  for (const s of [-1, 1])
+    for (let k = 0; k < 3; k++) {
+      g.beginPath();
+      g.moveTo(s * 2, 1 + 3.5 * k);
+      g.lineTo(s * (6 + griffe), 3 + 4 * k);
+      g.lineTo(s * (5 - griffe), 7 + 4 * k);
+      g.stroke();
+    }
+  // Le ventre et sa note, qui bat au temps
   g.fillStyle = col;
   g.beginPath();
-  g.ellipse(x, y + 2, 4, 9, 0, 0, Math.PI * 2);
+  g.ellipse(0, 2, 4 * (1 + 0.15 * pouls), 9, 0, 0, Math.PI * 2);
   g.fill();
+  // La tête et ses yeux, qui rougeoient à l'approche
+  g.beginPath();
+  g.arc(0, -8, 3.4, 0, Math.PI * 2);
+  g.fillStyle = hsl(28, 25, 26, a);
+  g.fill();
+  for (const s of [-1, 1]) {
+    if (m > 0.3) {
+      g.beginPath();
+      g.arc(s * 1.8, -8.5, 2.5 + 2 * m, 0, Math.PI * 2);
+      g.fillStyle = hsl(355, 90, 60, 0.3 * m * a);
+      g.fill();
+    }
+    g.beginPath();
+    g.arc(s * 1.8, -8.5, 1.1 + 0.6 * m, 0, Math.PI * 2);
+    g.fillStyle = hsl(355, 90, 45 + 20 * m, (0.4 + 0.6 * m) * a);
+    g.fill();
+  }
+  // Antennes plumeuses, qui frémissent
   g.strokeStyle = hsl(32, 25, 72, a);
   g.lineWidth = 1;
-  g.beginPath();
-  g.moveTo(x - 1, y - 7);
-  g.lineTo(x - 5, y - 15);
-  g.moveTo(x + 1, y - 7);
-  g.lineTo(x + 5, y - 15);
-  g.stroke();
+  for (const s of [-1, 1]) {
+    const fr = reduced ? 0 : (0.8 + 1.5 * m) * Math.sin(nb * 9 + s + ev.beat),
+      bx = s * 1.2,
+      by = -10,
+      tx = s * (6 + fr),
+      ty = -18 + fr * 0.5;
+    g.beginPath();
+    g.moveTo(bx, by);
+    g.lineTo(tx, ty);
+    for (const t of [0.4, 0.6, 0.8]) {
+      const px = bx + (tx - bx) * t,
+        py = by + (ty - by) * t;
+      g.moveTo(px, py);
+      g.lineTo(px + s * 2.2, py + 1);
+      g.moveTo(px, py);
+      g.lineTo(px - s * 1.2, py - 1.8);
+    }
+    g.stroke();
+  }
+  g.restore();
 }
 // La petite note (#14) : une mite de papier, deux fois plus petite que les papillons, qui bat vite des ailes
 export function boitePetite(x, y, col, a, nb, hsl) {

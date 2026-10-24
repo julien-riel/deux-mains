@@ -77,6 +77,39 @@ export const PROGS: Progression[] = [
     ],
     end: [0, "M"],
   },
+  {
+    name: "ii–V–I",
+    mode: "majeur",
+    chords: [
+      [2, "m7"],
+      [7, "7"],
+      [0, "M7"],
+      [0, "M7"],
+    ],
+    end: [0, "M7"],
+  },
+  {
+    name: "Blues",
+    mode: "majeur",
+    gamme: "mixolydien",
+    chords: [
+      [0, "7"],
+      [5, "7"],
+      [0, "7"],
+      [7, "7"],
+    ],
+    end: [0, "7"],
+  },
+  {
+    name: "Vamp lydien",
+    mode: "majeur",
+    gamme: "lydien",
+    chords: [
+      [0, "M7"],
+      [2, "M"],
+    ],
+    end: [0, "M7"],
+  },
 ];
 
 export const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -107,10 +140,18 @@ export const GAMMES: Record<string, number[]> = {
   majeur: [0, 2, 4, 5, 7, 9, 11],
   mineur: [0, 2, 3, 5, 7, 8, 10],
   dorien: [0, 2, 3, 5, 7, 9, 10],
+  mixolydien: [0, 2, 4, 5, 7, 9, 10],
+  lydien: [0, 2, 4, 6, 7, 9, 11],
 };
-// La pentatonique retire deux degrés de la gamme (à partir de 0) : le 4e et le 7e en majeur, le 2e et le 6e en
-// mineur et en dorien
-const HORS_PENTATONIQUE: Record<string, number[]> = { majeur: [3, 6], mineur: [1, 5], dorien: [1, 5] };
+// La pentatonique retire deux degrés de la gamme (à partir de 0) : le 4e et le 7e en majeur, en mixolydien et en
+// lydien, le 2e et le 6e en mineur et en dorien
+const HORS_PENTATONIQUE: Record<string, number[]> = {
+  majeur: [3, 6],
+  mineur: [1, 5],
+  dorien: [1, 5],
+  mixolydien: [3, 6],
+  lydien: [3, 6],
+};
 
 /**
  * La gamme de la tonalité pendant cet accord, en classes de hauteur (0 à 11) : la mélodie prend la pentatonique

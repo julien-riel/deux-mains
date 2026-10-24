@@ -1,5 +1,5 @@
 /* ---------- Carte du monde (#25) ---------- */
-// Logique pure (ADR-0007). Chaque univers a six lieux, un par progression d'accords : les quartiers de la Ville,
+// Logique pure (ADR-0007). Chaque univers a neuf lieux, un par progression d'accords : les quartiers de la Ville,
 // les souvenirs de la Boîte (ADR-0006 : mêmes lieux, mêmes chansons, habillage différent). Un lieu se joue sur sa
 // chanson, toujours la même ; il est réussi dès qu'une chanson de sa progression l'est, dans cet univers.
 import { progressionDe } from "../chanson/generateur";

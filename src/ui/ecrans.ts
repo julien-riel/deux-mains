@@ -10,7 +10,7 @@ import { S, autoFor, mesureDeLaChanson, passageAt, precision, sectionAtBar, spb,
 import { CRITERES, conseil } from "../jeu/style";
 import { clamp, echapper } from "../outils";
 import { LANE_HUE } from "../rendu/outils";
-import { TH, placeName } from "../univers/univers";
+import { TH, ennemiDuLieu, placeName } from "../univers/univers";
 import { carteDisponible, ecranCarte, ecranSauvegarde, prochainLieu, progresDeFin } from "./ecran-carte";
 import { boutonEditeur, ecranEditeur } from "./ecran-editeur";
 import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes, modePianiste } from "./touches";
@@ -186,6 +186,7 @@ export function show(kind) {
     h = `<p class="eyebrow">${TH().label} · ${TH().unit} n° ${S.seed} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}${boucle ? ` · boucle : ${boucle.name}` : ""}</p>
       <h2>${placeName()}</h2>
       <p class="meta">${s.keyName} · ${s.progLabel} · ${s.bpm} BPM · ${len} s</p>
+      <p class="hint">Ennemis : ${ennemiDuLieu().nom} · Mélodie : ${ennemiDuLieu().instrument}</p>
       ${ligneDepart()}
       <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>

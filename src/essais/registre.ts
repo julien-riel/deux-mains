@@ -85,8 +85,9 @@ export function partitionExemple(): Partition {
   };
 }
 
-// Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture
-const GRAINE = 4242;
+// Graine fixe (ADR-0005) : la même chanson d'essai à chaque ouverture, en Sol mineur sur la cadence andalouse, à
+// 96 BPM (la graine 4242 jusqu'à la version 2 du générateur)
+const GRAINE = 128;
 
 // Les sections de la chanson générée, dans les quatre difficultés : intro 0–1, couplet 2–9, refrain 10–17,
 // solo 18–21, refrain 22–29, puis en Difficile la section en 3 contre 2 (#19) 30–33, et l'outro : les deux
