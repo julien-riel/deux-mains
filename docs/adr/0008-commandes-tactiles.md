@@ -1,6 +1,6 @@
 # ADR-0008 : Jouer au doigt avec deux grandes zones et des accords à un pouce
 
-- **Statut** : Acceptée
+- **Statut** : Acceptée (les règles 3 et 4, zones gauche et droite, sont remplacées par [ADR-0019](0019-scenes-interchangeables-une-par-lieu.md))
 - **Date** : 2026-10-22
 - **Issues liées** : #11, #10
 - **Artefact de décision** : https://claude.ai/artifact/4mHXXY9GGAYgtGvQnkJXvV
