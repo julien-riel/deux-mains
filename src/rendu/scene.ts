@@ -35,6 +35,8 @@ import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerZones } from "./commandes";
 import { cintrer, posesLeLong, voieDroite, voieEnProfondeur } from "./cintrage";
+import { aLaMesure, medaille } from "./ennemis-papier";
+import { dessinerPersonnage } from "./personnage";
 import { dessinerRemontage } from "./remontage";
 import {
   boiteBlock,
@@ -59,7 +61,6 @@ import {
   HUE_BASS,
   HUE_MEL,
   LANE_HUE,
-  PH,
   PLONGEE,
   POITRINE,
   PW,
@@ -983,15 +984,10 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
     // Tenue, elle se joue à la ligne de tir
     if (ev.state === "holding") [x, yh] = [tir.x, tir.y + y - p.y];
   }
-  // Halo à la forme du couloir : il reste sur le couloir, qu'il marque, même quand l'ennemi s'en écarte
-  formeCouloir(lane, x, yh, 24 * e);
-  g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
+  // L'ombre de la forme du couloir, sur son couloir : elle le marque même quand l'ennemi s'en écarte (#78)
+  formeCouloir(lane, x + 3, yh + 6, 15 * e);
+  g.fillStyle = ev.state === "miss" ? hexA(COL.bad, 0.3 * a) : `rgba(0,0,0,${0.28 * a})`;
   g.fill();
-  if (S.formes) {
-    g.strokeStyle = ev.state === "miss" ? hexA(COL.bad, 0.6 * a) : hsl(hue, 80, 68, 0.6 * a);
-    g.lineWidth = 2;
-    g.stroke();
-  }
   // La menace monte sur les quatre derniers temps avant la ligne de tir : l'ennemi se réveille et vise le joueur.
   // Une note simple fond alors vers lui en courbe, et revient sur son couloir pile à la ligne ; ratée, elle plonge.
   const m = ev.state === "holding" ? 1 : clamp(1 - (ev.beat - nb) / 4, 0, 1);
@@ -1006,7 +1002,11 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
     ey += dy;
   }
   const ecol = ev.state === "miss" ? hexA(COL.bad, ea) : hsl(hue, 80, 68, ea);
-  dessinEnnemi()(ex, ey, ev, ecol, ea, nb, hsl, m, e, p.angle);
+  // L'ennemi du lieu, plus grand, qui bat au temps, et la médaille de son couloir sur le ventre (#78)
+  aLaMesure(ex, ey, ev.beat, nb, e, () => {
+    dessinEnnemi()(ex, ey, ev, ecol, ea, nb, hsl, m, e, p.angle);
+    medaille(lane, ex, ey + 9 * e, 7 * e, ecol, ea);
+  });
   // En mode pianiste (#53), l'ennemi porte la note à jouer : les deux d'une trille, la prochaine d'un serpent
   if (nomsDeNotes() && ev.state !== "miss" && ev.state !== "broken") {
     const k = ev.serpent ? Math.min((ev.state === "holding" ? (ev.troncon ?? 0) : -1) + 1, ev.serpent.length - 1) : 0,
@@ -1014,11 +1014,11 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
         ev.trille !== undefined
           ? `${nomDeClasse(ev.midi)}~${nomDeClasse(ev.midiTrille)}`
           : nomDeClasse(ev.serpent ? ev.midiSerpent[k] : ev.midi);
-    txt(nom, ex, ey - 30 * e, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
+    txt(nom, ex, ey - 40 * e, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
   }
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
   if (ev.reprise)
-    etoile(ex, ey - 34 * e, (8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat))) * e, hsl(hue, 95, 85, ea));
+    etoile(ex, ey - 44 * e, (8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat))) * e, hsl(hue, 95, 85, ea));
 }
 /**
  * Une note tenue en ruban, le long des poses de sa note : de l'ennemi (ou du point d'impact, tenue) à la fin de sa
@@ -1075,14 +1075,14 @@ function dessinerSilhouette(sc: Scene, ev, nb, hsl) {
     y = p.y + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3 * e,
     gris = (h, s, l, a = 1) => hsl(h, s * 0.15, l, a);
   g.beginPath();
-  g.arc(x, y, 22 * e, 0, Math.PI * 2);
+  g.arc(x, y, 30 * e, 0, Math.PI * 2);
   g.setLineDash([4, 5]);
   g.strokeStyle = hexA(COL.muted, 0.7);
   g.lineWidth = 1.5;
   g.stroke();
   g.setLineDash([]);
-  dessinEnnemi()(x, y, ev, gris(250, 10, 78), 0.85, nb, gris, 0, e, p.angle);
-  txt("?", x, y - 26 * e, `700 16px ${FONT.display}`, COL.muted, "center");
+  aLaMesure(x, y, ev.beat, nb, e, () => dessinEnnemi()(x, y, ev, gris(250, 10, 78), 0.85, nb, gris, 0, e, p.angle));
+  txt("?", x, y - 36 * e, `700 16px ${FONT.display}`, COL.muted, "center");
 }
 /**
  * Le boss de fin (#26) : il arrive pendant l'intro et plane à droite, derrière les couloirs. Il ouvre son pavillon
@@ -1484,6 +1484,21 @@ function marcheProche(nb: number) {
   const ev = S.ev.find((e) => e.hand === "L" && e.state === "pending" && e.beat >= nb - 0.2);
   return ev && ev.lane >= 4 && ev.beat - nb < 1 ? ev : null;
 }
+/**
+ * L'angle du bras armé du personnage, qui glisse de `avant` vers la prochaine note de la mélodie à jouer dans le
+ * temps qui vient, ou vers le haut s'il n'y en a pas
+ */
+let vise = -0.6;
+function viseeDuPersonnage(sc: Scene, nb: number, yOff: number, avant: number) {
+  const ev = S.ev.find((e) => e.hand === "R" && e.state === "pending" && e.beat >= nb - 0.05 && e.beat - nb < 1.2);
+  let voulu = -0.6;
+  if (ev) {
+    const ici = sc.impact("basse"),
+      cible = sc.impact(ev.lane);
+    voulu = Math.atan2(cible.y - (ici.y + yOff - 68), cible.x - (ici.x + 8));
+  }
+  return avant + (voulu - avant) * 0.3;
+}
 /** Ce qui fait la pose du personnage, en secondes de la chanson : celle du joueur, ou celle du fantôme (#32) */
 interface PoseDuPersonnage {
   jumpAt: number;
@@ -1506,7 +1521,7 @@ const poseDuJoueur = (): PoseDuPersonnage => ({
 });
 
 /** Le fantôme court un peu derrière le personnage, pour qu'on le voie même quand ils font le même geste */
-const RECUL_FANTOME = 30;
+const RECUL_FANTOME = 58;
 /** Le fantôme du meilleur passage (#32) se voit pendant la partie, s'il y en a un et que le réglage le montre */
 const fantomeVisible = () => !!S.fantome && S.voirFantome && !S.relecture && (S.mode === "play" || S.mode === "pause");
 
@@ -1585,7 +1600,9 @@ export function drawPlayer(
   let yOff = 0,
     sliding = false,
     jumping = false,
-    ecrase = 0;
+    ecrase = 0,
+    saut = -1,
+    atterrit = 0;
   // L'écrasement (#8) : le personnage s'aplatit sur la plaque, puis rebondit un peu
   const e = (ns - pose.ecraseAt) / (0.5 * spb()),
     impact = !auRepos() && e >= 0 && e < 1;
@@ -1594,8 +1611,12 @@ export function drawPlayer(
     const haut = (p: number) => Math.sin(Math.PI * Math.pow(p, 0.6)),
       double = pose.doubleAt >= pose.jumpAt,
       p = double ? (ns - pose.doubleAt) / pose.doubleAir : (ns - pose.jumpAt) / pose.jumpAir;
+    // Il retombe : il s'écrase un instant en touchant le sol
+    const retombe = (ns - (double ? pose.doubleAt + pose.doubleAir : pose.jumpAt + pose.jumpAir)) / (0.28 * spb());
+    if (retombe >= 0 && retombe < 1) atterrit = 1 - retombe;
     if (p >= 0 && p < 1) {
       jumping = true;
+      saut = p;
       yOff = double
         ? -(122 * haut(clamp((pose.doubleAt - pose.jumpAt) / pose.jumpAir, 0, 1)) * (1 - p) + 110 * haut(p))
         : -122 * haut(p);
@@ -1611,16 +1632,25 @@ export function drawPlayer(
     }
   }
   const run = S.mode === "play" && !jumping && !sliding && !ecrase,
-    ph = nb * Math.PI;
+    hurt = !fantome && pnow - S.hurtAt < 260;
+  if (S.theme === "boite" && !fantome) {
+    // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui. Celle du fantôme
+    // tourne avec celle du personnage, sans la faire tourner deux fois plus vite.
+    const spin =
+      S.mode === "play"
+        ? 1.5 + (5 * S.health) / 100
+        : S.mode === "dying"
+          ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
+          : auRepos()
+            ? 1
+            : 0;
+    S.keyAng = (S.keyAng || 0) + dt * spin;
+  }
+  // Le bras armé vise la prochaine note de la mélodie, en la suivant doucement ; il recule au tir
+  const dernierTir = S.beams.at(-1),
+    recul = dernierTir ? clamp(1 - (pnow - dernierTir.at) / 120, 0, 1) : 0;
+  if (!fantome) vise = viseeDuPersonnage(sc, nb, yOff, vise);
   const arme = aLaPose(ici, (cx, sol): [number, number] => {
-    const w = sliding ? 60 : PW * (1 + 0.35 * ecrase),
-      h = sliding ? 30 : PH * (1 - 0.35 * ecrase) - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
-    const x = cx - w / 2,
-      y = sol + yOff - h,
-      hurt = !fantome && pnow - S.hurtAt < 260;
-    const s = run ? Math.sin(ph) : jumping ? 0.6 : 0,
-      hipY = y + h - 14;
-    const gy = sliding ? y + 14 : y + 32;
     if (impact) {
       // L'onde de choc s'élargit au sol
       g.strokeStyle = hsl(HUE_BASS, 90, 70, 0.6 * (1 - e));
@@ -1629,13 +1659,21 @@ export function drawPlayer(
       g.ellipse(cx, sol, 24 + 90 * e, 5 + 10 * e, 0, 0, Math.PI * 2);
       g.stroke();
     }
-    g.fillStyle = "rgba(0,0,0,.35)";
-    g.beginPath();
-    g.ellipse(cx, sol + 3, Math.max(6, w * 0.6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2);
-    g.fill();
-    g.lineCap = "round";
     // Une scène qui le voit sous un autre angle le dessine elle-même, au même geste (vu de dos vers l'horizon, #82)
-    if (sc.personnage)
+    if (sc.personnage) {
+      g.fillStyle = "rgba(0,0,0,.35)";
+      g.beginPath();
+      g.ellipse(
+        cx,
+        sol + 3,
+        Math.max(6, (sliding ? 60 : PW * (1 + 0.35 * ecrase)) * 0.6 * (1 + yOff / 300)),
+        4,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      g.fill();
+      g.lineCap = "round";
       return sc.personnage({
         x: cx,
         sol,
@@ -1643,150 +1681,28 @@ export function drawPlayer(
         glisse: sliding,
         ecrase,
         court: run,
-        phase: ph,
+        phase: nb * Math.PI,
         blesse: hurt,
         fantome,
         univers: S.theme,
         hsl,
       });
-
-    if (S.theme === "boite") {
-      // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui
-      const spin =
-        S.mode === "play"
-          ? 1.5 + (5 * S.health) / 100
-          : S.mode === "dying"
-            ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
-            : auRepos()
-              ? 1
-              : 0;
-      // La clé du fantôme tourne avec celle du personnage, sans la faire tourner deux fois plus vite
-      if (!fantome) S.keyAng = (S.keyAng || 0) + dt * spin;
-      const brass = hsl(42, 65, 55),
-        porcelain = hurt ? COL.bad : hsl(198, 30, 62);
-      if (!sliding) {
-        g.strokeStyle = brass;
-        g.lineWidth = 3;
-        g.beginPath();
-        g.moveTo(cx - 5, hipY);
-        g.lineTo(cx - 5 + s * 8, y + h);
-        g.moveTo(cx + 5, hipY);
-        g.lineTo(cx + 5 - s * 8, y + h);
-        g.stroke();
-      }
-      let hx, hy, kx, ky;
-      if (sliding) {
-        rr(x, y + 6, w - 18, h - 6, 10);
-        g.fillStyle = porcelain;
-        g.fill();
-        hx = x + w - 11;
-        hy = y + 14;
-        kx = x;
-        ky = y + 16;
-      } else {
-        rr(x + 4, y + 20, w - 8, h - 32, 9);
-        g.fillStyle = porcelain;
-        g.fill();
-        g.fillStyle = brass;
-        g.fillRect(x + 4, y + 34, w - 8, 3);
-        hx = cx;
-        hy = y + 11;
-        kx = x + 4;
-        ky = y + 32;
-      }
-      g.beginPath();
-      g.arc(hx, hy, 11, 0, Math.PI * 2);
-      g.fillStyle = hurt ? COL.bad : COL.fg;
-      g.fill();
-      g.fillStyle = COL.ink;
-      g.beginPath();
-      g.arc(hx + 5, hy - 1, 1.8, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = hsl(350, 70, 75, 0.6);
-      g.beginPath();
-      g.arc(hx + 3, hy + 5, 2.5, 0, Math.PI * 2);
-      g.fill();
-      // Clé de remontage dans le dos
-      const kw = 1 + 7 * Math.abs(Math.cos(S.keyAng));
-      g.fillStyle = brass;
-      g.fillRect(kx - 9, ky - 1.5, 9, 3);
-      g.strokeStyle = brass;
-      g.lineWidth = 2.5;
-      for (const d of [-5, 5]) {
-        g.beginPath();
-        g.ellipse(kx - 13, ky + d, kw, 4.5, 0, 0, Math.PI * 2);
-        g.stroke();
-      }
-      // Diapason doré en guise d'arme
-      g.strokeStyle = hsl(45, 85, 62);
-      g.lineWidth = 2.5;
-      g.beginPath();
-      g.moveTo(x + w - 6, gy);
-      g.lineTo(x + w + 4, gy);
-      g.moveTo(x + w + 4, gy - 4);
-      g.lineTo(x + w + 4, gy + 4);
-      g.moveTo(x + w + 4, gy - 4);
-      g.lineTo(x + w + 15, gy - 4);
-      g.moveTo(x + w + 4, gy + 4);
-      g.lineTo(x + w + 15, gy + 4);
-      g.stroke();
-    } else {
-      // Coursier en patins, casquette et casque audio, mégaphone de la radio pirate
-      const skate = (fx, fy) => {
-        rr(fx - 7, fy - 5, 14, 4, 2);
-        g.fillStyle = hsl(255, 20, 28);
-        g.fill();
-        g.fillStyle = hsl(330, 85, 62);
-        g.beginPath();
-        g.arc(fx - 4, fy, 2, 0, Math.PI * 2);
-        g.arc(fx + 4, fy, 2, 0, Math.PI * 2);
-        g.fill();
-      };
-      if (!sliding) {
-        g.strokeStyle = hsl(HUE_BASS, 90, 62);
-        g.lineWidth = 5;
-        g.beginPath();
-        g.moveTo(cx - 6, hipY);
-        g.lineTo(cx - 6 + s * 9, y + h - 4);
-        g.moveTo(cx + 6, hipY);
-        g.lineTo(cx + 6 - s * 9, y + h - 4);
-        g.stroke();
-        skate(cx - 6 + s * 9, y + h - 1);
-        skate(cx + 6 - s * 9, y + h - 1);
-      } else {
-        skate(x + 14, sol - 1);
-        skate(x + w - 18, sol - 1);
-      }
-      const bh = sliding ? h - 6 : h - 12;
-      rr(x, y, w, bh, 12);
-      g.fillStyle = hurt ? COL.bad : COL.fg;
-      g.fill();
-      rr(x + w - 18, y + 8, 14, 9, 4);
-      g.fillStyle = hsl(HUE_MEL, 85, 68);
-      g.fill();
-      rr(x + 2, y - 4, w - 8, 9, 4);
-      g.fillStyle = hsl(330, 85, 62);
-      g.fill();
-      rr(x + w - 10, y + 1, 16, 4, 2);
-      g.fill();
-      g.strokeStyle = hsl(HUE_BASS, 90, 62);
-      g.lineWidth = 3;
-      g.beginPath();
-      g.arc(x + w / 2 - 2, y + 12, w / 2 - 2, Math.PI * 1.08, Math.PI * 1.92);
-      g.stroke();
-      g.fillStyle = hsl(HUE_BASS, 90, 62);
-      rr(x - 2, y + 9, 6, 10, 3);
-      g.fill();
-      g.beginPath();
-      g.moveTo(x + w - 4, gy - 3);
-      g.lineTo(x + w + 13, gy - 8);
-      g.lineTo(x + w + 13, gy + 8);
-      g.lineTo(x + w - 4, gy + 3);
-      g.closePath();
-      g.fillStyle = hsl(HUE_MEL, 85, 68);
-      g.fill();
     }
-    return [x + w + 12, gy];
+    // Le personnage en papier découpé (#78), deux fois plus grand
+    return dessinerPersonnage(cx, sol + yOff, sol, {
+      univers: S.theme,
+      nb,
+      pnow,
+      court: run,
+      saut,
+      glisse: sliding,
+      ecrase,
+      atterrit,
+      blesse: hurt,
+      vise,
+      recul: fantome ? 0 : recul,
+      cle: S.keyAng || 0,
+    });
   });
   const ecran = versLEcran(ici, arme[0], arme[1]);
   if (!fantome) S.gun = ecran;
