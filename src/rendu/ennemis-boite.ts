@@ -4,14 +4,19 @@
 // regardent vers la gauche, d'où elles viennent, et se tournent vers le joueur, en bas à gauche, quand la menace
 // monte. Les autres couleurs passent toutes par la palette, pour qu'une silhouette reste grise.
 import { clamp } from "../outils";
-import { CIBLE_Y, PW, PX, g, reduced, type DessinEnnemi } from "./outils";
+import { scene } from "./geometrie";
+import { POITRINE, g, reduced, type DessinEnnemi } from "./outils";
 
 const TAU = Math.PI * 2;
 const mix = (u: number, v: number, t: number) => u + (v - u) * t;
 /** Le battement de la note : 1 pile sur le temps, qui retombe aussitôt */
 const battement = (nb) => (1 - (nb - Math.floor(nb))) ** 3;
-/** L'angle sous lequel on voit le joueur depuis (x, y) : entre la gauche (π) et presque le bas */
-const visee = (x, y) => clamp(Math.atan2(CIBLE_Y - y, PX + PW / 2 - x), Math.PI * 0.55, Math.PI);
+/** L'angle sous lequel on voit le joueur depuis (x, y), là où la scène le place : entre la gauche (π) et presque le
+ * bas */
+function visee(x, y) {
+  const joueur = scene().impact("basse");
+  return clamp(Math.atan2(joueur.y - POITRINE - y, joueur.x - x), Math.PI * 0.55, Math.PI);
+}
 /** De combien tourner un ennemi tourné vers la gauche pour qu'il fasse face au joueur, à la part `k` près */
 const pencher = (x, y, m, k) => m * k * (visee(x, y) - Math.PI);
 /**
@@ -26,11 +31,14 @@ function saccade(nb, ev, lisse, sursaut, vif = 6): [number, number] {
     lisse * Math.sin(nb * 7.7 + ev.beat) + sursaut * Math.sin(pas * 78.23),
   ];
 }
-/** Ouvre le dessin d'un ennemi centré en (x, y), grossi au refrain et par la menace ; à refermer par `g.restore()` */
-function poser(x, y, ev, m) {
+/** Ouvre le dessin d'un ennemi centré en (x, y), à l'échelle et à l'angle de sa pose dans la scène (ADR-0019), grossi
+ * au refrain et par la menace ; à refermer par `g.restore()` */
+function poser(x, y, ev, m, echelle, angle) {
   const k = (ev.kind === "refrain" ? 1.3 : 1) * (1 + 0.2 * m);
   g.save();
   g.translate(x, y);
+  if (angle) g.rotate(angle);
+  if (echelle !== 1) g.scale(echelle, echelle);
   g.scale(k, k);
   g.lineCap = "round";
   g.lineJoin = "round";
@@ -111,13 +119,13 @@ function ailesVibrantes(ailes, long, larg, vibre, ph, a, hsl) {
 // fourchue, et la note qui brille dans le pli de sa poitrine. La menace rabat ses ailes en flèche le long du dos,
 // resserre sa queue, allonge et pointe son bec sur le joueur, accélère ses battements, la fait voleter par saccades
 // et allume ses yeux.
-export const hirondelle: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const hirondelle: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     u = 0.5 + 0.5 * Math.sin(nb * Math.PI * 2 * (1 + m) + ev.beat * 3),
     [dx, dy] = saccade(nb, ev, 0.8, 2.5 * m),
     fourche = 7 - 3.5 * m,
     bec = 16 + 3 * m;
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.75) + (reduced ? 0 : 0.07 * Math.sin(nb * 2.3 + ev.beat)));
   g.lineWidth = 0.6;
   const pli = hsl(30, 25, 42, 0.8 * a);
@@ -209,11 +217,11 @@ export const hirondelle: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Libellule de laiton (souvenir : une première danse ; violon) : quatre ailes fines qui vibrent, un long abdomen de
 // segments, et la note dans le thorax. La menace recourbe l'abdomen en dard vers le joueur, fait bourdonner les
 // ailes plus vite et plus large, la fait foncer par saccades et allume ses gros yeux.
-export const libellule: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const libellule: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     [dx, dy] = saccade(nb, ev, 0.6, 2 * m, 4),
     ph = nb * Math.PI * 2 * (5 + 6 * m) + ev.beat;
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.4));
   ailesVibrantes(
     [
@@ -286,12 +294,12 @@ export const libellule: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Araignée d'horlogerie (souvenir : un après-midi de pluie ; kalimba) : suspendue à son fil de soie, un abdomen en
 // engrenage qui tourne par crans et où brille la note, huit pattes articulées. La menace ouvre et tend ses pattes
 // vers le joueur, la fait descendre et remonter le long du fil par à-coups, et allume ses huit yeux.
-export const araignee: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const araignee: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     pas = Math.floor(nb * 4 + ev.beat * 3),
     d = m * (reduced ? 4 : 2 + 6 * (0.5 + 0.5 * Math.sin(pas * 2.4))),
     swing = reduced ? 0 : 0.07 * Math.sin(nb * Math.PI * 0.5 + ev.beat);
-  poser(x, y, ev, m);
+  poser(x, y, ev, m, echelle, angle);
   // Elle se balance au bout de son fil, accroché une trentaine de pixels plus haut
   g.translate(0, -30);
   g.rotate(swing);
@@ -373,12 +381,12 @@ export const araignee: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Guêpe de cuivre (souvenir : une dispute ; mandoline) : un abdomen rayé de laiton et de noir où la note fait une
 // bande de lumière, un dard, des ailes vibrantes. La menace replie l'abdomen sous elle et braque le dard sur le
 // joueur, ouvre ses mandibules, rend son bourdonnement nerveux (des saccades rapides) et allume ses yeux.
-export const guepe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const guepe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     [dx, dy] = saccade(nb, ev, 0.7, 0.6 + 2.6 * m, 10),
     braque = m * 1.95 + 0.12 * p + (reduced ? 0 : 0.05 * Math.sin(nb * 6 + ev.beat)),
     ph = nb * Math.PI * 2 * (6 + 6 * m) + ev.beat;
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.45));
   // Les pattes, sous le thorax, qui griffent au temps à la menace
   const griffe = 1.5 * m * p;
@@ -480,12 +488,12 @@ export const guepe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Colombe de porcelaine fêlée (souvenir : un mariage ; clavecin) : blanche, parcourue de fêlures fines qui partent
 // de son cœur, où bat la note. La menace fait rougeoyer les fêlures, dresse ses ailes au-dessus du dos, ouvre son
 // bec, la penche vers le joueur et fait passer son œil noir au rouge.
-export const colombe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const colombe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     bat = Math.sin(nb * Math.PI * 2 + ev.beat * 3),
     [dx, dy] = saccade(nb, ev, 0.5, 1.5 * m),
     dresse = mix(0.12 + 0.18 * bat, -1.25 + 0.12 * bat, m);
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.45));
   // Une aile : un éventail de porcelaine, pivotant à l'épaule
   const aile = (rot, clair) => {
@@ -627,12 +635,12 @@ export const colombe: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Masque de bal vénitien (souvenir : un bal masqué ; piano jouet) : il flotte, ses rubans ondulent derrière lui, et
 // la note est la pierre précieuse de son front. La menace étire un sourire denté sous le masque, fait apparaître des
 // yeux rouges dans les orbites vides, fait fouetter les rubans et le penche vers le joueur.
-export const masque: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const masque: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     [dx, dy] = saccade(nb, ev, 0.5, 1.5 * m),
     vite = nb * Math.PI * 2 * (0.5 + (reduced ? 0 : 1.3 * m)) + ev.beat,
     ample = 1.4 + (reduced ? 1 : 3.5) * m;
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.3) + (reduced ? 0 : 0.06 * Math.sin(nb * Math.PI * 0.5 + ev.beat)));
   // Les rubans, noués aux tempes, qui flottent derrière le masque
   for (const [ox, oy, dec, long, ep, teinte, clair] of [
@@ -746,14 +754,14 @@ export const masque: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Chauve-souris de papier découpé (souvenir : un train de nuit ; orgue de Barbarie) : des ailes festonnées qui
 // battent, la note dans son ventre. La menace lui fait ouvrir grand les ailes et battre plus vite, montrer ses
 // crocs, allumer ses yeux, la penche vers le joueur et la fait voleter par saccades.
-export const chauvesouris: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const chauvesouris: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     ph = Math.sin(nb * Math.PI * 2 * (1 + 1.2 * m) + ev.beat * 3),
     ouv = mix(0.65 + 0.35 * ph, 0.9 + 0.1 * ph, m),
     W = 5 + 12 * ouv + 3 * m,
     ty = mix(-3 - 5 * ph, -8 + 1.5 * ph, m),
     [dx, dy] = saccade(nb, ev, 1, 2.5 * m);
-  poser(x + dx, y + dy, ev, m);
+  poser(x + dx, y + dy, ev, m, echelle, angle);
   g.rotate(pencher(x, y, m, 0.35));
   // Les ailes : le bord d'attaque jusqu'à la pointe, puis des festons creusés entre les doigts
   for (const s of [-1, 1]) {
@@ -858,7 +866,7 @@ export const chauvesouris: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => 
 // de grands yeux dont les iris sont des engrenages qui tournent, et la note dans la lucarne de sa poitrine. Au
 // repos, sa tête bascule par petits crans d'horloge. La menace tourne sa tête vers le joueur, change ses iris en
 // spirales rouges qui tournent de plus en plus vite et entrouvre ses ailes.
-export const chouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const chouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const p = battement(nb),
     [dx, dy] = saccade(nb, ev, 0, 1.2 * m, 4),
     tic = reduced ? 0 : 0.14 * Math.sin(Math.floor(nb * 2 + ev.beat) * 2.1) * (1 - m),
@@ -866,7 +874,7 @@ export const chouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     fy = 1.4 * m,
     ouvre = 0.1 + 0.75 * m + 0.05 * p,
     rot = nb * (0.7 + 2.5 * m);
-  poser(x + dx, y + dy - 0.8 * p, ev, m);
+  poser(x + dx, y + dy - 0.8 * p, ev, m, echelle, angle);
   g.scale(0.92, 0.92);
   g.rotate(pencher(x, y, m, 0.12));
   // Les ailes, derrière le corps, qui s'entrouvrent

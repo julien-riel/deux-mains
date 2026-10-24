@@ -33,3 +33,20 @@ describe("séparation entre la logique pure et le navigateur", () => {
     expect(await reglesEnfreintes("src/jeu/deroulement.ts", code)).toEqual([]);
   });
 });
+
+// Les scènes (ADR-0019) ne fournissent que la géométrie et le décor : le jeu et la chanson n'en dépendent pas
+describe("séparation entre le jeu et les scènes", () => {
+  it.each([
+    ["src/jeu/effets.ts", 'import { COTE } from "../rendu/scenes/cote";\nexport const x = COTE;'],
+    ["src/jeu/deroulement.ts", 'import type { Scene } from "../rendu/scenes/contrat";\nexport let x: Scene;'],
+    ["src/jeu/jugement.ts", 'import { COTE } from "../rendu/scenes/cote";\nexport const x = COTE;'],
+    ["src/chanson/generateur.ts", 'import { COTE } from "../rendu/scenes/cote";\nexport const x = COTE;'],
+  ])("%s ne peut pas importer une scène : %s", async (chemin, code) => {
+    expect(await reglesEnfreintes(chemin, code)).toContain("no-restricted-imports");
+  });
+
+  it("les effets du jugement passent par la scène en cours", async () => {
+    const code = 'import { scene } from "../rendu/geometrie";\nexport const x = scene;';
+    expect(await reglesEnfreintes("src/jeu/effets.ts", code)).toEqual([]);
+  });
+});

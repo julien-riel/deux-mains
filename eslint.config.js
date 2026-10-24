@@ -12,6 +12,25 @@ export default defineConfig([
     files: ["src/**/*.ts", "tests/**/*.ts"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
+  // Les scènes (ADR-0019) ne fournissent que la géométrie et le décor : le jeu ne dépend d'aucune scène. Les modules
+  // de jeu/ qui touchent à l'image passent par la scène en cours (rendu/geometrie.ts). La logique pure, plus bas,
+  // n'importe rien du rendu.
+  {
+    files: ["src/jeu/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/rendu/scenes", "**/rendu/scenes/**"],
+              message: "Le jeu ne dépend d'aucune scène (ADR-0019) : passer par la scène en cours (rendu/geometrie).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   {
     files: [
       "src/chanson/**/*.ts",
@@ -30,6 +49,7 @@ export default defineConfig([
       "src/jeu/editeur.ts",
       "src/jeu/traces.ts",
       "src/jeu/fantome.ts",
+      "src/jeu/scenes.ts",
     ],
     rules: {
       "no-restricted-imports": [

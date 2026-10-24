@@ -1,27 +1,26 @@
 /* ---------- Outils de dessin ---------- */
-import { PAS_PAR_TEMPS } from "../chanson/temps";
-import { S, auRepos, tracesAffichees } from "../jeu/etat";
-import { COULEUR_BASSE, couleurDeLaTrace, pasDeLaTrace } from "../jeu/traces";
+import { S, auRepos } from "../jeu/etat";
+import { COULEUR_BASSE } from "../jeu/traces";
 import { clamp } from "../outils";
+import type { Pose } from "./scenes/contrat";
 
 export const cv = document.querySelector<HTMLCanvasElement>("#game"),
   g = cv.getContext("2d");
 
+/** L'espace de la scène, en pixels : le rendu le ramène dans son cadre à l'écran (`src/rendu/geometrie.ts`) */
 export const W = 1200,
   H = 620;
-export const GY = 505,
-  PX = 210,
-  PW = 38,
-  PH = 68,
-  HITX = 300,
-  PPB = 150;
-export const LANE_Y = [395, 315, 235, 155];
+/** La largeur et la hauteur du personnage, debout */
+export const PW = 38,
+  PH = 68;
 /** Une palette : la teinte, la saturation et la luminosité d'une couleur, désaturée pour une silhouette */
 export type Palette = (h: number, s: number, l: number, a?: number) => string;
 /**
  * Le dessin d'un ennemi de la mélodie, centré en (x, y) : `ev` sa note (`kind === "refrain"` le grossit, `beat`
  * décale son animation), `col` la couleur de sa note, `a` son opacité, `nb` le temps de la chanson, `m` la menace
- * (de 0 à 1) qui monte à l'approche de la ligne de tir. Chaque lieu a le sien, dans chaque univers.
+ * (de 0 à 1) qui monte à l'approche de la ligne de tir, `echelle` et `angle` ceux de sa pose dans la scène
+ * (ADR-0019) : il grossit et tourne avec son couloir. Il vise le joueur là où la scène le place. Chaque lieu a le
+ * sien, dans chaque univers.
  */
 export type DessinEnnemi = (
   x: number,
@@ -32,13 +31,13 @@ export type DessinEnnemi = (
   nb: number,
   hsl: Palette,
   m?: number,
+  echelle?: number,
+  angle?: number,
 ) => void;
-/** Un ennemi raté plonge sur le joueur : il le frappe au bout de `PLONGEE` ms, à hauteur de poitrine (`CIBLE_Y`) */
+/** Un ennemi raté plonge sur le joueur : il le frappe au bout de `PLONGEE` ms, à hauteur de poitrine, `POITRINE`
+ * pixels au-dessus de ses pieds */
 export const PLONGEE = 260,
-  CIBLE_Y = GY - 44;
-/** Le boss de fin (#26) plane à droite de la scène, derrière les couloirs d'où sortent ses ennemis */
-export const BOSS_X = W - 130,
-  BOSS_Y = 275;
+  POITRINE = 44;
 /** La pose d'un boss de fin (#26) pour son dessin : la note qu'il joue (de 0 à 1), le coup qu'il vient de recevoir
  * (de 0 à 1), sa phase (1 à 3), s'il est tombé, son opacité, l'heure en secondes et son inclinaison en radians */
 export interface PoseDuBoss {
@@ -51,8 +50,7 @@ export interface PoseDuBoss {
   rot: number;
 }
 export const LANE_HUE = [198, 262, 320, 168];
-/** La hauteur et la teinte d'un couloir, ou du milieu de deux couloirs pour une petite note (#14, n + 0,5) */
-export const yDeCouloir = (l: number) => (Number.isInteger(l) ? LANE_Y[l] : (LANE_Y[l - 0.5] + LANE_Y[l + 0.5]) / 2);
+/** La teinte d'un couloir, ou du milieu de deux couloirs pour une petite note (#14, n + 0,5) */
 export const teinteDeCouloir = (l: number) =>
   Number.isInteger(l) ? LANE_HUE[l] : (LANE_HUE[l - 0.5] + LANE_HUE[l + 0.5]) / 2;
 export const HUE_BASS = 28,
@@ -144,31 +142,38 @@ export function hh(a, b = 0) {
 // Énergie de la scène : monte avec le combo, retombe quand l'harmonie baisse
 export const energy = () => (auRepos() ? 0.35 : clamp(S.combo / 35, 0, 1) * (S.health >= 50 ? 1 : 0.35));
 
-/** Une trace d'une note parfaite (#29) à l'écran : la trace, sa couleur (`COULEUR_BASSE` ou un couloir), sa place sur
- * le plan du décor, et à quel point la partie vient de la peindre (de 1, à l'instant, à 0, un temps plus tard) */
-export interface TraceVue {
-  t: number;
-  couleur: number;
-  x: number;
-  frais: number;
-}
-/**
- * Les traces que le décor montre (#29), sur un plan qui défile à `vitesse` fois celle des notes : chacune là où
- * passait ce plan quand sa note a été jouée, derrière le personnage pour la basse, derrière la ligne de tir pour la
- * mélodie. Seules celles qui tombent sur l'écran ; il n'y en a jamais plus que le plafond des traces (`TRACES`).
- */
-export function tracesVisibles(nb: number, vitesse: number): TraceVue[] {
-  const vues: TraceVue[] = [];
-  for (const t of tracesAffichees()) {
-    const couleur = couleurDeLaTrace(t),
-      temps = pasDeLaTrace(t) / PAS_PAR_TEMPS,
-      x = (couleur === COULEUR_BASSE ? PX + PW / 2 : HITX) + (temps - nb) * PPB * vitesse;
-    if (x < -40 || x > W + 40) continue;
-    const age = nb - temps,
-      frais = age >= 0 && age < 1 && S.traces.nouvelles.includes(t) ? 1 - age : 0;
-    vues.push({ t, couleur, x, frais });
-  }
-  return vues;
-}
 /** La teinte d'une trace : celle de son couloir, ou l'ambre de la basse (ADR-0006) */
 export const teinteDeTrace = (couleur: number) => (couleur === COULEUR_BASSE ? HUE_BASS : LANE_HUE[couleur]);
+
+/**
+ * Dessine une chose à sa pose dans la scène (ADR-0019) : `dessin(x, y)` la dessine à sa taille de référence,
+ * debout, autour de (x, y), et peut renvoyer un point de son dessin. Debout et à sa taille (la scène de côté), elle
+ * est dessinée directement à sa place ; sinon le repère est déplacé sur la pose, tourné de son angle et mis à son
+ * échelle, et elle est dessinée autour de l'origine (`versLEcran` ramène ses points à l'écran).
+ */
+export function aLaPose<T>(p: Pose, dessin: (x: number, y: number) => T): T {
+  if (p.echelle === 1 && p.angle === 0) return dessin(p.x, p.y);
+  g.save();
+  g.translate(p.x, p.y);
+  g.rotate(p.angle);
+  g.scale(p.echelle, p.echelle);
+  try {
+    return dessin(0, 0);
+  } finally {
+    g.restore();
+  }
+}
+/** Un point (x, y) d'un dessin fait à la pose `p` (`aLaPose`), ramené dans l'espace de la scène */
+export function versLEcran(p: Pose, x: number, y: number): [number, number] {
+  if (p.echelle === 1 && p.angle === 0) return [x, y];
+  const c = Math.cos(p.angle) * p.echelle,
+    s = Math.sin(p.angle) * p.echelle;
+  return [p.x + c * x - s * y, p.y + s * x + c * y];
+}
+/** Un écart (dx, dy) pris dans le repère d'une pose, à son échelle et à son angle, ramené dans l'espace de la scène */
+export function ecartALaPose(p: Pose, dx: number, dy: number): [number, number] {
+  if (p.echelle === 1 && p.angle === 0) return [dx, dy];
+  const c = Math.cos(p.angle) * p.echelle,
+    s = Math.sin(p.angle) * p.echelle;
+  return [c * dx - s * dy, s * dx + c * dy];
+}

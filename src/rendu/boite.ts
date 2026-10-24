@@ -2,41 +2,26 @@ import { S, progression } from "../jeu/etat";
 import { COULEUR_BASSE } from "../jeu/traces";
 import { clamp } from "../outils";
 import { lieuxReussis } from "../sauvegarde/format";
-import {
-  COL,
-  GY,
-  HITX,
-  LANE_Y,
-  PPB,
-  PX,
-  W,
-  energy,
-  g,
-  hexA,
-  hh,
-  reduced,
-  rr,
-  teinteDeTrace,
-  tracesVisibles,
-  type PoseDuBoss,
-} from "./outils";
+import { COL, PW, W, energy, g, hexA, hh, reduced, rr, teinteDeTrace, type PoseDuBoss } from "./outils";
+import type { SceneDeCote } from "./scenes/cote";
 
-/* La Boîte à musique */
-export function boiteBack(nb, hsl, bp) {
-  const wall = g.createLinearGradient(0, 0, 0, GY);
+/* La Boîte à musique, dans la scène de côté (ADR-0019) : elle défile avec la scène `cote` */
+export function boiteBack(nb, hsl, bp, cote: SceneDeCote) {
+  const sol = cote.impact("basse").y;
+  const wall = g.createLinearGradient(0, 0, 0, sol);
   wall.addColorStop(0, hsl(24, 40, 7));
   wall.addColorStop(1, hsl(28, 42, 16));
   g.fillStyle = wall;
-  g.fillRect(-12, -12, W + 24, GY + 12);
+  g.fillRect(-12, -12, W + 24, sol + 12);
   // Planches du grenier
-  const woff = nb * PPB * 0.12,
+  const woff = cote.defile(nb) * 0.12,
     k0 = Math.floor(woff / 64);
   for (let k = k0; k < k0 + W / 64 + 2; k++) {
     const x = k * 64 - woff;
     g.fillStyle = hsl(26, 35, 9 + hh(k, 1) * 4, 0.6);
-    g.fillRect(x, 0, 62, GY);
+    g.fillRect(x, 0, 62, sol);
     g.fillStyle = hsl(26, 30, 4, 0.6);
-    g.fillRect(x + 62, 0, 2, GY);
+    g.fillRect(x + 62, 0, 2, sol);
   }
   // Les souvenirs déjà retrouvés (#25) restent accrochés au mur : une photographie sépia de plus par souvenir
   const retrouves = lieuxReussis(progression(), "boite").length;
@@ -67,13 +52,13 @@ export function boiteBack(nb, hsl, bp) {
     [0.08, 300, 14, 0],
     [0.22, 240, 19, 1],
   ]) {
-    const off = nb * PPB * speed,
+    const off = cote.defile(nb) * speed,
       g0 = Math.floor(off / slot) - 1;
     for (let k = g0; k < g0 + W / slot + 3; k++) {
       if (hh(k, layer + 20) < 0.25) continue;
       const r = 40 + hh(k, layer + 21) * (layer ? 50 : 80);
       const cx = k * slot - off + slot / 2,
-        cy = layer ? GY - 40 - hh(k, 22) * 120 : 120 + hh(k, 23) * 220;
+        cy = layer ? sol - 40 - hh(k, 22) * 120 : 120 + hh(k, 23) * 220;
       gear(
         cx,
         cy,
@@ -84,19 +69,19 @@ export function boiteBack(nb, hsl, bp) {
       );
     }
   }
-  boiteEtoiles(nb, hsl, bp);
+  boiteEtoiles(nb, hsl, bp, cote);
   // Lumière de la lucarne et poussière qui danse
   g.beginPath();
   g.moveTo(800, -12);
   g.lineTo(930, -12);
-  g.lineTo(760, GY);
-  g.lineTo(520, GY);
+  g.lineTo(760, sol);
+  g.lineTo(520, sol);
   g.closePath();
   g.fillStyle = hsl(42, 85, 75, 0.05 + 0.04 * bp + 0.05 * e);
   g.fill();
   for (let i = 0; i < 40; i++) {
     const v = (((hh(i, 6) - nb * 0.012 * (1 + hh(i, 7))) % 1) + 1) % 1,
-      yy = v * GY;
+      yy = v * sol;
     const left = 800 - 280 * v,
       right = 930 - 170 * v;
     const xx = left + hh(i, 5) * (right - left) + Math.sin(nb + i) * 4;
@@ -107,9 +92,10 @@ export function boiteBack(nb, hsl, bp) {
 // Les étoiles phosphorescentes des notes parfaites (#29, ADR-0015) : collées aux planches du grenier, à la hauteur
 // où la note a été jouée (son couloir pour la mélodie, au ras du cylindre pour la basse), à la couleur de son
 // couloir. Elles luisent doucement au rythme ; celle qu'on vient de coller brille plus fort pendant un temps.
-function boiteEtoiles(nb, hsl, bp) {
-  for (const { t, couleur, x, frais } of tracesVisibles(nb, 0.12)) {
-    const y = (couleur === COULEUR_BASSE ? GY - 70 : LANE_Y[couleur]) + (hh(t, 71) - 0.5) * 50,
+function boiteEtoiles(nb, hsl, bp, cote: SceneDeCote) {
+  for (const { t, couleur, x, frais } of cote.traces(nb, 0.12)) {
+    const y =
+        (couleur === COULEUR_BASSE ? cote.impact("basse").y - 70 : cote.impact(couleur).y) + (hh(t, 71) - 0.5) * 50,
       r = 5 * (1 + frais),
       teinte = teinteDeTrace(couleur),
       tourne = hh(t, 72) * Math.PI;
@@ -153,8 +139,8 @@ export function gear(cx, cy, r, teeth, ang, color) {
   g.restore();
 }
 // Le peigne : chaque couloir est une lame, qui vibre quand on la joue
-export function drawComb(pnow, hsl) {
-  const bx = HITX - 46;
+export function drawComb(pnow, hsl, cote: SceneDeCote) {
+  const bx = cote.impact(0).x - 46;
   rr(bx, 128, 14, 294, 4);
   g.fillStyle = hsl(40, 55, 36);
   g.fill();
@@ -163,50 +149,54 @@ export function drawComb(pnow, hsl) {
       vib = Math.sin(pnow / 18) * 2.5 * fl;
     g.fillStyle = hsl(42, 65, 50 + 18 * fl);
     g.beginPath();
-    g.moveTo(bx + 14, LANE_Y[i] - 4);
-    g.lineTo(HITX - 17, LANE_Y[i] - 2 + vib);
-    g.lineTo(HITX - 17, LANE_Y[i] + 2 + vib);
-    g.lineTo(bx + 14, LANE_Y[i] + 4);
+    const { x, y } = cote.impact(i);
+    g.moveTo(bx + 14, y - 4);
+    g.lineTo(x - 17, y - 2 + vib);
+    g.lineTo(x - 17, y + 2 + vib);
+    g.lineTo(bx + 14, y + 4);
     g.closePath();
     g.fill();
   }
 }
 // Le sol est le cylindre de la boîte, hérissé de picots
-export function boiteGround(nb, hsl) {
-  const cyl = g.createLinearGradient(0, GY, 0, GY + 40);
+export function boiteGround(nb, hsl, cote: SceneDeCote) {
+  const { x: xBasse, y: sol } = cote.impact("basse"),
+    px = xBasse - PW / 2;
+  const cyl = g.createLinearGradient(0, sol, 0, sol + 40);
   cyl.addColorStop(0, hsl(42, 60, 50));
   cyl.addColorStop(0.3, hsl(40, 55, 32));
   cyl.addColorStop(1, hsl(34, 50, 13));
   g.fillStyle = cyl;
-  g.fillRect(-12, GY, W + 24, 45);
-  const off = nb * PPB;
-  for (let k = Math.floor((off - PX - 40) / 23); k * 23 - off + PX < W + 20; k++) {
+  g.fillRect(-12, sol, W + 24, 45);
+  const off = cote.defile(nb);
+  for (let k = Math.floor((off - px - 40) / 23); k * 23 - off + px < W + 20; k++) {
     if (hh(k, 40) < 0.55) continue;
     g.fillStyle = hsl(45, 70, 72, 0.7);
     g.beginPath();
-    g.arc(k * 23 - off + PX, GY + 9 + hh(k, 41) * 24, 1.8, 0, Math.PI * 2);
+    g.arc(k * 23 - off + px, sol + 9 + hh(k, 41) * 24, 1.8, 0, Math.PI * 2);
     g.fill();
   }
 }
+// Les obstacles de la basse se dessinent debout sur le sol de leur pose, en (x, sol) (ADR-0019)
 // Gros picot de laiton
-export function boiteBlock(x, fill) {
-  rr(x - 7, GY - 26, 14, 26, 3);
+export function boiteBlock(x, sol, fill) {
+  rr(x - 7, sol - 26, 14, 26, 3);
   g.fillStyle = fill;
   g.fill();
   g.beginPath();
-  g.ellipse(x, GY - 27, 17, 9, 0, 0, Math.PI * 2);
+  g.ellipse(x, sol - 27, 17, 9, 0, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = hexA(COL.fg, 0.35);
   g.beginPath();
-  g.ellipse(x - 5, GY - 30, 5, 2.5, 0, 0, Math.PI * 2);
+  g.ellipse(x - 5, sol - 30, 5, 2.5, 0, 0, Math.PI * 2);
   g.fill();
 }
 // Picot double, deux fois plus haut, à franchir d'un double saut (#7)
-export function boiteHaut(x, fill) {
-  rr(x - 7, GY - 74, 14, 74, 3);
+export function boiteHaut(x, sol, fill) {
+  rr(x - 7, sol - 74, 14, 74, 3);
   g.fillStyle = fill;
   g.fill();
-  for (const y of [GY - 27, GY - 75]) {
+  for (const y of [sol - 27, sol - 75]) {
     g.fillStyle = fill;
     g.beginPath();
     g.ellipse(x, y, 17, 9, 0, 0, Math.PI * 2);
@@ -218,32 +208,32 @@ export function boiteHaut(x, fill) {
   }
 }
 // Gros picot à enfoncer (#8) : large et bas, il rentre dans le cylindre une fois écrasé
-export function boitePlaque(x, fill, enfoncee) {
+export function boitePlaque(x, sol, fill, enfoncee) {
   const h = enfoncee ? 3 : 12;
-  rr(x - 16, GY - h, 32, h, 3);
+  rr(x - 16, sol - h, 32, h, 3);
   g.fillStyle = fill;
   g.fill();
   g.beginPath();
-  g.ellipse(x, GY - h, 24, 7, 0, 0, Math.PI * 2);
+  g.ellipse(x, sol - h, 24, 7, 0, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = hexA(COL.fg, 0.35);
   g.beginPath();
-  g.ellipse(x - 7, GY - h - 2, 7, 2.5, 0, 0, Math.PI * 2);
+  g.ellipse(x - 7, sol - h - 2, 7, 2.5, 0, 0, Math.PI * 2);
   g.fill();
 }
 // Levier du mécanisme
-export function boiteBeam(x, fill) {
+export function boiteBeam(x, sol, fill) {
   g.fillStyle = hexA(COL.bass, 0.35);
-  g.fillRect(x - 2, 250, 4, 188);
-  rr(x - 18, 436, 36, 24, 11);
+  g.fillRect(x - 2, sol - 255, 4, 188);
+  rr(x - 18, sol - 69, 36, 24, 11);
   g.fillStyle = fill;
   g.fill();
 }
 // Rail de laiton (#12) : une tringle inclinée sur ses montants, de la hauteur ya en a à la hauteur yb en b
-export function boitePente(a, b, ya, yb, fill) {
+export function boitePente(a, b, sol, ya, yb, fill) {
   const y = (x) => ya + ((yb - ya) * (x - a)) / (b - a);
   g.fillStyle = hexA(COL.ink, 0.45);
-  for (let x = a + 10; x < b - 4; x += 34) g.fillRect(x - 2, y(x), 4, GY - y(x));
+  for (let x = a + 10; x < b - 4; x += 34) g.fillRect(x - 2, y(x), 4, sol - y(x));
   g.strokeStyle = fill;
   g.lineCap = "round";
   g.lineWidth = 6;
@@ -268,22 +258,22 @@ export function boitePente(a, b, ya, yb, fill) {
   }
 }
 // Le grand ressort, au-dessus de la tête
-export function boiteTunnel(a, b, fill) {
-  rr(a, 424, b - a, 34, 17);
+export function boiteTunnel(a, b, sol, fill) {
+  rr(a, sol - 81, b - a, 34, 17);
   g.fillStyle = hexA(COL.ink, 0.5);
   g.fill();
   g.strokeStyle = fill;
   g.lineWidth = 3;
   for (let x = a + 8; x < b - 6; x += 9) {
     g.beginPath();
-    g.ellipse(x, 441, 6, 17, 0.25, 0, Math.PI * 2);
+    g.ellipse(x, sol - 64, 6, 17, 0.25, 0, Math.PI * 2);
     g.stroke();
   }
 }
 // Papillon de nuit qui a avalé une note : elle bat dans son ventre, au temps. `m`, la menace (de 0 à 1), monte à
 // l'approche de la ligne de tir : il bat des ailes plus vite et volette par saccades, les faux yeux de ses ailes
 // s'ouvrent, ses vrais yeux rougeoient, ses pattes griffent l'air et il grossit.
-export function boiteEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
+export function boiteEnemy(x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) {
   const big = ev.kind === "refrain",
     flap = 0.35 + 0.65 * Math.abs(Math.sin(nb * Math.PI * 2 * (1 + 0.8 * m) + ev.beat * 3)),
     pouls = (1 - (nb - Math.floor(nb))) ** 3,
@@ -292,6 +282,8 @@ export function boiteEnemy(x, y, ev, col, a, nb, hsl, m = 0) {
     wh = (big ? 15 : 11) * flap;
   g.save();
   g.translate(x + saccade * Math.sin(nb * 5.3 + ev.beat * 2), y + saccade * Math.sin(nb * 7.7 + ev.beat));
+  if (angle) g.rotate(angle);
+  if (echelle !== 1) g.scale(echelle, echelle);
   if (!reduced) g.rotate(0.12 * (0.5 + m) * Math.sin(nb * 3.1 + ev.beat));
   g.scale(1 + 0.2 * m, 1 + 0.2 * m);
   // Ailes postérieures, plus sombres, sous les antérieures
@@ -405,19 +397,19 @@ export function boitePetite(x, y, col, a, nb, hsl) {
 }
 // La marche d'un escalier (#13) : une touche d'ivoire dressée à la hauteur de sa note, coiffée de laiton, avec
 // un petit chevron qui monte ou descend dans le sens de l'escalier
-export function boiteMarche(x, haut, fill, monte) {
-  rr(x - 15, GY - haut, 30, haut, 4);
+export function boiteMarche(x, sol, haut, fill, monte) {
+  rr(x - 15, sol - haut, 30, haut, 4);
   g.fillStyle = hexA(COL.fg, 0.85);
   g.fill();
   g.strokeStyle = fill;
   g.lineWidth = 2;
   g.stroke();
   g.fillStyle = fill;
-  g.fillRect(x - 15, GY - haut, 30, 5);
+  g.fillRect(x - 15, sol - haut, 30, 5);
   g.strokeStyle = hexA(COL.ink, 0.6);
   g.lineWidth = 2;
   g.beginPath();
-  const y = GY - haut / 2 + (monte ? 3 : -3);
+  const y = sol - haut / 2 + (monte ? 3 : -3);
   g.moveTo(x - 6, y);
   g.lineTo(x, y + (monte ? -6 : 6));
   g.lineTo(x + 6, y);

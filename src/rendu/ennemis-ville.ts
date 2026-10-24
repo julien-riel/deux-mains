@@ -3,21 +3,38 @@
    (`villeEnemy`) : vivants loin de la ligne de tir, ils se tournent vers le joueur, s'ouvrent, s'emballent et
    tremblent à mesure que la menace `m` monte. */
 import { clamp } from "../outils";
-import { GY, PX, g, hh, reduced, rr, type DessinEnnemi, type Palette } from "./outils";
+import { scene } from "./geometrie";
+import { PW, g, hh, reduced, rr, type DessinEnnemi, type Palette } from "./outils";
 
 const TOUR = Math.PI * 2;
 // La partie fractionnaire d'un nombre, de 0 à 1
 const frac = (v: number) => v - Math.floor(v);
-// L'angle sous lequel un ennemi en (x, y) voit le joueur, compté vers le bas depuis la gauche
-const visee = (x: number, y: number) => clamp(Math.atan2(GY - 34 - y, x - PX), 0, 0.9);
+// L'angle sous lequel un ennemi en (x, y) voit le joueur, là où la scène le place, compté vers le bas depuis la
+// gauche
+function visee(x: number, y: number) {
+  const joueur = scene().impact("basse");
+  return clamp(Math.atan2(joueur.y - 34 - y, x - (joueur.x - PW / 2)), 0, 0.9);
+}
 
-// La pose commune : l'ennemi tremble à l'approche (sauf en mouvement réduit), penche de `rot` et grossit avec la
-// menace, d'un tiers de plus au refrain. À refermer par `g.restore()`.
-function poser(x: number, y: number, ev: { kind: string; beat: number }, nb: number, m: number, rot = 0) {
+// La pose commune : l'ennemi prend l'échelle et l'angle de sa pose dans la scène (ADR-0019), tremble à l'approche
+// (sauf en mouvement réduit), penche de `rot` et grossit avec la menace, d'un tiers de plus au refrain. À refermer
+// par `g.restore()`.
+function poser(
+  x: number,
+  y: number,
+  ev: { kind: string; beat: number },
+  nb: number,
+  m: number,
+  rot: number,
+  echelle: number,
+  angle: number,
+) {
   const k = (ev.kind === "refrain" ? 1.3 : 1) * (1 + 0.2 * m),
     tremble = reduced ? 0 : 1.6 * m * m;
   g.save();
   g.translate(x + tremble * Math.sin(nb * 53 + ev.beat), y + tremble * Math.cos(nb * 41 + ev.beat));
+  if (angle) g.rotate(angle);
+  if (echelle !== 1) g.scale(echelle, echelle);
   g.rotate(rot);
   g.scale(k, k);
 }
@@ -63,7 +80,7 @@ function helice(cx: number, cy: number, l: number, vit: number, nb: number, beat
 // Pigeon espion des Ruelles : un pigeon de tôle rivetée, aux ailes mécaniques qui battent, un objectif d'appareil
 // photo pour œil et le son capturé dans un hublot du ventre. À l'approche, sa tête fait les à-coups d'un pigeon vers
 // le joueur, ses ailes s'emballent, son objectif rougeoie et ses serres s'ouvrent.
-export const pigeon: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const pigeon: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     ph = frac(nb * (1 + m) + ev.beat * 0.37),
     // Les à-coups : la tête file en avant d'un coup puis attend ; en mouvement réduit, elle avance en douceur
@@ -71,7 +88,7 @@ export const pigeon: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     hx = -8 - (1.5 + 4 * m) * coup,
     hy = -6 + 3.5 * m * coup,
     serre = 0.15 + 0.85 * m;
-  poser(x, y, ev, nb, m, -0.1 * m);
+  poser(x, y, ev, nb, m, -0.1 * m, echelle, angle);
   g.lineCap = "round";
   g.lineJoin = "round";
   // Une aile : trois plumes de tôle en éventail autour de leur charnière
@@ -175,7 +192,7 @@ export const pigeon: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Méduse néon du Quartier néon : une enseigne en forme de méduse, ombrelle et tentacules tracés en tubes
 // lumineux, le son capturé brillant sous l'ombrelle. À l'approche, elle grésille comme un néon qui flanche, ses
 // yeux rouges s'allument, et ses tentacules s'allongent et se tendent vers le joueur.
-export const meduse: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const meduse: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     // Le néon qui flanche : des éclipses brèves, de plus en plus fréquentes ; aucune en mouvement réduit
     vacille = !reduced && m > 0.15 && hh(Math.floor(nb * 14), Math.floor(ev.beat * 12)) < 0.5 * m,
@@ -183,7 +200,7 @@ export const meduse: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     rx = 14 + 1.2 * pouls,
     ry = 12 - 1.6 * pouls,
     L = 14 + 7 * m;
-  poser(x, y - 4, ev, nb, m, 0.22 * m);
+  poser(x, y - 4, ev, nb, m, 0.22 * m, echelle, angle);
   g.lineCap = "round";
   g.lineJoin = "round";
   // Un tube de néon : un trait épais et pâle, puis son filament clair
@@ -234,7 +251,7 @@ export const meduse: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Lanterne espionne du Marché de nuit : une lanterne de papier rouge orangé, côtes visibles, suspendue à une petite
 // hélice, le son capturé brillant dedans. À l'approche, elle s'ouvre en gueule dentée sur le son qu'elle serre, un
 // œil rouge s'ouvre sur son papier et elle se balance vers le joueur.
-export const lanterne: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const lanterne: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     balance = 0.14 * Math.sin(nb * Math.PI * 0.5 + ev.beat) * (1 - 0.5 * m) + 0.3 * m,
     ouvre = clamp((m - 0.12) / 0.88, 0, 1) * (0.75 + 0.25 * pouls),
@@ -242,7 +259,7 @@ export const lanterne: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     jaw = 0.34 * ouvre,
     papier = hsl(12, 80, 46 + 8 * pouls, a),
     cote = hsl(12, 60, 28, 0.8 * a);
-  poser(x, y + 2, ev, nb, m);
+  poser(x, y + 2, ev, nb, m, 0, echelle, angle);
   helice(0, -16, 11, 14 + 12 * m, nb, ev.beat, a, hsl);
   // Le fil et le balancement, autour du crochet sous l'hélice
   g.translate(0, -15);
@@ -340,7 +357,7 @@ export const lanterne: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Mouette d'acier du Port : un goéland aux ailes en M qui plane, bec en crochet, le son capturé dans le poitrail.
 // À l'approche, son bec s'ouvre sur un cri au temps, ses ailes se replient pour piquer sur le joueur et son œil
 // rougeoie.
-export const mouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const mouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     plane = Math.sin(nb * Math.PI * (0.5 + m) + ev.beat),
     pique = m * m,
@@ -352,7 +369,7 @@ export const mouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     ty = -2 + 2.5 * plane * (1 - pique) - 12 * pique,
     // Au piqué, les deux ailes se rabattent vers l'arrière
     dos = 6 * pique;
-  poser(x, y + 2, ev, nb, m, -0.08 - 0.45 * m);
+  poser(x, y + 2, ev, nb, m, -0.08 - 0.45 * m, echelle, angle);
   g.lineJoin = "round";
   // La queue
   g.beginPath();
@@ -446,14 +463,14 @@ export const mouette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Gargouille de la Cathédrale : une tête de pierre à cornes qui vole sur des ailes de chauve-souris de pierre, le son
 // capturé serré dans sa gueule de gouttière. À l'approche, elle déploie ses ailes, ouvre grand la mâchoire et ses
 // yeux s'embrasent.
-export const gargouille: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const gargouille: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     bat = Math.sin(nb * Math.PI * (1 + 1.5 * m) + ev.beat),
     d = 0.25 + 0.75 * m,
     gueule = 1 + 6 * m * (0.7 + 0.3 * pouls),
     pierre = hsl(250, 8, 44, a),
     arete = hsl(250, 10, 70, a);
-  poser(x, y, ev, nb, m, -0.16 * m);
+  poser(x, y, ev, nb, m, -0.16 * m, echelle, angle);
   g.lineJoin = "round";
   // Les ailes de pierre, repliées loin de la ligne, déployées à l'approche
   for (const s of [-1, 1]) {
@@ -547,7 +564,7 @@ export const gargouille: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // ventouse qui s'ouvre et se ferme devant lui au temps (wah-wah), le son capturé brillant au fond du pavillon. À
 // l'approche, le pavillon se tourne vers le joueur, la sourdine claque plus fort et plus vite, un œil rouge s'ouvre
 // au fond.
-export const trompette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const trompette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     // Le wah-wah : la sourdine s'écarte sur le temps, puis revient ; deux fois par temps tout près de la ligne
     wah = (1 - frac(nb * (m > 0.6 ? 2 : 1))) ** 2,
@@ -555,7 +572,7 @@ export const trompette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
     rot = 0.08 * Math.sin(nb * Math.PI * 0.5 + ev.beat) * (1 - m) - 0.42 * m,
     laiton = hsl(45, 70, 46, a),
     reflet = hsl(45, 80, 78, a);
-  poser(x + 2, y + 1, ev, nb, m, rot);
+  poser(x + 2, y + 1, ev, nb, m, rot, echelle, angle);
   g.lineCap = "round";
   g.lineJoin = "round";
   // Le mât et l'hélice
@@ -625,13 +642,13 @@ export const trompette: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 // Caméra de surveillance du Métro : un boîtier sur un bras articulé, accroché à un petit rotor, un objectif à iris,
 // un voyant REC, et le son capturé dans la lucarne de sa cassette. À l'approche, elle pivote vers le joueur, son
 // iris se resserre sur une pupille rouge, son objectif s'allonge et REC clignote plus vite.
-export const camera: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const camera: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     vise = -((1 - m) * 0.28 * Math.sin(nb * 0.6 + ev.beat) + m * 0.8 * visee(x, y)),
     objectif = 3 + 6 * m,
     iris = 3.2 - 1.8 * m,
     rec = frac(nb * (1 + 3 * m) + ev.beat * 0.5) < 0.5;
-  poser(x, y + 2, ev, nb, m);
+  poser(x, y + 2, ev, nb, m, 0, echelle, angle);
   g.lineCap = "round";
   // Le rotor et le bras articulé
   helice(4, -16, 11, 14 + 12 * m, nb, ev.beat, a, hsl);
@@ -691,12 +708,12 @@ export const camera: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
 
 // Satellite espion de l'Observatoire : une parabole et deux panneaux solaires qui tournent lentement, le son capturé
 // au foyer de la parabole. À l'approche, la parabole se braque sur le joueur et émet des arcs rouges concentriques.
-export const satellite: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0) => {
+export const satellite: DessinEnnemi = (x, y, ev, col, a, nb, hsl, m = 0, echelle = 1, angle = 0) => {
   const pouls = (1 - (nb - Math.floor(nb))) ** 3,
     tourne = Math.cos(nb * 0.45 + ev.beat),
     w = 15 * (0.25 + 0.75 * Math.abs(tourne)),
     braque = (1 - m) * 0.3 * Math.sin(nb * 0.35 + ev.beat * 1.3) - m * visee(x, y);
-  poser(x + 3, y, ev, nb, m, 0.08 * Math.sin(nb * 0.25 + ev.beat) * (1 - m));
+  poser(x + 3, y, ev, nb, m, 0.08 * Math.sin(nb * 0.25 + ev.beat) * (1 - m), echelle, angle);
   // Le mât et les panneaux solaires, qui tournent autour de lui
   g.strokeStyle = hsl(250, 10, 66, a);
   g.lineWidth = 1.2;

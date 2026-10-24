@@ -11,6 +11,7 @@ import { NOM_POLYRYTHMIE, estPetiteNote, progressionDe } from "../chanson/genera
 import { VERSION_PARTITION, composer, type Partition } from "../chanson/partition";
 import { surLaCroche } from "../chanson/temps";
 import { LIEUX } from "../jeu/carte";
+import type { IdScene } from "../jeu/scenes";
 import { reunir, trace } from "../jeu/traces";
 import { cleEssai, sauvegardeVide, type Sauvegarde } from "../sauvegarde/format";
 import { accorder, assembler, chanter, fantomeFictif, marcher, polyrythmer, relayer, type Morceau } from "./fabrique";
@@ -27,6 +28,8 @@ export interface Essai {
   univers: "ville" | "boite";
   /** Une clé de DIFFS */
   diff: "debutant" | "facile" | "normal" | "difficile";
+  /** La scène où se joue l'essai (ADR-0019), quelle que soit celle de sa chanson ; la scène de côté sans elle */
+  scene?: IdScene;
   /** Les mains jouées : les deux, une seule (l'autre joue toute seule), ou le duo, un joueur par main (#6) */
   mains: Mains;
   /** La scène montre les touches du clavier MIDI, branché ou non (#10) */

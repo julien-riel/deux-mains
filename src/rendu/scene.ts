@@ -1,4 +1,6 @@
 /* ---------- Rendu ---------- */
+// Le rendu commun à toutes les scènes (ADR-0019) : la scène de la partie (`geometrie.ts`) dessine son fond et son
+// sol et donne ses poses ; tout le reste se dessine ici, à la pose donnée, dans l'habillage de l'univers.
 import { AC, songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
 import { estPetiteNote } from "../chanson/generateur";
@@ -33,7 +35,6 @@ import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerRemontage } from "./remontage";
 import {
-  boiteBack,
   boiteBlock,
   boiteBoss,
   boiteBeam,
@@ -43,33 +44,27 @@ import {
   boiteMarche,
   boitePetite,
   boiteSerpent,
-  boiteGround,
   boitePente,
   boitePlaque,
   boiteTunnel,
-  drawComb,
 } from "./boite";
+import { cadreDeLaScene, scene } from "./geometrie";
 import {
-  BOSS_X,
-  BOSS_Y,
-  CIBLE_Y,
   COL,
   DEG,
   FONT,
-  GY,
   H,
-  HITX,
   HUE_BASS,
   HUE_MEL,
   LANE_HUE,
-  LANE_Y,
   PH,
   PLONGEE,
-  PPB,
+  POITRINE,
   PW,
-  PX,
   W,
+  aLaPose,
   cv,
+  ecartALaPose,
   formeCouloir,
   g,
   hexA,
@@ -77,17 +72,16 @@ import {
   rr,
   teinteDeCouloir,
   txt,
-  yDeCouloir,
+  versLEcran,
   type DessinEnnemi,
 } from "./outils";
+import type { Pose, Scene, VueDeScene } from "./scenes/contrat";
 import {
-  villeBack,
   villeBeam,
   villeBlock,
   villeBoss,
   villeChanteur,
   villeEnemy,
-  villeGround,
   villeHaut,
   villeMarche,
   villePetite,
@@ -174,7 +168,17 @@ function jauges() {
 export function render(nb, dt) {
   const song = S.song;
   if (!song) return;
-  g.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  // L'espace de la scène (W × H) ramené dans son cadre à l'écran : tout le canvas au clavier
+  const sc = scene(),
+    cadre = cadreDeLaScene();
+  g.setTransform(
+    (cv.width / W) * (cadre.largeur / W),
+    0,
+    0,
+    (cv.height / H) * (cadre.hauteur / H),
+    (cv.width / W) * cadre.x,
+    (cv.height / H) * cadre.y,
+  );
   const sp = spb(),
     ns = nb * sp,
     pnow = performance.now(),
@@ -199,94 +203,56 @@ export function render(nb, dt) {
   g.save();
   g.translate(shx, shy);
 
-  // Décor de l'univers choisi
-  if (S.theme === "boite") boiteBack(nb, hsl, bp);
-  else villeBack(nb, hsl, bp);
-
-  // Zones d'accord (ciel, alignées sur la ligne de tir)
-  const bFirst = Math.max(0, Math.floor(nb / 4) - 1),
-    bLast = Math.min(fin - 1, Math.floor((nb + (W - HITX) / PPB) / 4) + 1);
-  for (let bar = bFirst; bar <= bLast; bar++) {
-    const c = chordAtBar(bar),
-      x0 = HITX + (bar * 4 - nb) * PPB;
-    g.fillStyle = hsl(c.hue, 70, 60, 0.07);
-    g.fillRect(x0, 96, 4 * PPB, GY - 136);
-    g.fillStyle = hsl(c.hue, 70, 65, 0.45);
-    g.fillRect(x0, 96, 2, GY - 136);
-    txt(c.name, x0 + 10, 122, `700 20px ${FONT.display}`, hsl(c.hue, 75, 72, 0.95));
-  }
-  // Les repères rythmiques propres à chaque main (#19) : en 3 contre 2, la mélodie a une ligne par croche ici, et
-  // la basse un repère par triolet sur le sol, plus bas
-  const enPolyrythmie = (b: number) =>
-    b >= 0 && b < fin * 4 && sectionAtBar(mesureDeLaChanson(Math.floor(b / 4))).kind === "polyrythmie";
-  for (let b = Math.ceil(nb - 2); b < nb + 7; b++) {
-    if (enPolyrythmie(b)) {
-      g.fillStyle = hexA(COL.mel, 0.16);
-      g.fillRect(HITX + (b + 0.5 - nb) * PPB, 134, 1, 286);
-    }
-    if (b % 4 === 0) continue;
-    g.fillStyle = enPolyrythmie(b) ? hexA(COL.mel, 0.22) : "rgba(239,234,248,.05)";
-    g.fillRect(HITX + (b - nb) * PPB, 134, 1, 286);
-  }
-  // Couloirs et ligne de tir
-  const solo = playing && estSolo(curSec);
-  for (let i = 0; i < 4; i++) {
-    g.fillStyle = hsl(LANE_HUE[i], 60, 70, solo ? 0.14 + 0.1 * bp : 0.08);
-    g.fillRect(HITX, LANE_Y[i] - 1, W - HITX, 2);
-  }
-  g.fillStyle = hexA(COL.mel, 0.3);
-  g.fillRect(HITX - 1, 135, 2, 280);
+  // Le fond de la scène, sous les cibles des couloirs : décor de l'univers et repères du temps (ADR-0019)
+  const vue: VueDeScene = {
+    nb,
+    dt,
+    pnow,
+    hsl,
+    pulsation: bp,
+    univers: S.theme,
+    cadre,
+    accord: chordAtBar,
+    // Les sections en 3 contre 2 (#19) ont leurs propres repères rythmiques
+    polyrythmie: (b: number) =>
+      b >= 0 && b < fin * 4 && sectionAtBar(mesureDeLaChanson(Math.floor(b / 4))).kind === "polyrythmie",
+    fin,
+    solo: playing && estSolo(curSec),
+  };
+  sc.fond(vue);
+  // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt
   for (let i = 0; i < 4; i++) {
     const held = S.keys[COULOIRS[i]],
-      fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1);
-    formeCouloir(i, HITX, LANE_Y[i], 17);
+      fl = clamp(1 - (pnow - S.laneFlash[i]) / 160, 0, 1),
+      p = sc.impact(i);
+    formeCouloir(i, p.x, p.y, 17 * p.echelle);
     g.fillStyle = hsl(LANE_HUE[i], 80, 65, held ? 0.3 : fl * 0.5);
     g.fill();
     g.strokeStyle = hsl(LANE_HUE[i], 80, 70, 0.7);
     g.lineWidth = 2;
     g.stroke();
   }
-  if (S.theme === "boite") drawComb(pnow, hsl);
-
-  // Sol, teinté par l'accord (aligné sur le personnage)
-  if (S.theme === "boite") boiteGround(nb, hsl);
-  else villeGround(nb, hsl);
-  for (let bar = bFirst; bar <= bLast + 1 && bar < fin; bar++) {
-    const c = chordAtBar(bar),
-      x0 = PX + PW / 2 + (bar * 4 - nb) * PPB;
-    g.fillStyle = hsl(c.hue, 60, 55, 0.14);
-    g.fillRect(x0, GY, 4 * PPB, 40);
-  }
-  for (let b = Math.ceil(nb - 2); b < nb + 8; b++) {
-    g.fillStyle = b % 4 === 0 ? hexA(COL.bass, 0.5) : "rgba(239,234,248,.12)";
-    g.fillRect(PX + PW / 2 + (b - nb) * PPB, GY + 4, 2, b % 4 === 0 ? 14 : 7);
-    if (!enPolyrythmie(b)) continue;
-    // Les triolets de la basse (#19) : deux repères de plus dans le temps, et un « 3 » au-dessus du groupe
-    g.fillStyle = hexA(COL.bass, 0.45);
-    for (const k of [1, 2]) g.fillRect(PX + PW / 2 + (b + k / 3 - nb) * PPB, GY + 4, 2, 10);
-    txt("3", PX + PW / 2 + (b + 1 / 3 - nb) * PPB, GY + 30, `700 11px ${FONT.mono}`, hexA(COL.bass, 0.7), "center");
-  }
-  g.fillStyle = hexA(COL.bass, 0.65);
-  g.fillRect(-12, GY, W + 24, 2);
-  g.fillStyle = TH().under;
-  g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
+  // Le sol, par-dessus les cibles, sous les notes
+  sc.sol(vue);
 
   // Le boss de fin (#26), derrière les ennemis qu'il envoie
-  dessinerBoss(nb, pnow, hsl, playing);
-  // Obstacles (main gauche) et ennemis (main droite), sous le fil des relais (#20)
-  dessinerRelais(nb, pnow);
+  dessinerBoss(sc, nb, pnow, hsl, playing);
+  // Obstacles (main gauche) et ennemis (main droite), sous le fil des relais (#20) ; on prépare deux temps de plus
+  // que ce que montre la scène, pour les notes qui entrent dans son champ
+  const loin = nb + sc.avance + 2;
+  dessinerRelais(sc, nb, pnow, loin);
   for (const ev of S.ev) {
-    if (ev.beat > nb + 8) break;
+    if (ev.beat > loin) break;
     if (ev.state === "skip" || ev.beat + ev.dur < nb - 3) continue;
-    if (ev.grp && ev.grp[0] === ev) drawChordLinks(ev.grp, nb);
-    if (ev.hand === "L") drawObstacle(ev, nb, hsl);
-    else drawEnemy(ev, nb, pnow, hsl);
+    if (ev.grp && ev.grp[0] === ev) drawChordLinks(sc, ev.grp, nb);
+    if (ev.hand === "L") drawObstacle(sc, ev, nb, hsl);
+    else drawEnemy(sc, ev, nb, pnow, hsl);
   }
-  dessinerChanteurs(nb, hsl);
+  dessinerChanteurs(sc, nb, hsl);
 
   // Le fantôme du meilleur passage (#32), derrière le personnage
-  if (fantomeVisible()) dessinerFantome(nb, ns, pnow, hsl, dt);
-  drawPlayer(nb, ns, pnow, hsl, dt);
+  if (fantomeVisible()) dessinerFantome(sc, nb, ns, pnow, hsl, dt);
+  drawPlayer(sc, nb, ns, pnow, hsl, dt);
 
   // Rayons
   S.beams = S.beams.filter((b) => pnow - b.at < 140);
@@ -296,9 +262,10 @@ export function render(nb, dt) {
     g.strokeStyle =
       b.ok === false ? hexA(COL.bad, a) : b.ok ? hsl(LANE_HUE[b.lane], 85, 75, a) : hexA(COL.muted, a * 0.6);
     g.lineWidth = 3;
+    const cible = sc.impact(b.lane);
     g.beginPath();
     g.moveTo(S.gun[0], S.gun[1]);
-    g.lineTo(HITX, LANE_Y[b.lane]);
+    g.lineTo(cible.x, cible.y);
     g.stroke();
   }
   for (const ev of S.ev) {
@@ -312,7 +279,8 @@ export function render(nb, dt) {
     g.beginPath();
     g.moveTo(S.gun[0], S.gun[1]);
     // Le rayon tenu sur un serpent (#16) suit le couloir où le joueur en est
-    g.lineTo(HITX, LANE_Y[couloirDe(ev)] + (Math.random() * 2 - 1) * (2 + (reduced ? 0 : 5 * v)));
+    const cible = sc.impact(couloirDe(ev));
+    g.lineTo(cible.x, cible.y + (Math.random() * 2 - 1) * (2 + (reduced ? 0 : 5 * v)));
     g.stroke();
   }
 
@@ -326,48 +294,51 @@ export function render(nb, dt) {
     g.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
 
-  // Rail de gauche : ce que joue chaque touche maintenant
+  // Rail de gauche : ce que joue chaque touche maintenant, à la hauteur du point d'impact de son couloir, et de
+  // celui du personnage pour la basse
+  const sol = sc.impact("basse").y;
   const rail = g.createLinearGradient(0, 0, 200, 0);
   const rc = TH().rail;
   rail.addColorStop(0, hexA(rc, 0.94));
   rail.addColorStop(0.75, hexA(rc, 0.6));
   rail.addColorStop(1, hexA(rc, 0));
   g.fillStyle = rail;
-  g.fillRect(-12, 92, 212, GY - 92);
+  g.fillRect(-12, 92, 212, sol - 92);
   txt("ACCORD", 24, 112, `600 10px ${FONT.mono}`, COL.muted);
   txt(ch.name, 24, 138, `700 22px ${FONT.display}`, hsl(ch.hue, 75, 72));
   // En mode pianiste (#53), les touches sont les notes de l'accord, à jouer à n'importe quelle octave
   const pianiste = nomsDeNotes();
   for (let i = 0; i < 4; i++) {
-    const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]];
-    keycap(24, LANE_Y[i] - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
-    txt(DEG[i], 64, LANE_Y[i] - 3, `600 10px ${FONT.mono}`, COL.muted);
-    txt(NOTE[ch.lanes[i] % 12], 64, LANE_Y[i] + 13, `600 15px ${FONT.mono}`, COL.fg);
+    const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]],
+      y = sc.impact(i).y;
+    keycap(24, y - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
+    txt(DEG[i], 64, y - 3, `600 10px ${FONT.mono}`, COL.muted);
+    txt(NOTE[ch.lanes[i] % 12], 64, y + 13, `600 15px ${FONT.mono}`, COL.fg);
     if (S.formes) {
-      formeCouloir(i, 158, LANE_Y[i], 8);
+      formeCouloir(i, 158, y, 8);
       g.fillStyle = hsl(LANE_HUE[i], 80, 70);
       g.fill();
     }
   }
   const fond = pianiste ? nomDeClasse(ch.bass) : null;
-  keycap(24, GY - 80, fond ?? KEYLABEL.KeyW, COL.bass, down("sauter"));
-  keycap(24, GY - 40, fond ?? KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
+  keycap(24, sol - 80, fond ?? KEYLABEL.KeyW, COL.bass, down("sauter"));
+  keycap(24, sol - 40, fond ?? KEYLABEL.KeyS, COL.bass, down("glisser") || (autoFor("L") && ns < S.slideUntil));
   // Dans un escalier (#13), sauter monte d'une marche et glisser en descend une : le rail montre la marche
   const marche = marcheProche(nb);
   if (marche) {
     const monte = marche.lane === 4,
-      [yl, ye] = monte ? [GY - 68, GY - 52] : [GY - 28, GY - 12];
+      [yl, ye] = monte ? [sol - 68, sol - 52] : [sol - 28, sol - 12];
     txt(monte ? "MONTER ↑" : "DESCENDRE ↓", 64, yl, `600 10px ${FONT.mono}`, hsl(HUE_BASS, 90, 70));
     txt(noteName(marche.midi), 64, ye, `600 14px ${FONT.mono}`, COL.fg);
-    txt(monte ? "GLISSER · FOND." : "OCTAVE", 64, monte ? GY - 28 : GY - 68, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(monte ? ch.bass : ch.bass + 12), 64, monte ? GY - 12 : GY - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt(monte ? "GLISSER · FOND." : "OCTAVE", 64, monte ? sol - 28 : sol - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(monte ? ch.bass : ch.bass + 12), 64, monte ? sol - 12 : sol - 52, `600 14px ${FONT.mono}`, COL.fg);
   } else {
     // Sauter joue l'octave ; sauter une seconde fois en l'air, la quinte au-dessus (#7)
-    txt("OCTAVE · 2× QUINTE", 64, GY - 68, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(ch.bass + 12), 64, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
-    txt(noteName(ch.bass + 12 + ch.ints[2]), 118, GY - 52, `600 14px ${FONT.mono}`, COL.fg);
-    txt("GLISSER · FOND.", 64, GY - 28, `600 10px ${FONT.mono}`, COL.muted);
-    txt(noteName(ch.bass), 64, GY - 12, `600 14px ${FONT.mono}`, COL.fg);
+    txt("OCTAVE · 2× QUINTE", 64, sol - 68, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass + 12), 64, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt(noteName(ch.bass + 12 + ch.ints[2]), 118, sol - 52, `600 14px ${FONT.mono}`, COL.fg);
+    txt("GLISSER · FOND.", 64, sol - 28, `600 10px ${FONT.mono}`, COL.muted);
+    txt(noteName(ch.bass), 64, sol - 12, `600 14px ${FONT.mono}`, COL.fg);
   }
 
   g.restore();
@@ -561,42 +532,42 @@ export function keycap(x, y, label, color, down) {
   );
 }
 
-/** La hauteur des silhouettes de la réponse au chanteur (#18) : entre deux couloirs, elle n'en indique aucun */
-export const Y_SILHOUETTE = (LANE_Y[1] + LANE_Y[2]) / 2;
-/** La hauteur du chanteur (#18) et de ses notes, au-dessus des couloirs */
-export const Y_CHANTEUR = LANE_Y[3] - 50;
-// La hauteur où l'on voit un ennemi encore à jouer : une silhouette ne montre pas son couloir
-const yVisible = (ev) => (ev.reponse ? Y_SILHOUETTE : yDeCouloir(ev.lane));
+// Une silhouette de la réponse au chanteur (#18) se tient entre les deux couloirs du milieu : elle n'en montre aucun
+const VOIE_SILHOUETTE = 1.5;
+// La voie où l'on voit un ennemi encore à jouer : une silhouette ne montre pas son couloir
+const voieVisible = (ev) => (ev.reponse ? VOIE_SILHOUETTE : ev.lane);
 
 // Accords : une barre relie les ennemis à tirer ensemble, un pointillé descend vers l'obstacle du même temps
-export function drawChordLinks(grp, nb) {
+export function drawChordLinks(sc: Scene, grp, nb) {
   const live = grp.filter((e) => e.state === "pending");
   if (live.length < 2) return;
-  const d = (grp[0].beat - nb) * PPB,
-    xe = HITX + d,
-    xl = PX + PW / 2 + d;
-  if (xl > W + 40) return;
+  const sol = sc.poser(grp[0].beat, "basse", nb);
+  if (sc.horsChamp(sol, "devant", 40)) return;
   const rs = live.filter((e) => e.hand === "R"),
-    l = live.find((e) => e.hand === "L");
+    l = live.find((e) => e.hand === "L"),
+    // Les ennemis du plus haut couloir au plus bas
+    poses = rs
+      .map(voieVisible)
+      .sort((u, v) => v - u)
+      .map((voie) => sc.poser(grp[0].beat, voie, nb));
   g.save();
   g.lineCap = "round";
   if (rs.length > 1) {
-    const ys = rs.map(yVisible);
     g.strokeStyle = hexA(COL.fg, 0.6);
     g.lineWidth = 4;
     g.beginPath();
-    g.moveTo(xe, Math.min(...ys));
-    g.lineTo(xe, Math.max(...ys));
+    g.moveTo(poses[0].x, poses[0].y);
+    g.lineTo(poses[poses.length - 1].x, poses[poses.length - 1].y);
     g.stroke();
   }
   if (l && rs.length) {
-    const yLow = Math.max(...rs.map(yVisible));
+    const bas = poses[poses.length - 1];
     g.setLineDash([5, 6]);
     g.strokeStyle = hexA(COL.fg, 0.45);
     g.lineWidth = 2;
     g.beginPath();
-    g.moveTo(xe, yLow + 18);
-    g.lineTo(xl, GY - 2);
+    g.moveTo(bas.x, bas.y + 18);
+    g.lineTo(sol.x, sol.y - 2);
     g.stroke();
   }
   g.restore();
@@ -604,10 +575,11 @@ export function drawChordLinks(grp, nb) {
 
 // Le point d'une note où s'attache le fil d'un relais (#20) : l'ennemi, ou le haut de l'obstacle ; une fois passée
 // la ligne de tir (ou le personnage), il y reste accroché
-function pointDeRelais(ev, nb): [number, number] {
-  if (ev.hand === "R") return [Math.max(HITX, HITX + (ev.beat - nb) * PPB), LANE_Y[ev.lane]];
-  const x0 = PX + PW / 2;
-  return [Math.max(x0, x0 + (ev.beat - nb) * PPB), GY - (ev.lane >= 4 ? hauteurMarche(ev.midi) + 10 : 44)];
+function pointDeRelais(sc: Scene, ev, nb): Pose {
+  const voie = ev.hand === "R" ? ev.lane : "basse",
+    p = ev.beat < nb ? sc.impact(voie) : sc.poser(ev.beat, voie, nb);
+  if (ev.hand === "R") return p;
+  return { ...p, y: p.y - (ev.lane >= 4 ? hauteurMarche(ev.midi) + 10 : 44) * p.echelle };
 }
 /**
  * Le passage de relais (#20) : un fil relie la dernière note de la main qui commence la phrase à la première de
@@ -615,10 +587,10 @@ function pointDeRelais(ev, nb): [number, number] {
  * part (le relais est passé), et disparaît dès que la seconde main a joué sa première note, ou qu'une note de la
  * phrase est ratée.
  */
-function dessinerRelais(nb, pnow) {
+function dessinerRelais(sc: Scene, nb, pnow, loin) {
   const vus = new Set<number>();
   for (const ev of S.ev) {
-    if (ev.beat > nb + 8) break;
+    if (ev.beat > loin) break;
     if (ev.relais === undefined || vus.has(ev.relais)) continue;
     vus.add(ev.relais);
     const phrase = notesDuRelais(ev),
@@ -628,10 +600,12 @@ function dessinerRelais(nb, pnow) {
       vers = phrase.find((e) => e.hand !== main);
     if (!vers || vers.state !== "pending" || phrase.some((e) => e.state === "miss")) continue;
     const passe = part.every((e) => e.state === "hit"),
-      [x1, y1] = pointDeRelais(de, nb),
-      [x2, y2] = pointDeRelais(vers, nb);
-    if (x1 > W + 40) continue;
-    const cx = (x1 + x2) / 2,
+      p1 = pointDeRelais(sc, de, nb),
+      p2 = pointDeRelais(sc, vers, nb);
+    if (sc.horsChamp(p1, "devant", 40)) continue;
+    const { x: x1, y: y1 } = p1,
+      { x: x2, y: y2 } = p2,
+      cx = (x1 + x2) / 2,
       cy = Math.min(y1, y2) - 46,
       couleur = (e) => (e.hand === "R" ? COL.mel : COL.bass),
       a = passe ? 0.95 : 0.6,
@@ -675,20 +649,25 @@ export const hauteurMarche = (midi: number) => clamp(14 + (midi - 31) * 2, 12, 7
 
 // L'obstacle est dessiné légèrement en avance sur le temps : on appuie quand il est encore devant,
 // et il passe sous le personnage au sommet du saut (ou pendant la glissade). La plaque (#8) et les marches (#13)
-// ne le sont pas : on y arrive pile sur le temps.
-export function drawObstacle(ev, nb, hsl) {
-  const x0 = PX + PW / 2 + (ev.beat - nb) * PPB;
-  const x = x0 + (ev.lane >= 3 ? 0 : ev.lane >= 1 ? 0.315 * ev.air : 0.25) * PPB;
-  if (x < -80 || x0 > W + 80 + ev.dur * PPB) return;
-  if (ev.state === "pending") {
-    g.beginPath();
-    g.moveTo(x0 - 6, GY + 9);
-    g.lineTo(x0, GY + 2);
-    g.lineTo(x0 + 6, GY + 9);
-    g.closePath();
-    g.fillStyle = hexA(COL.bass, 0.9);
-    g.fill();
-  }
+// ne le sont pas : on y arrive pile sur le temps. Il se dessine debout sur le sol de sa pose ; le tunnel et la
+// pente se tendent du début à la fin de leur note.
+export function drawObstacle(sc: Scene, ev, nb, hsl) {
+  const devance = ev.lane >= 3 ? 0 : ev.lane >= 1 ? 0.315 * ev.air : 0.25,
+    p0 = sc.poser(ev.beat, "basse", nb),
+    p = sc.poser(ev.beat + devance, "basse", nb);
+  // Un obstacle long n'est oublié devant qu'à sa longueur du bord
+  if (sc.horsChamp(p, "derriere", 80) || sc.horsChamp(sc.poser(ev.beat - ev.dur, "basse", nb), "devant", 80)) return;
+  if (!p.visible) return;
+  if (ev.state === "pending")
+    aLaPose(p0, (x0, sol) => {
+      g.beginPath();
+      g.moveTo(x0 - 6, sol + 9);
+      g.lineTo(x0, sol + 2);
+      g.lineTo(x0 + 6, sol + 9);
+      g.closePath();
+      g.fillStyle = hexA(COL.bass, 0.9);
+      g.fill();
+    });
   const missed = ev.state === "miss" || ev.state === "broken",
     passed = ev.state === "hit" || ev.state === "done";
   const fill = missed ? hexA(COL.bad, 0.85) : hsl(HUE_BASS, 90, 62, passed ? 0.4 : 1);
@@ -696,100 +675,110 @@ export function drawObstacle(ev, nb, hsl) {
     boite = S.theme === "boite",
     // En mode pianiste (#53), l'obstacle porte sa note, à jouer à n'importe quelle octave sous la séparation
     note = nomsDeNotes() ? nomDeClasse(ev.midi) : null;
-  if (ev.lane === 3) {
-    (boite ? boitePlaque : villePlaque)(x, fill, passed);
-    g.beginPath();
-    g.moveTo(x - 7, GY - 42);
-    g.lineTo(x, GY - 34);
-    g.lineTo(x + 7, GY - 42);
-    g.strokeStyle = fill;
-    g.lineWidth = 2.5;
-    g.stroke();
-    // La plaque s'écrase en frappant ensemble la fondamentale et la quinte
-    const touches = note
-      ? notesDeLEcrasement(chordAtBar(Math.floor(ev.beat / 4)))
-          .map(nomDeClasse)
-          .join("+")
-      : KEYLABEL.Space;
-    txt(touches, x, GY - 50, `600 13px ${FONT.mono}`, fill, "center");
-  } else if (ev.lane >= 4) {
-    // La marche d'un escalier (#13) : sauter monte, glisser descend, et la flèche le rappelle
-    const monte = ev.lane === 4,
-      haut = hauteurMarche(ev.midi);
-    (boite ? boiteMarche : villeMarche)(x, haut, fill, monte);
-    txt(
-      `${note ?? (monte ? KEYLABEL.KeyW : KEYLABEL.KeyS)} ${monte ? "↑" : "↓"}`,
-      x,
-      GY - haut - 24,
-      `600 13px ${FONT.mono}`,
-      fill,
-      "center",
-    );
-  } else if (ev.lane >= 1) {
-    // Le haut obstacle (#7) passe sous le personnage au sommet du double saut ; un saut simple le heurte
-    const haut = ev.lane === 2 ? (boite ? 48 : 68) : 0;
-    if (ev.lane === 2) (boite ? boiteHaut : villeHaut)(x, fill);
-    else if (boite) boiteBlock(x, fill);
-    else villeBlock(x, fill);
-    g.beginPath();
-    g.moveTo(x - 7, GY - 44 - haut);
-    g.lineTo(x, GY - 52 - haut);
-    g.lineTo(x + 7, GY - 44 - haut);
-    g.strokeStyle = fill;
-    g.lineWidth = 2.5;
-    g.stroke();
-    txt(note ?? KEYLABEL.KeyW, x, GY - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
-  } else if (ev.fin !== undefined) {
+  if (ev.lane === 3)
+    aLaPose(p, (x, sol) => {
+      (boite ? boitePlaque : villePlaque)(x, sol, fill, passed);
+      g.beginPath();
+      g.moveTo(x - 7, sol - 42);
+      g.lineTo(x, sol - 34);
+      g.lineTo(x + 7, sol - 42);
+      g.strokeStyle = fill;
+      g.lineWidth = 2.5;
+      g.stroke();
+      // La plaque s'écrase en frappant ensemble la fondamentale et la quinte
+      const touches = note
+        ? notesDeLEcrasement(chordAtBar(Math.floor(ev.beat / 4)))
+            .map(nomDeClasse)
+            .join("+")
+        : KEYLABEL.Space;
+      txt(touches, x, sol - 50, `600 13px ${FONT.mono}`, fill, "center");
+    });
+  else if (ev.lane >= 4)
+    aLaPose(p, (x, sol) => {
+      // La marche d'un escalier (#13) : sauter monte, glisser descend, et la flèche le rappelle
+      const monte = ev.lane === 4,
+        haut = hauteurMarche(ev.midi);
+      (boite ? boiteMarche : villeMarche)(x, sol, haut, fill, monte);
+      txt(
+        `${note ?? (monte ? KEYLABEL.KeyW : KEYLABEL.KeyS)} ${monte ? "↑" : "↓"}`,
+        x,
+        sol - haut - 24,
+        `600 13px ${FONT.mono}`,
+        fill,
+        "center",
+      );
+    });
+  else if (ev.lane >= 1)
+    aLaPose(p, (x, sol) => {
+      // Le haut obstacle (#7) passe sous le personnage au sommet du double saut ; un saut simple le heurte
+      const haut = ev.lane === 2 ? (boite ? 48 : 68) : 0;
+      if (ev.lane === 2) (boite ? boiteHaut : villeHaut)(x, sol, fill);
+      else if (boite) boiteBlock(x, sol, fill);
+      else villeBlock(x, sol, fill);
+      g.beginPath();
+      g.moveTo(x - 7, sol - 44 - haut);
+      g.lineTo(x, sol - 52 - haut);
+      g.lineTo(x + 7, sol - 44 - haut);
+      g.strokeStyle = fill;
+      g.lineWidth = 2.5;
+      g.stroke();
+      txt(note ?? KEYLABEL.KeyW, x, sol - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
+    });
+  else if (ev.fin !== undefined) {
     // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps
-    const a = x0,
-      b = x0 + ev.dur * PPB,
+    const a = p0.x,
+      b = sc.poser(ev.beat + ev.dur, "basse", nb).x,
+      sol = p0.y,
       monte = ev.fin > ev.midi;
-    (boite ? boitePente : villePente)(a, b, GY - hauteurPente(ev, 0), GY - hauteurPente(ev, 1), fill);
+    (boite ? boitePente : villePente)(a, b, sol, sol - hauteurPente(ev, 0), sol - hauteurPente(ev, 1), fill);
     if (ev.state === "holding") {
-      const px = clamp(PX + PW / 2, a, b);
+      const px = clamp(sc.impact("basse").x, a, b);
       g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
       g.lineWidth = 3;
       g.beginPath();
-      g.moveTo(a, GY - hauteurPente(ev, 0) - 6);
-      g.lineTo(px, GY - hauteurPente(ev, (px - a) / (b - a)) - 6);
+      g.moveTo(a, sol - hauteurPente(ev, 0) - 6);
+      g.lineTo(px, sol - hauteurPente(ev, (px - a) / (b - a)) - 6);
       g.stroke();
     }
-    const ly = GY - RAMPE - 46;
+    const ly = sol - RAMPE - 46;
     rr(a + 4, ly - 14, note ? 102 : 84, 18, 4);
     g.fillStyle = hexA(COL.ink, 0.7);
     g.fill();
     txt(`${note ?? KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
   } else if (ev.dur > 0) {
     // Le tunnel finit avant la fin de la note : on se relève une fois sorti
-    const a = x - 16,
-      b = x0 + ev.dur * PPB - 20;
+    const a = p.x - 16,
+      b = sc.poser(ev.beat + ev.dur, "basse", nb).x - 20,
+      sol = p.y;
     g.fillStyle = hsl(HUE_BASS, 40, 60, 0.1);
-    g.fillRect(a, 96, b - a, 324);
-    if (boite) boiteTunnel(a, b, fill);
-    else villeTunnel(a, b, fill);
+    g.fillRect(a, sol - 409, b - a, 324);
+    if (boite) boiteTunnel(a, b, sol, fill);
+    else villeTunnel(a, b, sol, fill);
     if (ev.state === "holding") {
-      const px = clamp(PX + PW / 2, a, b);
-      rr(a, 420, px - a, 42, 6);
+      const px = clamp(sc.impact("basse").x, a, b);
+      rr(a, sol - 85, px - a, 42, 6);
       g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
       g.fill();
     }
-    rr(a + 4, 432, note ? 84 : 66, 18, 4);
+    rr(a + 4, sol - 73, note ? 84 : 66, 18, 4);
     g.fillStyle = hexA(COL.ink, 0.7);
     g.fill();
-    txt(`${note ?? KEYLABEL.KeyS} tenu`, a + 10, 446, `600 13px ${FONT.mono}`, fill);
-  } else {
-    if (boite) boiteBeam(x, fill);
-    else villeBeam(x, fill);
-    txt(note ?? KEYLABEL.KeyS, x, 454, `600 13px ${FONT.mono}`, ink, "center");
-  }
+    txt(`${note ?? KEYLABEL.KeyS} tenu`, a + 10, sol - 59, `600 13px ${FONT.mono}`, fill);
+  } else
+    aLaPose(p, (x, sol) => {
+      if (boite) boiteBeam(x, sol, fill);
+      else villeBeam(x, sol, fill);
+      txt(note ?? KEYLABEL.KeyS, x, sol - 51, `600 13px ${FONT.mono}`, ink, "center");
+    });
 }
 
 /** La force du vibrato à l'image (#17) : 1 au tapotement, puis s'éteint en 0,6 s ; 0 hors note tenue */
 const ondulation = (ev, pnow) =>
   ev.state === "holding" && ev.vibreAt !== undefined ? clamp(1 - (pnow - ev.vibreAt) / 600, 0, 1) : 0;
-/** Le tracé d'une bande de 16 px de haut entre x1 et x2, dont les bords ondulent d'une amplitude `amp` */
-function bandeOndulee(x1, x2, y, amp, pnow) {
-  const onde = (x) => amp * Math.sin((x - HITX) / 12 - pnow / 55);
+/** Le tracé d'une bande de 16 px de haut entre x1 et x2, dont les bords ondulent d'une amplitude `amp` à partir de
+ * la ligne de tir, en x0 */
+function bandeOndulee(x1, x2, y, amp, pnow, x0) {
+  const onde = (x) => amp * Math.sin((x - x0) / 12 - pnow / 55);
   g.beginPath();
   for (let x = x1; x < x2 + 4; x += 4) g.lineTo(Math.min(x, x2), y - 8 + onde(Math.min(x, x2)));
   for (let x = x2; x > x1 - 4; x -= 4) g.lineTo(Math.max(x, x1), y + 8 + onde(Math.max(x, x1)));
@@ -802,46 +791,54 @@ const DESSINS: Record<string, Record<string, DessinEnnemi>> = {
 };
 /** L'ennemi de la mélodie du lieu de la chanson, dans l'univers en cours */
 const dessinEnnemi = () => DESSINS[S.theme][ennemiDuLieu().dessin];
-export function drawEnemy(ev, nb, pnow, hsl) {
+export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
   if (ev.state === "hit" || ev.state === "done") return;
-  let x = HITX + (ev.beat - nb) * PPB;
-  const x2 = HITX + (ev.beat + ev.dur - nb) * PPB;
+  // L'ennemi à sa pose, la fin de sa note, et la ligne de tir de son couloir
+  const p = sc.poser(ev.beat, ev.lane, nb),
+    pFin = sc.poser(ev.beat + ev.dur, ev.lane, nb),
+    tir = sc.impact(ev.lane),
+    e = p.echelle;
+  let x = p.x;
+  const x2 = pFin.x;
   // Un ennemi raté plonge sur le joueur, même quand son couloir est déjà sorti de l'écran
-  if ((x2 < 0 && ev.state !== "miss") || x > W + 40) return;
-  if (ev.reponse && ev.state === "pending") return dessinerSilhouette(ev, x, nb, hsl);
-  const y = yDeCouloir(ev.lane) + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3;
+  if ((sc.horsChamp(pFin, "derriere", 0) && ev.state !== "miss") || sc.horsChamp(p, "devant", 40)) return;
+  if (ev.reponse && ev.state === "pending") return dessinerSilhouette(sc, ev, nb, hsl);
+  const y = p.y + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3 * e;
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
   // Une petite note (#14) ratée s'efface sur place
-  if (estPetiteNote(ev)) return void (a > 0 && dessinerPetite(ev, x, y, a, nb, hsl));
+  if (estPetiteNote(ev)) return void (a > 0 && p.visible && dessinerPetite(ev, { ...p, y }, a, nb, hsl));
   // Raté, l'ennemi plonge sur le joueur : son couloir s'efface, lui survit jusqu'à la fin de son rebond
   const plonge = ev.state === "miss" ? pnow - ev.missAt : null;
   if (a <= 0 && (plonge === null || plonge >= PLONGEE + REBOND)) return;
+  // Une scène peut cacher un ennemi encore dans son couloir ; il se montre quand il plonge
+  if (!p.visible && plonge === null) return;
   // Le couloir de l'ennemi : celui où en est le serpent (#16), qui change en chemin
   let yh = y,
     lane = ev.lane;
-  if (ev.trille !== undefined) [x, yh] = dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a);
-  else if (ev.serpent) [x, yh, lane] = dessinerSerpent(ev, x, nb, pnow, hsl, a);
+  if (ev.trille !== undefined) [x, yh] = dessinerTrille(sc, ev, x, x2, y, nb, pnow, hsl, a);
+  else if (ev.serpent) [x, yh, lane] = dessinerSerpent(sc, ev, x, nb, pnow, hsl, a);
   const hue = LANE_HUE[lane],
     col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
   if (ev.dur > 0 && ev.trille === undefined && !ev.serpent) {
-    const sx = ev.state === "holding" ? HITX : x,
+    // La note tenue se tend de l'ennemi (ou de la ligne de tir, tenue) à la fin de sa note
+    const sx = ev.state === "holding" ? tir.x : x,
       v = ondulation(ev, pnow);
     if (x2 > sx) {
       // Pendant le vibrato (#17), l'ennemi allongé ondule et s'éclaire
-      if (v > 0 && !reduced) bandeOndulee(sx, x2, y, 6 * v, pnow);
-      else rr(sx, y - 8, x2 - sx, 16, 8);
+      if (v > 0 && !reduced) bandeOndulee(sx, x2, y, 6 * v, pnow, tir.x);
+      else rr(sx, y - 8 * e, x2 - sx, 16 * e, 8 * e);
       g.fillStyle = hsl(hue, 80, 68, (0.3 + 0.35 * v) * a);
       g.fill();
       g.strokeStyle = col;
       g.lineWidth = 1.5;
       g.stroke();
     }
-    if (ev.state === "holding") x = HITX;
+    if (ev.state === "holding") x = tir.x;
   }
   // Halo à la forme du couloir : il reste sur le couloir, qu'il marque, même quand l'ennemi s'en écarte
-  formeCouloir(lane, x, yh, 24);
+  formeCouloir(lane, x, yh, 24 * e);
   g.fillStyle = hsl(hue, 80, 68, 0.12 * a);
   g.fill();
   if (S.formes) {
@@ -851,18 +848,19 @@ export function drawEnemy(ev, nb, pnow, hsl) {
   }
   // La menace monte sur les quatre derniers temps avant la ligne de tir : l'ennemi se réveille et vise le joueur.
   // Une note simple fond alors vers lui en courbe, et revient sur son couloir pile à la ligne ; ratée, elle plonge.
-  const m = clamp(1 - (x - HITX) / (4 * PPB), 0, 1);
+  const m = ev.state === "holding" ? 1 : clamp(1 - (ev.beat - nb) / 4, 0, 1);
   let ex = x,
     ey = yh,
     ea = a;
-  if (plonge !== null) [ex, ey, ea] = plongee(x, yh, plonge);
+  if (plonge !== null) [ex, ey, ea] = plongee(sc, x, yh, plonge);
   else if (ev.state === "pending" && ev.dur === 0 && !reduced) {
-    const k = 22 * Math.sin(Math.PI * m);
-    ex -= 0.35 * k;
-    ey += 0.94 * k;
+    const k = 22 * Math.sin(Math.PI * m),
+      [dx, dy] = ecartALaPose(p, -0.35 * k, 0.94 * k);
+    ex += dx;
+    ey += dy;
   }
   const ecol = ev.state === "miss" ? hexA(COL.bad, ea) : hsl(hue, 80, 68, ea);
-  dessinEnnemi()(ex, ey, ev, ecol, ea, nb, hsl, m);
+  dessinEnnemi()(ex, ey, ev, ecol, ea, nb, hsl, m, e, p.angle);
   // En mode pianiste (#53), l'ennemi porte la note à jouer : les deux d'une trille, la prochaine d'un serpent
   if (nomsDeNotes() && ev.state !== "miss" && ev.state !== "broken") {
     const k = ev.serpent ? Math.min((ev.state === "holding" ? (ev.troncon ?? 0) : -1) + 1, ev.serpent.length - 1) : 0,
@@ -870,45 +868,52 @@ export function drawEnemy(ev, nb, pnow, hsl) {
         ev.trille !== undefined
           ? `${nomDeClasse(ev.midi)}~${nomDeClasse(ev.midiTrille)}`
           : nomDeClasse(ev.serpent ? ev.midiSerpent[k] : ev.midi);
-    txt(nom, ex, ey - 30, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
+    txt(nom, ex, ey - 30 * e, `700 13px ${FONT.mono}`, hexA(COL.fg, 0.9 * a), "center");
   }
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
-  if (ev.reprise) etoile(ex, ey - 34, 8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat)), hsl(hue, 95, 85, ea));
+  if (ev.reprise)
+    etoile(ex, ey - 34 * e, (8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat))) * e, hsl(hue, 95, 85, ea));
 }
 /** Le rebond d'un ennemi après sa frappe, en ms */
 const REBOND = 380;
 /**
  * La plongée d'un ennemi raté, `t` ms après le raté, depuis sa place sur le couloir : il prend un peu d'élan, fond
- * sur le joueur et le frappe au bout de `PLONGEE` ms (le coup est dans `effets.rate`), puis rebondit en
- * s'effaçant. Renvoie sa place et son opacité.
+ * sur le joueur, là où la scène le place, et le frappe à hauteur de poitrine au bout de `PLONGEE` ms (le coup est
+ * dans `effets.rate`), puis rebondit en s'effaçant. Renvoie sa place et son opacité.
  */
-function plongee(x: number, y: number, t: number): [number, number, number] {
-  const cx = PX + PW / 2;
+function plongee(sc: Scene, x: number, y: number, t: number): [number, number, number] {
+  const joueur = sc.impact("basse"),
+    cx = joueur.x,
+    cy = joueur.y - POITRINE;
   if (t < PLONGEE) {
     const p = t / PLONGEE,
       e = p * p;
-    return [x + (cx - x) * e, y + (CIBLE_Y - y) * e - 18 * Math.sin(Math.PI * p), 1];
+    return [x + (cx - x) * e, y + (cy - y) * e - 18 * Math.sin(Math.PI * p), 1];
   }
   const q = clamp((t - PLONGEE) / REBOND, 0, 1);
-  return [cx + 40 * q, CIBLE_Y - 60 * q + 30 * q * q, 1 - q];
+  return [cx + 40 * q, cy - 60 * q + 30 * q * q, 1 - q];
 }
 /**
  * Une silhouette de la réponse au chanteur (#18) : l'ennemi de l'univers en gris, entre deux couloirs, sans la
  * forme de son couloir. Son couloir ne se révèle qu'au coup : réussie, elle éclate dans son couloir ; ratée, elle
  * y apparaît en rouge.
  */
-function dessinerSilhouette(ev, x, nb, hsl) {
-  const y = Y_SILHOUETTE + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3,
+function dessinerSilhouette(sc: Scene, ev, nb, hsl) {
+  const p = sc.poser(ev.beat, VOIE_SILHOUETTE, nb);
+  if (!p.visible) return;
+  const e = p.echelle,
+    x = p.x,
+    y = p.y + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3 * e,
     gris = (h, s, l, a = 1) => hsl(h, s * 0.15, l, a);
   g.beginPath();
-  g.arc(x, y, 22, 0, Math.PI * 2);
+  g.arc(x, y, 22 * e, 0, Math.PI * 2);
   g.setLineDash([4, 5]);
   g.strokeStyle = hexA(COL.muted, 0.7);
   g.lineWidth = 1.5;
   g.stroke();
   g.setLineDash([]);
-  dessinEnnemi()(x, y, ev, gris(250, 10, 78), 0.85, nb, gris);
-  txt("?", x, y - 26, `700 16px ${FONT.display}`, COL.muted, "center");
+  dessinEnnemi()(x, y, ev, gris(250, 10, 78), 0.85, nb, gris, 0, e, p.angle);
+  txt("?", x, y - 26 * e, `700 16px ${FONT.display}`, COL.muted, "center");
 }
 /**
  * Le boss de fin (#26) : il arrive pendant l'intro et plane à droite, derrière les couloirs. Il ouvre son pavillon
@@ -916,7 +921,7 @@ function dessinerSilhouette(ev, x, nb, hsl) {
  * couloirs : on lit sa phrase une mesure avant de la rejouer. Touché, il recule et s'éclaire ; tombé, il chute et se
  * tait ; à l'outro, s'il tient encore, il s'enfuit. Les mesures sont celles de la partie (ADR-0009).
  */
-function dessinerBoss(nb, pnow, hsl, playing) {
+function dessinerBoss(sc: Scene, nb, pnow, hsl, playing) {
   const boss = S.boss;
   if (!boss) return;
   const ici = Math.floor(nb / 4);
@@ -927,16 +932,19 @@ function dessinerBoss(nb, pnow, hsl, playing) {
     const decale = 4 * (bar - p.bar);
     for (const n of p.notes) {
       const b = n.beat + decale,
-        xn = HITX + (b - nb) * PPB;
-      if (b >= nb && xn < W + 20) croche(xn, Y_CHANTEUR, hsl(LANE_HUE[n.lane], 80, 72, 0.85));
+        pn = sc.poser(b, "chanteur", nb);
+      if (b >= nb && !sc.horsChamp(pn, "devant", 20) && pn.visible)
+        aLaPose(pn, (xn, yn) => croche(xn, yn, hsl(LANE_HUE[n.lane], 80, 72, 0.85)));
       // La note qu'il joue en ce moment ouvre son pavillon, puis il se referme
       if (playing && nb - b >= 0 && nb - b < 0.4) ouvert = Math.max(ouvert, 1 - (nb - b) / 0.4);
     }
   }
   const outro = S.song.sections.find((s) => s.kind === "outro"),
     sec = sectionAtBar(clamp(ici, 0, S.song.totalBars - 1));
-  let x = BOSS_X,
-    y = BOSS_Y + (reduced ? 0 : 7 * Math.sin((pnow / 1000) * 1.6)),
+  // Il plane à la place que la scène lui donne
+  const ancre = sc.boss;
+  let x = ancre.x,
+    y = ancre.y + (reduced ? 0 : 7 * Math.sin((pnow / 1000) * 1.6)),
     a = 0.9,
     rot = 0;
   // Il arrive pendant l'intro
@@ -948,21 +956,23 @@ function dessinerBoss(nb, pnow, hsl, playing) {
     const e = nb - outro.start * 4;
     [x, y, rot] = [x + 50 * e * e, y - 30 * e, -0.15];
   }
-  if (a <= 0 || x > W + 220) return;
+  if (a <= 0 || sc.horsChamp({ ...ancre, x, y }, "devant", 220) || !ancre.visible) return;
   const touche = clamp(1 - (pnow - boss.toucheAt) / 350, 0, 1);
-  (S.theme === "boite" ? boiteBoss : villeBoss)(
-    x + (reduced ? 0 : 14 * touche),
-    y,
-    {
-      ouvert,
-      touche,
-      phase: sec.boss ?? (sec.kind === "intro" ? 1 : 3),
-      vaincu: boss.vaincu !== null,
-      a,
-      t: pnow / 1000,
-      rot,
-    },
-    hsl,
+  aLaPose({ ...ancre, x: x + (reduced ? 0 : 14 * touche), y }, (bx, by) =>
+    (S.theme === "boite" ? boiteBoss : villeBoss)(
+      bx,
+      by,
+      {
+        ouvert,
+        touche,
+        phase: sec.boss ?? (sec.kind === "intro" ? 1 : 3),
+        vaincu: boss.vaincu !== null,
+        a,
+        t: pnow / 1000,
+        rot,
+      },
+      hsl,
+    ),
   );
 }
 /** La vie du boss de fin (#26) dans le HUD : son nom, puis une barre d'un segment par vie, « vaincu » quand il tombe */
@@ -1005,7 +1015,7 @@ function croche(x, y, couleur) {
  * sans couloir. À côté de lui, ce qu'il faut faire (écouter, puis répéter) et les coups de la réponse. Les mesures
  * sont celles de la partie : en boucle, chaque passage a son chanteur (ADR-0009).
  */
-function dessinerChanteurs(nb, hsl) {
+function dessinerChanteurs(sc: Scene, nb, hsl) {
   const ici = Math.floor(nb / 4);
   for (let bar = Math.max(0, ici - 3); bar <= ici + 2; bar++) {
     const c = chanteurAtBar(bar);
@@ -1014,40 +1024,48 @@ function dessinerChanteurs(nb, hsl) {
       debut = bar * 4,
       fin = debut + 8;
     for (const n of c.notes) {
-      const xn = HITX + (n.beat + decale - nb) * PPB;
-      if (n.beat + decale >= nb && xn < W + 20) croche(xn, Y_CHANTEUR, hexA(COL.fg, 0.55));
+      const pn = sc.poser(n.beat + decale, "chanteur", nb);
+      if (n.beat + decale >= nb && !sc.horsChamp(pn, "devant", 20) && pn.visible)
+        aLaPose(pn, (xn, yn) => croche(xn, yn, hexA(COL.fg, 0.55)));
     }
-    let x = HITX,
-      y = Y_CHANTEUR,
+    // Il se tient sur la ligne de tir, arrive avec ses notes et repart avec elles, en s'élevant
+    let p = sc.impact("chanteur"),
+      monte = 0,
       a = 1;
-    if (nb < debut - 0.5) x = HITX + (debut - 0.5 - nb) * PPB;
+    if (nb < debut - 0.5) p = sc.poser(debut - 0.5, "chanteur", nb);
     else if (nb > fin) {
       const e = nb - fin;
-      [x, y, a] = [HITX - e * PPB, y - 40 * e, clamp(1 - e / 1.5, 0, 1)];
+      [p, monte, a] = [sc.poser(fin, "chanteur", nb), -40 * e, clamp(1 - e / 1.5, 0, 1)];
     }
-    if (x > W + 40 || a <= 0) continue;
+    if (sc.horsChamp(p, "devant", 40) || a <= 0 || !p.visible) continue;
     // La bouche s'ouvre sur chaque note chantée, puis se referme
     const age = c.notes.map((n) => nb - n.beat - decale).find((d) => d >= 0 && d < 0.4),
       ouvert = age === undefined ? 0 : 1 - age / 0.4;
+    let y = p.y + monte;
     if (!reduced) y += 3 * Math.sin(nb * Math.PI);
-    (S.theme === "boite" ? boiteChanteur : villeChanteur)(x, y, ouvert, a, nb, hsl);
-    txt(nb < debut + 4 ? "ÉCOUTE" : "RÉPÈTE", x + 38, y - 18, `600 12px ${FONT.mono}`, hexA(COL.fg, a));
-    S.ev
-      .filter((e) => e.reponse && e.bar === bar + 1)
-      .forEach((e, i) => {
-        g.beginPath();
-        g.arc(x + 96 + 11 * i, y - 22, 4, 0, Math.PI * 2);
-        const coup = e.state === "pending" ? COL.muted : e.state === "miss" ? COL.bad : COL.good;
-        g.fillStyle = hexA(coup, a * (e.state === "pending" ? 0.5 : 1));
-        g.fill();
-      });
+    aLaPose({ ...p, y }, (x, y) => {
+      (S.theme === "boite" ? boiteChanteur : villeChanteur)(x, y, ouvert, a, nb, hsl);
+      txt(nb < debut + 4 ? "ÉCOUTE" : "RÉPÈTE", x + 38, y - 18, `600 12px ${FONT.mono}`, hexA(COL.fg, a));
+      S.ev
+        .filter((e) => e.reponse && e.bar === bar + 1)
+        .forEach((e, i) => {
+          g.beginPath();
+          g.arc(x + 96 + 11 * i, y - 22, 4, 0, Math.PI * 2);
+          const coup = e.state === "pending" ? COL.muted : e.state === "miss" ? COL.bad : COL.good;
+          g.fillStyle = hexA(coup, a * (e.state === "pending" ? 0.5 : 1));
+          g.fill();
+        });
+    });
   }
 }
 /**
  * La petite note (#14) : un petit ennemi entre deux couloirs, dans un halo pointillé en deux moitiés aux couleurs
  * de ses deux couloirs, avec ses deux touches : l'une ou l'autre le touche (ADR-0010). L'univers l'habille.
  */
-function dessinerPetite(ev, x, y, a, nb, hsl) {
+function dessinerPetite(ev, p: Pose, a, nb, hsl) {
+  aLaPose(p, (x, y) => dessinerPetiteEn(ev, x, y, a, nb, hsl));
+}
+function dessinerPetiteEn(ev, x, y, a, nb, hsl) {
   const bas = ev.lane - 0.5,
     haut = ev.lane + 0.5,
     rate = ev.state === "miss";
@@ -1143,7 +1161,7 @@ function etoile(x, y, r, couleur) {
  * Pendant le serpent, la tête reste sur la ligne de tir et monte ou descend avec le corps. Renvoie la place de la
  * tête et son couloir.
  */
-function dessinerSerpent(ev, x, nb, pnow, hsl, a): [number, number, number] {
+function dessinerSerpent(sc: Scene, ev, x, nb, pnow, hsl, a): [number, number, number] {
   const tenu = ev.state === "holding",
     s = ev.serpent,
     pas = pasDuSerpent(ev),
@@ -1154,13 +1172,23 @@ function dessinerSerpent(ev, x, nb, pnow, hsl, a): [number, number, number] {
       return u * u * (3 - 2 * u);
     },
     onde = (b: number) => (reduced ? 0 : 3 * Math.sin((b - nb) * 5 + pnow / 160)),
-    yDe = (b: number) =>
-      s.reduce(
-        (y, l, k) =>
-          k ? y + (LANE_Y[l] - LANE_Y[s[k - 1]]) * marche((b - tempsDuPassage(ev, k) + demi) / (2 * demi)) : y,
-        LANE_Y[s[0]],
-      ) + onde(b),
-    xDe = (b: number) => HITX + (b - nb) * PPB,
+    // La place du corps au temps b : la pose de son premier couloir, glissée vers chaque couloir suivant pendant la
+    // courbe de son passage
+    pointDe = (b: number): [number, number] => {
+      const p0 = sc.poser(b, s[0], nb);
+      let px = p0.x,
+        py = p0.y;
+      for (let k = 1; k < s.length; k++) {
+        const w = marche((b - tempsDuPassage(ev, k) + demi) / (2 * demi)),
+          de = sc.poser(b, s[k - 1], nb),
+          vers = sc.poser(b, s[k], nb);
+        px += (vers.x - de.x) * w;
+        py += (vers.y - de.y) * w;
+      }
+      return [px, py + onde(b)];
+    },
+    // Le corps n'entre que dans le champ de la scène
+    devant = (b: number) => sc.horsChamp(sc.poser(b, s[0], nb), "devant", 40),
     debut = tenu ? nb : ev.beat,
     couleur = (l: number, alpha: number) =>
       ev.state === "miss" ? hexA(COL.bad, alpha * a) : hsl(LANE_HUE[l], 80, 68, alpha * a);
@@ -1168,9 +1196,9 @@ function dessinerSerpent(ev, x, nb, pnow, hsl, a): [number, number, number] {
   const troncons = s.map((l, k) => {
     const pts: [number, number][] = [],
       fin = tempsDuPassage(ev, k + 1);
-    for (let b = Math.max(debut, tempsDuPassage(ev, k)); b < fin && xDe(b) < W + 40; b += 4 / PPB)
-      pts.push([xDe(b), yDe(b)]);
-    if (pts.length && xDe(fin) < W + 40) pts.push([xDe(fin), yDe(fin)]);
+    for (let b = Math.max(debut, tempsDuPassage(ev, k)); b < fin && !devant(b); b += sc.echantillon)
+      pts.push(pointDe(b));
+    if (pts.length && !devant(fin)) pts.push(pointDe(fin));
     return { lane: l, pts };
   });
   (S.theme === "boite" ? boiteSerpent : villeSerpent)(
@@ -1182,24 +1210,30 @@ function dessinerSerpent(ev, x, nb, pnow, hsl, a): [number, number, number] {
   for (let k = 1; k < s.length; k++) {
     const b = tempsDuPassage(ev, k);
     if (b < debut || (tenu && k <= ev.troncon)) continue;
-    formeCouloir(s[k], xDe(b), LANE_Y[s[k]], 8);
+    const pk = sc.poser(b, s[k], nb);
+    formeCouloir(s[k], pk.x, pk.y, 8 * pk.echelle);
     g.strokeStyle = couleur(s[k], 0.9);
     g.lineWidth = 2;
     g.stroke();
   }
-  if (!tenu) return [x, yDe(ev.beat), s[0]];
-  return [HITX, yDe(nb), s[clamp(Math.floor((nb - ev.beat) / pas), 0, s.length - 1)]];
+  if (!tenu) return [x, pointDe(ev.beat)[1], s[0]];
+  const [tx, ty] = pointDe(nb);
+  return [tx, ty, s[clamp(Math.floor((nb - ev.beat) / pas), 0, s.length - 1)]];
 }
 /**
  * La trille (#15) : une bande qui couvre ses deux couloirs, traversée d'un zigzag en double-croches de l'un à
  * l'autre. L'ennemi vibre entre les deux couloirs ; pendant la trille, il suit le dernier couloir appuyé et le
  * compte des alternances s'affiche. Renvoie la place de l'ennemi.
  */
-function dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
-  const y2 = y - LANE_Y[ev.lane] + LANE_Y[ev.trille],
+function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
+  // Les deux couloirs de la trille au temps de la note, et le balancement de l'ennemi
+  const de = sc.poser(ev.beat, ev.lane, nb),
+    balance = y - de.y,
+    y2 = y - de.y + sc.poser(ev.beat, ev.trille, nb).y,
     haut = Math.min(y, y2),
     tenue = ev.state === "holding",
-    sx = tenue ? HITX : x,
+    tir = sc.impact(ev.lane),
+    sx = tenue ? tir.x : x,
     v = tenue && ev.trilleAt !== undefined ? clamp(1 - (pnow - ev.trilleAt) / 250, 0, 1) : 0,
     hue = LANE_HUE[ev.lane];
   if (x2 > sx) {
@@ -1211,7 +1245,11 @@ function dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
     g.rect(sx, 0, x2 - sx, H);
     g.clip();
     g.beginPath();
-    for (let k = 0; k <= 4 * ev.dur; k++) g.lineTo(HITX + (ev.beat + k / 4 - nb) * PPB, k % 2 ? y2 : y);
+    // Le zigzag passe d'un couloir à l'autre à chaque double-croche
+    for (let k = 0; k <= 4 * ev.dur; k++) {
+      const q = sc.poser(ev.beat + k / 4, k % 2 ? ev.trille : ev.lane, nb);
+      g.lineTo(q.x, q.y + balance);
+    }
     g.strokeStyle = hsl(hue, 80, 68, (0.55 + 0.45 * v) * a);
     g.lineWidth = 2 + 2 * v;
     g.stroke();
@@ -1220,8 +1258,8 @@ function dessinerTrille(ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
   if (!tenue) return [x, reduced ? y : (y + y2) / 2 + ((y - y2) / 2) * Math.sin(pnow / 45)];
   const n = ev.alternances ?? 0,
     seuil = seuilTrille(ev);
-  txt(`${n}/${seuil}`, HITX + 26, haut - 14, `600 12px ${FONT.mono}`, n >= seuil ? COL.good : COL.fg);
-  return [HITX, ev.dernier === ev.trille ? y2 : y];
+  txt(`${n}/${seuil}`, tir.x + 26, haut - 14, `600 12px ${FONT.mono}`, n >= seuil ? COL.good : COL.fg);
+  return [tir.x, ev.dernier === ev.trille ? y2 : y];
 }
 
 /** La prochaine note de la main gauche si c'est une marche d'escalier (#13) qui arrive dans le temps qui vient */
@@ -1257,14 +1295,17 @@ const fantomeVisible = () => !!S.fantome && S.voirFantome && !S.relecture && (S.
 
 // Le fantôme du meilleur passage (#32) : le personnage en transparence, un peu en retrait, qui fait les gestes de la
 // partie gardée à leurs temps, et ses tirs. Il ne se blesse pas et ne suit pas les pentes : il n'est pas jugé.
-function dessinerFantome(nb: number, ns: number, pnow: number, hsl, dt: number) {
+function dessinerFantome(sc: Scene, nb: number, ns: number, pnow: number, hsl, dt: number) {
   const sp = spb(),
     p = poseDuFantome(S.fantome, nb, S.song.ev),
-    enSecondes = (t: number) => t * sp;
+    enSecondes = (t: number) => t * sp,
+    // Le retrait, en arrière du personnage dans le sens de lecture de la scène
+    [rx, ry] = ecartALaPose(sc.impact("basse"), -RECUL_FANTOME, 0);
   g.save();
   g.globalAlpha = 0.32;
-  g.translate(-RECUL_FANTOME, 0);
+  g.translate(rx, ry);
   const [gx, gy] = drawPlayer(
+    sc,
     nb,
     ns,
     pnow,
@@ -1287,8 +1328,9 @@ function dessinerFantome(nb: number, ns: number, pnow: number, hsl, dt: number) 
     const a = 1 - (nb - tir.temps) / DUREE_TIR;
     g.strokeStyle = tir.resultat === "rate" ? hexA(COL.bad, a) : hsl(LANE_HUE[tir.couloir], 85, 75, a);
     g.beginPath();
+    const cible = sc.impact(tir.couloir);
     g.moveTo(gx, gy);
-    g.lineTo(HITX + RECUL_FANTOME, LANE_Y[tir.couloir]);
+    g.lineTo(cible.x - rx, cible.y - ry);
     g.stroke();
   }
   g.restore();
@@ -1309,10 +1351,11 @@ function ecartFantome(nb: number) {
 }
 
 /**
- * Dessine le personnage, ou le fantôme du meilleur passage (#32) dans la pose qu'on lui donne, et renvoie le bout de
- * son arme, d'où partent les tirs.
+ * Dessine le personnage, ou le fantôme du meilleur passage (#32) dans la pose qu'on lui donne, debout sur le sol
+ * de la scène à son point d'impact (la basse), et renvoie le bout de son arme, d'où partent les tirs.
  */
 export function drawPlayer(
+  sc: Scene,
   nb,
   ns,
   pnow,
@@ -1321,7 +1364,7 @@ export function drawPlayer(
   pose: PoseDuPersonnage = poseDuJoueur(),
   fantome = false,
 ): [number, number] {
-  const cx = PX + PW / 2;
+  const ici = sc.impact("basse");
   let yOff = 0,
     sliding = false,
     jumping = false,
@@ -1352,165 +1395,168 @@ export function drawPlayer(
   }
   const run = S.mode === "play" && !jumping && !sliding && !ecrase,
     ph = nb * Math.PI;
-  const w = sliding ? 60 : PW * (1 + 0.35 * ecrase),
-    h = sliding ? 30 : PH * (1 - 0.35 * ecrase) - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
-  const x = cx - w / 2,
-    y = GY + yOff - h,
-    hurt = !fantome && pnow - S.hurtAt < 260;
-  const s = run ? Math.sin(ph) : jumping ? 0.6 : 0,
-    hipY = y + h - 14;
-  const gy = sliding ? y + 14 : y + 32;
-  if (impact) {
-    // L'onde de choc s'élargit au sol
-    g.strokeStyle = hsl(HUE_BASS, 90, 70, 0.6 * (1 - e));
-    g.lineWidth = 3;
-    g.beginPath();
-    g.ellipse(cx, GY, 24 + 90 * e, 5 + 10 * e, 0, 0, Math.PI * 2);
-    g.stroke();
-  }
-  g.fillStyle = "rgba(0,0,0,.35)";
-  g.beginPath();
-  g.ellipse(cx, GY + 3, Math.max(6, w * 0.6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2);
-  g.fill();
-  g.lineCap = "round";
-
-  if (S.theme === "boite") {
-    // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui
-    const spin =
-      S.mode === "play"
-        ? 1.5 + (5 * S.health) / 100
-        : S.mode === "dying"
-          ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
-          : auRepos()
-            ? 1
-            : 0;
-    // La clé du fantôme tourne avec celle du personnage, sans la faire tourner deux fois plus vite
-    if (!fantome) S.keyAng = (S.keyAng || 0) + dt * spin;
-    const brass = hsl(42, 65, 55),
-      porcelain = hurt ? COL.bad : hsl(198, 30, 62);
-    if (!sliding) {
-      g.strokeStyle = brass;
+  const arme = aLaPose(ici, (cx, sol): [number, number] => {
+    const w = sliding ? 60 : PW * (1 + 0.35 * ecrase),
+      h = sliding ? 30 : PH * (1 - 0.35 * ecrase) - (run ? Math.abs(Math.sin(ph)) * 3 : 0);
+    const x = cx - w / 2,
+      y = sol + yOff - h,
+      hurt = !fantome && pnow - S.hurtAt < 260;
+    const s = run ? Math.sin(ph) : jumping ? 0.6 : 0,
+      hipY = y + h - 14;
+    const gy = sliding ? y + 14 : y + 32;
+    if (impact) {
+      // L'onde de choc s'élargit au sol
+      g.strokeStyle = hsl(HUE_BASS, 90, 70, 0.6 * (1 - e));
       g.lineWidth = 3;
       g.beginPath();
-      g.moveTo(cx - 5, hipY);
-      g.lineTo(cx - 5 + s * 8, y + h);
-      g.moveTo(cx + 5, hipY);
-      g.lineTo(cx + 5 - s * 8, y + h);
+      g.ellipse(cx, sol, 24 + 90 * e, 5 + 10 * e, 0, 0, Math.PI * 2);
       g.stroke();
     }
-    let hx, hy, kx, ky;
-    if (sliding) {
-      rr(x, y + 6, w - 18, h - 6, 10);
-      g.fillStyle = porcelain;
+    g.fillStyle = "rgba(0,0,0,.35)";
+    g.beginPath();
+    g.ellipse(cx, sol + 3, Math.max(6, w * 0.6 * (1 + yOff / 300)), 4, 0, 0, Math.PI * 2);
+    g.fill();
+    g.lineCap = "round";
+
+    if (S.theme === "boite") {
+      // Automate à remonter : la clé tourne vite quand le ressort est tendu, et s'arrête avec lui
+      const spin =
+        S.mode === "play"
+          ? 1.5 + (5 * S.health) / 100
+          : S.mode === "dying"
+            ? 2 * Math.max(0, 1 - (AC.currentTime - S.deathAt) / 1.4)
+            : auRepos()
+              ? 1
+              : 0;
+      // La clé du fantôme tourne avec celle du personnage, sans la faire tourner deux fois plus vite
+      if (!fantome) S.keyAng = (S.keyAng || 0) + dt * spin;
+      const brass = hsl(42, 65, 55),
+        porcelain = hurt ? COL.bad : hsl(198, 30, 62);
+      if (!sliding) {
+        g.strokeStyle = brass;
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(cx - 5, hipY);
+        g.lineTo(cx - 5 + s * 8, y + h);
+        g.moveTo(cx + 5, hipY);
+        g.lineTo(cx + 5 - s * 8, y + h);
+        g.stroke();
+      }
+      let hx, hy, kx, ky;
+      if (sliding) {
+        rr(x, y + 6, w - 18, h - 6, 10);
+        g.fillStyle = porcelain;
+        g.fill();
+        hx = x + w - 11;
+        hy = y + 14;
+        kx = x;
+        ky = y + 16;
+      } else {
+        rr(x + 4, y + 20, w - 8, h - 32, 9);
+        g.fillStyle = porcelain;
+        g.fill();
+        g.fillStyle = brass;
+        g.fillRect(x + 4, y + 34, w - 8, 3);
+        hx = cx;
+        hy = y + 11;
+        kx = x + 4;
+        ky = y + 32;
+      }
+      g.beginPath();
+      g.arc(hx, hy, 11, 0, Math.PI * 2);
+      g.fillStyle = hurt ? COL.bad : COL.fg;
       g.fill();
-      hx = x + w - 11;
-      hy = y + 14;
-      kx = x;
-      ky = y + 16;
-    } else {
-      rr(x + 4, y + 20, w - 8, h - 32, 9);
-      g.fillStyle = porcelain;
+      g.fillStyle = COL.ink;
+      g.beginPath();
+      g.arc(hx + 5, hy - 1, 1.8, 0, Math.PI * 2);
       g.fill();
+      g.fillStyle = hsl(350, 70, 75, 0.6);
+      g.beginPath();
+      g.arc(hx + 3, hy + 5, 2.5, 0, Math.PI * 2);
+      g.fill();
+      // Clé de remontage dans le dos
+      const kw = 1 + 7 * Math.abs(Math.cos(S.keyAng));
       g.fillStyle = brass;
-      g.fillRect(x + 4, y + 34, w - 8, 3);
-      hx = cx;
-      hy = y + 11;
-      kx = x + 4;
-      ky = y + 32;
-    }
-    g.beginPath();
-    g.arc(hx, hy, 11, 0, Math.PI * 2);
-    g.fillStyle = hurt ? COL.bad : COL.fg;
-    g.fill();
-    g.fillStyle = COL.ink;
-    g.beginPath();
-    g.arc(hx + 5, hy - 1, 1.8, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = hsl(350, 70, 75, 0.6);
-    g.beginPath();
-    g.arc(hx + 3, hy + 5, 2.5, 0, Math.PI * 2);
-    g.fill();
-    // Clé de remontage dans le dos
-    const kw = 1 + 7 * Math.abs(Math.cos(S.keyAng));
-    g.fillStyle = brass;
-    g.fillRect(kx - 9, ky - 1.5, 9, 3);
-    g.strokeStyle = brass;
-    g.lineWidth = 2.5;
-    for (const d of [-5, 5]) {
+      g.fillRect(kx - 9, ky - 1.5, 9, 3);
+      g.strokeStyle = brass;
+      g.lineWidth = 2.5;
+      for (const d of [-5, 5]) {
+        g.beginPath();
+        g.ellipse(kx - 13, ky + d, kw, 4.5, 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+      // Diapason doré en guise d'arme
+      g.strokeStyle = hsl(45, 85, 62);
+      g.lineWidth = 2.5;
       g.beginPath();
-      g.ellipse(kx - 13, ky + d, kw, 4.5, 0, 0, Math.PI * 2);
+      g.moveTo(x + w - 6, gy);
+      g.lineTo(x + w + 4, gy);
+      g.moveTo(x + w + 4, gy - 4);
+      g.lineTo(x + w + 4, gy + 4);
+      g.moveTo(x + w + 4, gy - 4);
+      g.lineTo(x + w + 15, gy - 4);
+      g.moveTo(x + w + 4, gy + 4);
+      g.lineTo(x + w + 15, gy + 4);
       g.stroke();
-    }
-    // Diapason doré en guise d'arme
-    g.strokeStyle = hsl(45, 85, 62);
-    g.lineWidth = 2.5;
-    g.beginPath();
-    g.moveTo(x + w - 6, gy);
-    g.lineTo(x + w + 4, gy);
-    g.moveTo(x + w + 4, gy - 4);
-    g.lineTo(x + w + 4, gy + 4);
-    g.moveTo(x + w + 4, gy - 4);
-    g.lineTo(x + w + 15, gy - 4);
-    g.moveTo(x + w + 4, gy + 4);
-    g.lineTo(x + w + 15, gy + 4);
-    g.stroke();
-  } else {
-    // Coursier en patins, casquette et casque audio, mégaphone de la radio pirate
-    const skate = (fx, fy) => {
-      rr(fx - 7, fy - 5, 14, 4, 2);
-      g.fillStyle = hsl(255, 20, 28);
-      g.fill();
-      g.fillStyle = hsl(330, 85, 62);
-      g.beginPath();
-      g.arc(fx - 4, fy, 2, 0, Math.PI * 2);
-      g.arc(fx + 4, fy, 2, 0, Math.PI * 2);
-      g.fill();
-    };
-    if (!sliding) {
-      g.strokeStyle = hsl(HUE_BASS, 90, 62);
-      g.lineWidth = 5;
-      g.beginPath();
-      g.moveTo(cx - 6, hipY);
-      g.lineTo(cx - 6 + s * 9, y + h - 4);
-      g.moveTo(cx + 6, hipY);
-      g.lineTo(cx + 6 - s * 9, y + h - 4);
-      g.stroke();
-      skate(cx - 6 + s * 9, y + h - 1);
-      skate(cx + 6 - s * 9, y + h - 1);
     } else {
-      skate(x + 14, GY - 1);
-      skate(x + w - 18, GY - 1);
+      // Coursier en patins, casquette et casque audio, mégaphone de la radio pirate
+      const skate = (fx, fy) => {
+        rr(fx - 7, fy - 5, 14, 4, 2);
+        g.fillStyle = hsl(255, 20, 28);
+        g.fill();
+        g.fillStyle = hsl(330, 85, 62);
+        g.beginPath();
+        g.arc(fx - 4, fy, 2, 0, Math.PI * 2);
+        g.arc(fx + 4, fy, 2, 0, Math.PI * 2);
+        g.fill();
+      };
+      if (!sliding) {
+        g.strokeStyle = hsl(HUE_BASS, 90, 62);
+        g.lineWidth = 5;
+        g.beginPath();
+        g.moveTo(cx - 6, hipY);
+        g.lineTo(cx - 6 + s * 9, y + h - 4);
+        g.moveTo(cx + 6, hipY);
+        g.lineTo(cx + 6 - s * 9, y + h - 4);
+        g.stroke();
+        skate(cx - 6 + s * 9, y + h - 1);
+        skate(cx + 6 - s * 9, y + h - 1);
+      } else {
+        skate(x + 14, sol - 1);
+        skate(x + w - 18, sol - 1);
+      }
+      const bh = sliding ? h - 6 : h - 12;
+      rr(x, y, w, bh, 12);
+      g.fillStyle = hurt ? COL.bad : COL.fg;
+      g.fill();
+      rr(x + w - 18, y + 8, 14, 9, 4);
+      g.fillStyle = hsl(HUE_MEL, 85, 68);
+      g.fill();
+      rr(x + 2, y - 4, w - 8, 9, 4);
+      g.fillStyle = hsl(330, 85, 62);
+      g.fill();
+      rr(x + w - 10, y + 1, 16, 4, 2);
+      g.fill();
+      g.strokeStyle = hsl(HUE_BASS, 90, 62);
+      g.lineWidth = 3;
+      g.beginPath();
+      g.arc(x + w / 2 - 2, y + 12, w / 2 - 2, Math.PI * 1.08, Math.PI * 1.92);
+      g.stroke();
+      g.fillStyle = hsl(HUE_BASS, 90, 62);
+      rr(x - 2, y + 9, 6, 10, 3);
+      g.fill();
+      g.beginPath();
+      g.moveTo(x + w - 4, gy - 3);
+      g.lineTo(x + w + 13, gy - 8);
+      g.lineTo(x + w + 13, gy + 8);
+      g.lineTo(x + w - 4, gy + 3);
+      g.closePath();
+      g.fillStyle = hsl(HUE_MEL, 85, 68);
+      g.fill();
     }
-    const bh = sliding ? h - 6 : h - 12;
-    rr(x, y, w, bh, 12);
-    g.fillStyle = hurt ? COL.bad : COL.fg;
-    g.fill();
-    rr(x + w - 18, y + 8, 14, 9, 4);
-    g.fillStyle = hsl(HUE_MEL, 85, 68);
-    g.fill();
-    rr(x + 2, y - 4, w - 8, 9, 4);
-    g.fillStyle = hsl(330, 85, 62);
-    g.fill();
-    rr(x + w - 10, y + 1, 16, 4, 2);
-    g.fill();
-    g.strokeStyle = hsl(HUE_BASS, 90, 62);
-    g.lineWidth = 3;
-    g.beginPath();
-    g.arc(x + w / 2 - 2, y + 12, w / 2 - 2, Math.PI * 1.08, Math.PI * 1.92);
-    g.stroke();
-    g.fillStyle = hsl(HUE_BASS, 90, 62);
-    rr(x - 2, y + 9, 6, 10, 3);
-    g.fill();
-    g.beginPath();
-    g.moveTo(x + w - 4, gy - 3);
-    g.lineTo(x + w + 13, gy - 8);
-    g.lineTo(x + w + 13, gy + 8);
-    g.lineTo(x + w - 4, gy + 3);
-    g.closePath();
-    g.fillStyle = hsl(HUE_MEL, 85, 68);
-    g.fill();
-  }
-  const arme: [number, number] = [x + w + 12, gy];
-  if (!fantome) S.gun = arme;
-  return arme;
+    return [x + w + 12, gy];
+  });
+  const ecran = versLEcran(ici, arme[0], arme[1]);
+  if (!fantome) S.gun = ecran;
+  return ecran;
 }
