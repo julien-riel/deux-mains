@@ -140,6 +140,25 @@ function progressionAvecFantome(): Sauvegarde {
   };
 }
 
+// La chanson des essais de la scène en colonnes (#81) : chaque mesure commence par un accord, puis une petite note,
+// une note tenue, une trille ou un serpent ; un relais descend de la mélodie à la basse au milieu du couplet
+const chansonDesColonnes = () =>
+  relayer(
+    accorder(
+      assembler(
+        GRAINE,
+        "normal",
+        [INTRO, couplet(2, 4), refrain(10, 4), OUTRO],
+        {},
+        {
+          couplet: ["0.1.2c3.", "1.2---.."],
+          refrain: ["2.1~~~..", "0.0///.."],
+        },
+      ),
+    ),
+    [[4, false]],
+  );
+
 export const ESSAIS: Essai[] = [
   {
     id: "double-saut",
@@ -679,6 +698,32 @@ export const ESSAIS: Essai[] = [
     // Le fantôme saute et glisse sur chaque obstacle qu'il ne laisse pas passer
     repere: (ev) => ev.hand === "L",
     progression: progressionAvecFantome,
+  },
+  {
+    id: "colonnes-ville",
+    titre: "Scène en colonnes : le pont aérien",
+    verifier:
+      "Des avions larguent les ennemis au-dessus de leur colonne (J K L ;) : ils tombent en parachute le long d'un pointillé et se jouent en touchant le sol. Accords en guirlande, tenues, trilles, serpents, petites notes et relais tombent aussi ; la basse arrive de la droite.",
+    issue: 81,
+    univers: "ville",
+    diff: "normal",
+    scene: "colonnes",
+    mains: "both",
+    chanson: chansonDesColonnes,
+    repere: (ev) => ev.hand === "R",
+  },
+  {
+    id: "colonnes-boite",
+    titre: "Scène en colonnes : les oiseaux mécaniques",
+    verifier:
+      "Des oiseaux mécaniques larguent les ennemis au-dessus de leur colonne (J K L ;) : ils tombent sous des voiles rayées et se jouent en touchant le sol. Accords en guirlande, tenues, trilles, serpents, petites notes et relais tombent aussi ; la basse arrive de la droite.",
+    issue: 81,
+    univers: "boite",
+    diff: "normal",
+    scene: "colonnes",
+    mains: "both",
+    chanson: chansonDesColonnes,
+    repere: (ev) => ev.hand === "R",
   },
 ];
 

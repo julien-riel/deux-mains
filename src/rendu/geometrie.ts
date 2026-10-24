@@ -6,6 +6,7 @@ import type { IdScene } from "../jeu/scenes";
 import { COMMANDES } from "../ui/touches";
 import { H, W } from "./outils";
 import type { Cadre, Scene } from "./scenes/contrat";
+import { COLONNES } from "./scenes/colonnes";
 import { COTE } from "./scenes/cote";
 import { zonesTactiles } from "./zones";
 
@@ -13,7 +14,7 @@ import { zonesTactiles } from "./zones";
  * Les scènes dessinées, par nom (ADR-0019). Une scène nouvelle est un module de `src/rendu/scenes/` qui respecte le
  * contrat (`contrat.ts`), enregistré ici ; un essai la choisit par son champ `scene`.
  */
-export const SCENES_DESSINEES: Partial<Record<IdScene, Scene>> = { cote: COTE };
+export const SCENES_DESSINEES: Partial<Record<IdScene, Scene>> = { cote: COTE, colonnes: COLONNES };
 
 /** La scène de la partie ; la scène de côté si la sienne n'est pas encore dessinée */
 export const scene = (): Scene => SCENES_DESSINEES[S.scene] ?? COTE;

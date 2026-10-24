@@ -6,6 +6,7 @@
 //     là où la note se joue et où se tient le personnage ;
 //   - ce qu'elle laisse voir : combien de temps à l'avance (`avance`), et ce qui est sorti de son champ (`horsChamp`) ;
 //   - la place du boss de fin (`boss`), et le pas de temps qui trace une ligne lisse le long d'une voie (`echantillon`) ;
+//   - où se lit la légende de chaque couloir (`etiquette`, sur le rail de gauche sans elle) ;
 //   - son fond (`fond`) et son sol (`sol`), habillés par chaque univers (ADR-0015).
 //
 // Elle ne juge rien, ne lit de la partie que ce que lui donne la vue (`VueDeScene`), et ne décide d'aucune règle.
@@ -77,6 +78,21 @@ export interface VueDeScene {
   fin: number;
   /** Le solo libre est en cours (#9) : les couloirs battent au temps */
   solo: boolean;
+  /** Les notes de la mélodie qui passent entre les temps `de` et `a`, dans l'ordre du temps */
+  melodie(de: number, a: number): NoteDeScene[];
+}
+
+/**
+ * Une note de la mélodie, telle qu'une scène peut l'habiller (des parachutes, des avions) : son temps, sa voie (là
+ * où elle se montre), sa durée, si elle attend encore d'être jouée (ou est tenue), et si elle fait partie d'un
+ * accord de la main droite. Le dessin de la note elle-même reste commun.
+ */
+export interface NoteDeScene {
+  beat: number;
+  voie: number;
+  dur: number;
+  attend: boolean;
+  accord: boolean;
 }
 
 /** Une scène : sa géométrie, son champ et son décor */
@@ -94,6 +110,11 @@ export interface Scene {
   echantillon: number;
   /** Où plane le boss de fin (#26), derrière les couloirs d'où sortent ses ennemis */
   boss: Pose;
+  /**
+   * Où se lit la légende d'un couloir (sa touche, son degré, sa note) : le bord gauche de sa touche, à mi-hauteur.
+   * Sans elle, sur le rail de gauche, à la hauteur du point d'impact du couloir.
+   */
+  etiquette?(couloir: number): { x: number; y: number };
   /** Le fond, sous les cibles des couloirs : le décor de l'univers et les repères du temps (accords, temps) */
   fond(vue: VueDeScene): void;
   /** Le sol, par-dessus les cibles et sous les notes : le sol de l'univers et ses repères */

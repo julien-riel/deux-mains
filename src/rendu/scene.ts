@@ -76,7 +76,7 @@ import {
   versLEcran,
   type DessinEnnemi,
 } from "./outils";
-import type { Pose, Scene, VueDeScene } from "./scenes/contrat";
+import type { NoteDeScene, Pose, Scene, VueDeScene } from "./scenes/contrat";
 import {
   villeBeam,
   villeBlock,
@@ -219,6 +219,7 @@ export function render(nb, dt) {
       b >= 0 && b < fin * 4 && sectionAtBar(mesureDeLaChanson(Math.floor(b / 4))).kind === "polyrythmie",
     fin,
     solo: playing && estSolo(curSec),
+    melodie: melodieDeLaScene,
   };
   sc.fond(vue);
   // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt
@@ -310,13 +311,14 @@ export function render(nb, dt) {
   // En mode pianiste (#53), les touches sont les notes de l'accord, à jouer à n'importe quelle octave
   const pianiste = nomsDeNotes();
   for (let i = 0; i < 4; i++) {
+    // La légende se lit là où la scène la place, sur le rail sans autre place (ADR-0019)
     const etiquette = pianiste ? nomDeClasse(ch.lanes[i]) : KEYLABEL[LANE_CODES[i]],
-      y = sc.impact(i).y;
-    keycap(24, y - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
-    txt(DEG[i], 64, y - 3, `600 10px ${FONT.mono}`, COL.muted);
-    txt(NOTE[ch.lanes[i] % 12], 64, y + 13, `600 15px ${FONT.mono}`, COL.fg);
+      { x, y } = sc.etiquette?.(i) ?? { x: 24, y: sc.impact(i).y };
+    keycap(x, y - 15, etiquette, hsl(LANE_HUE[i], 80, 70), down(COULOIRS[i]));
+    txt(DEG[i], x + 40, y - 3, `600 10px ${FONT.mono}`, COL.muted);
+    txt(NOTE[ch.lanes[i] % 12], x + 40, y + 13, `600 15px ${FONT.mono}`, COL.fg);
     if (S.formes) {
-      formeCouloir(i, 158, y, 8);
+      formeCouloir(i, x + 134, y, 8);
       g.fillStyle = hsl(LANE_HUE[i], 80, 70);
       g.fill();
     }
@@ -539,6 +541,22 @@ export function keycap(x, y, label, color, down) {
 const VOIE_SILHOUETTE = 1.5;
 // La voie où l'on voit un ennemi encore à jouer : une silhouette ne montre pas son couloir
 const voieVisible = (ev) => (ev.reponse ? VOIE_SILHOUETTE : ev.lane);
+/** Les notes de la mélodie entre deux temps, pour l'habillage de la scène (ADR-0019) : parachutes, avions… */
+function melodieDeLaScene(de: number, a: number): NoteDeScene[] {
+  const notes: NoteDeScene[] = [];
+  for (const ev of S.ev) {
+    if (ev.beat > a) break;
+    if (ev.hand !== "R" || ev.state === "skip" || ev.beat + ev.dur < de) continue;
+    notes.push({
+      beat: ev.beat,
+      voie: voieVisible(ev),
+      dur: ev.dur,
+      attend: ev.state === "pending" || ev.state === "holding",
+      accord: !!ev.grp && ev.grp.filter((e) => e.hand === "R").length > 1,
+    });
+  }
+  return notes;
+}
 
 // Accords : une barre relie les ennemis à tirer ensemble, un pointillé descend vers l'obstacle du même temps
 export function drawChordLinks(sc: Scene, grp, nb) {
@@ -553,6 +571,8 @@ export function drawChordLinks(sc: Scene, grp, nb) {
       .map(voieVisible)
       .sort((u, v) => v - u)
       .map((voie) => sc.poser(grp[0].beat, voie, nb));
+  // Rien tant que la scène cache un des ennemis
+  if (poses.some((p) => !p.visible)) return;
   g.save();
   g.lineCap = "round";
   if (rs.length > 1) {
@@ -605,7 +625,7 @@ function dessinerRelais(sc: Scene, nb, pnow, loin) {
     const passe = part.every((e) => e.state === "hit"),
       p1 = pointDeRelais(sc, de, nb),
       p2 = pointDeRelais(sc, vers, nb);
-    if (sc.horsChamp(p1, "devant", 40)) continue;
+    if (sc.horsChamp(p1, "devant", 40) || !p2.visible) continue;
     const { x: x1, y: y1 } = p1,
       { x: x2, y: y2 } = p2,
       cx = (x1 + x2) / 2,
@@ -806,7 +826,8 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
   // Un ennemi raté plonge sur le joueur, même quand son couloir est déjà sorti de l'écran
   if ((sc.horsChamp(pFin, "derriere", 0) && ev.state !== "miss") || sc.horsChamp(p, "devant", 40)) return;
   if (ev.reponse && ev.state === "pending") return dessinerSilhouette(sc, ev, nb, hsl);
-  const y = p.y + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3 * e;
+  // Tenue, la note reste au point d'impact de son couloir
+  const y = (ev.state === "holding" ? tir.y : p.y) + Math.sin(nb * Math.PI + ev.beat * 1.7) * 3 * e;
   let a = 1;
   if (ev.state === "miss" || ev.state === "broken")
     a = clamp(1 - (pnow - ev.missAt) / 500, 0, 1) * 0.8 || (ev.state === "broken" ? 0.3 : 0);
@@ -828,7 +849,9 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
     // La note tenue se tend de l'ennemi (ou de la ligne de tir, tenue) à la fin de sa note
     const sx = ev.state === "holding" ? tir.x : x,
       v = ondulation(ev, pnow);
-    if (x2 > sx) {
+    // Une note qui ne se tend pas à l'horizontale (une colonne) suit les poses de sa note, en ruban
+    if (pFin.y !== p.y) rubanTenu(sc, ev, nb, e, hsl(hue, 80, 68, (0.3 + 0.35 * v) * a), col);
+    else if (x2 > sx) {
       // Pendant le vibrato (#17), l'ennemi allongé ondule et s'éclaire
       if (v > 0 && !reduced) bandeOndulee(sx, x2, y, 6 * v, pnow, tir.x);
       else rr(sx, y - 8 * e, x2 - sx, 16 * e, 8 * e);
@@ -876,6 +899,29 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
   // Les ennemis issus du solo (#9) portent une étoile qui scintille : c'est la phrase du joueur qui revient
   if (ev.reprise)
     etoile(ex, ey - 34 * e, (8 + (reduced ? 0 : 1.5 * Math.sin(pnow / 140 + ev.beat))) * e, hsl(hue, 95, 85, ea));
+}
+/**
+ * Une note tenue en ruban, le long des poses de sa note : de l'ennemi (ou du point d'impact, tenue) à la fin de sa
+ * note, tant qu'elle reste dans le champ de la scène
+ */
+function rubanTenu(sc: Scene, ev, nb, e, fond, trait) {
+  const fin = ev.beat + ev.dur;
+  g.beginPath();
+  for (let b = ev.state === "holding" ? nb : ev.beat; ; b = Math.min(fin, b + sc.echantillon)) {
+    const q = sc.poser(b, ev.lane, nb);
+    g.lineTo(q.x, q.y);
+    if (b >= fin || sc.horsChamp(q, "devant", 40)) break;
+  }
+  g.save();
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.strokeStyle = fond;
+  g.lineWidth = 16 * e;
+  g.stroke();
+  g.strokeStyle = trait;
+  g.lineWidth = 1.5;
+  g.stroke();
+  g.restore();
 }
 /** Le rebond d'un ennemi après sa frappe, en ms */
 const REBOND = 380;
@@ -1231,15 +1277,19 @@ function dessinerSerpent(sc: Scene, ev, x, nb, pnow, hsl, a): [number, number, n
 function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
   // Les deux couloirs de la trille au temps de la note, et le balancement de l'ennemi
   const de = sc.poser(ev.beat, ev.lane, nb),
+    vers = sc.poser(ev.beat, ev.trille, nb),
     balance = y - de.y,
-    y2 = y - de.y + sc.poser(ev.beat, ev.trille, nb).y,
+    y2 = y - de.y + vers.y,
+    // L'autre couloir de la trille, à côté quand les couloirs sont des colonnes
+    xT = x - de.x + vers.x,
     haut = Math.min(y, y2),
     tenue = ev.state === "holding",
     tir = sc.impact(ev.lane),
     sx = tenue ? tir.x : x,
     v = tenue && ev.trilleAt !== undefined ? clamp(1 - (pnow - ev.trilleAt) / 250, 0, 1) : 0,
     hue = LANE_HUE[ev.lane];
-  if (x2 > sx) {
+  if (sc.poser(ev.beat + ev.dur, ev.lane, nb).y !== de.y) bandeDeTrille(sc, ev, nb, hsl, a, v);
+  else if (x2 > sx) {
     rr(sx, haut - 8, x2 - sx, Math.abs(y2 - y) + 16, 8);
     g.fillStyle = hsl(hue, 80, 68, (0.12 + 0.2 * v) * a);
     g.fill();
@@ -1258,11 +1308,47 @@ function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, num
     g.stroke();
     g.restore();
   }
-  if (!tenue) return [x, reduced ? y : (y + y2) / 2 + ((y - y2) / 2) * Math.sin(pnow / 45)];
+  const va = Math.sin(pnow / 45);
+  if (!tenue) return reduced ? [x, y] : [(x + xT) / 2 + ((x - xT) / 2) * va, (y + y2) / 2 + ((y - y2) / 2) * va];
   const n = ev.alternances ?? 0,
     seuil = seuilTrille(ev);
   txt(`${n}/${seuil}`, tir.x + 26, haut - 14, `600 12px ${FONT.mono}`, n >= seuil ? COL.good : COL.fg);
-  return [tir.x, ev.dernier === ev.trille ? y2 : y];
+  return ev.dernier === ev.trille ? [sc.impact(ev.trille).x, y2] : [tir.x, y];
+}
+/**
+ * La trille (#15) quand ses couloirs ne se tendent pas à l'horizontale (des colonnes) : la bande suit les poses de
+ * ses deux couloirs, du temps de la note (ou de maintenant, tenue) à sa fin, et le zigzag passe de l'un à l'autre
+ */
+function bandeDeTrille(sc: Scene, ev, nb, hsl, a, v) {
+  const debut = ev.state === "holding" ? nb : ev.beat,
+    fin = ev.beat + ev.dur,
+    hue = LANE_HUE[ev.lane],
+    bord: Pose[] = [],
+    autre: Pose[] = [];
+  for (let b = debut; ; b = Math.min(fin, b + sc.echantillon)) {
+    bord.push(sc.poser(b, ev.lane, nb));
+    autre.push(sc.poser(b, ev.trille, nb));
+    if (b >= fin || sc.horsChamp(bord[bord.length - 1], "devant", 40)) break;
+  }
+  g.save();
+  g.lineJoin = "round";
+  g.beginPath();
+  for (const q of [...bord, ...autre.reverse()]) g.lineTo(q.x, q.y);
+  g.closePath();
+  g.fillStyle = g.strokeStyle = hsl(hue, 80, 68, (0.12 + 0.2 * v) * a);
+  g.lineWidth = 16;
+  g.fill();
+  g.stroke();
+  g.beginPath();
+  for (let k = Math.ceil((debut - ev.beat) * 4); k <= 4 * ev.dur; k++) {
+    const q = sc.poser(ev.beat + k / 4, k % 2 ? ev.trille : ev.lane, nb);
+    g.lineTo(q.x, q.y);
+    if (sc.horsChamp(q, "devant", 40)) break;
+  }
+  g.strokeStyle = hsl(hue, 80, 68, (0.55 + 0.45 * v) * a);
+  g.lineWidth = 2 + 2 * v;
+  g.stroke();
+  g.restore();
 }
 
 /** La prochaine note de la main gauche si c'est une marche d'escalier (#13) qui arrive dans le temps qui vient */
