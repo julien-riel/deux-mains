@@ -1,12 +1,12 @@
 {
   "Valse du grenier": {
-    "empreinte": "035cc704b5f731",
+    "empreinte": "13eec90907291f",
     "chanson": {
       "prog": "Cadence andalouse",
       "tonalite": "La mineur",
       "bpm": 96,
       "notes": 50,
-      "empreinte": "ddbf8fa69d18826682aa570a520c29d41012d89e0ad5d5148c6dfdcf209b41ba"
+      "empreinte": "748d401d0dca47e0dd3d7cc65e62ffa15358aef9a96b62b85e31824300e45702"
     }
   },
   "Toute la notation": {
@@ -17,6 +17,106 @@
       "bpm": 104,
       "notes": 99,
       "empreinte": "88665e80da4aa1b846be2514f590df45927c06a32cbfa395169501b81d5ac52d"
+    }
+  },
+  "Accords écrits": {
+    "empreinte": "11d8e8cfcf22d3",
+    "chanson": {
+      "prog": "I–V–vi–IV",
+      "tonalite": "Do majeur",
+      "bpm": 100,
+      "notes": 51,
+      "empreinte": "260ecf1202f60cce9378ada5cae8108294952a6dd3a497a3f7071ec9752e46db"
+    }
+  },
+  "Au clair de la lune": {
+    "empreinte": "1f8df536575631",
+    "chanson": {
+      "prog": "Vamp lydien",
+      "tonalite": "Do majeur",
+      "bpm": 96,
+      "notes": 82,
+      "empreinte": "14bf0f86de9a87709283a06055bbf62ecdab6a14360d571885a99f76ee217312"
+    }
+  },
+  "Frère Jacques": {
+    "empreinte": "1ede5f8fc9308d",
+    "chanson": {
+      "prog": "Royal Road",
+      "tonalite": "Sol majeur",
+      "bpm": 112,
+      "notes": 122,
+      "empreinte": "bda218f1b835dd92827424364931726a141d21211b086bb6ee0fe41978d87d53"
+    }
+  },
+  "Ah ! vous dirai-je, maman": {
+    "empreinte": "0c58db2e3e536a",
+    "chanson": {
+      "prog": "I–V–vi–IV",
+      "tonalite": "Ré majeur",
+      "bpm": 104,
+      "notes": 74,
+      "empreinte": "108ee3536ddb8f6651c41e04ce5525902c142171fdd3d7a35e784e0699afed93"
+    }
+  },
+  "Ode à la joie": {
+    "empreinte": "10d154b9056c60",
+    "chanson": {
+      "prog": "Canon de Pachelbel",
+      "tonalite": "Ré majeur",
+      "bpm": 108,
+      "notes": 104,
+      "empreinte": "f825d6437e2fd7808ecc48cb80de17b0cfe91839e703b4c26f2faa1eba2a4477"
+    }
+  },
+  "When the Saints Go Marching In": {
+    "empreinte": "055a7678b671a0",
+    "chanson": {
+      "prog": "Blues",
+      "tonalite": "Mi♭ majeur",
+      "bpm": 120,
+      "notes": 73,
+      "empreinte": "5490103a824be89f1e0dfaf2651cfe6eeca592f8a75300da3ff67eb01def5222"
+    }
+  },
+  "Jingle Bells": {
+    "empreinte": "0a813c0c17bb45",
+    "chanson": {
+      "prog": "ii–V–I",
+      "tonalite": "Fa majeur",
+      "bpm": 132,
+      "notes": 121,
+      "empreinte": "d00e5ebfeca3bcddc899f44964e3d268452e3456d225fa773f17e3d1bae76fbc"
+    }
+  },
+  "Drunken Sailor": {
+    "empreinte": "0f641bbbdf0d36",
+    "chanson": {
+      "prog": "Vamp dorien",
+      "tonalite": "Ré mineur",
+      "bpm": 132,
+      "notes": 104,
+      "empreinte": "febbfc099748586239a3ec37bbb1d1d928ff646fa050b1e753309e6e5229fd57"
+    }
+  },
+  "Dans l'antre du roi de la montagne": {
+    "empreinte": "05655c8fe99baf",
+    "chanson": {
+      "prog": "Cadence andalouse",
+      "tonalite": "Mi mineur",
+      "bpm": 128,
+      "notes": 102,
+      "empreinte": "03b7f5a8d0e43c60b5a11d4339b7073e72080e70de0d31fee39d22551ed91f2f"
+    }
+  },
+  "Korobeïniki": {
+    "empreinte": "093aa5d36b599b",
+    "chanson": {
+      "prog": "vi–IV–I–V",
+      "tonalite": "Fa♯ mineur",
+      "bpm": 140,
+      "notes": 176,
+      "empreinte": "99728d6f0ca7b9747085b6ebeff8583e51659a77f1ad1b693e8c526dd1d0afc1"
     }
   }
 }

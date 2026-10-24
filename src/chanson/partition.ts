@@ -12,6 +12,10 @@
 // - mélodie : 0 à 3 le couloir, - prolonge la note en note tenue, ~ en trille avec le couloir au-dessus et _ avec
 //   celui au-dessous, / et \ en serpent qui monte ou descend d'un couloir à chacun, a b c une petite note entre les
 //   couloirs 0 et 1, 1 et 2, 2 et 3, qui mène à la note suivante de la mesure, . silence.
+//
+// Depuis la version 2 (ADR-0018) : une section peut écrire ses accords, un par mesure, en chiffres romains (I à VII,
+// minuscules pour un accord mineur, suivis de 7 ou de M7, précédés de b ou # pour un degré abaissé ou haussé) ; sans
+// accords écrits, elle suit la progression. Les petites notes y prennent la gamme entière, et plus la pentatonique.
 import { DIFFS } from "./difficultes";
 import {
   NOM_CROISEE,
@@ -27,7 +31,7 @@ import { NOTE_FR, PROGS, gammeDe, makeChord } from "./theorie";
 import type { Accord, Chanson, Genre, Note, Section } from "./types";
 
 /** La version de la notation. Un nouveau signe ou un nouveau champ l'augmente (ADR-0016). */
-export const VERSION_PARTITION = 1;
+export const VERSION_PARTITION = 2;
 
 export interface SectionDePartition {
   genre: Genre;
@@ -36,6 +40,9 @@ export interface SectionDePartition {
    * liste vide : la main se tait */
   basse: string[];
   melodie: string[];
+  /** Depuis la version 2 (ADR-0018) : les accords de la section, un par mesure en chiffres romains (« I », « V7 »,
+   * « vi », « bVII »), repris en boucle s'il y en a moins que de mesures. Sans eux, elle suit la progression. */
+  accords?: string[];
   /** Un pont en mains croisées (#21) : la scène s'y retourne, et sa mélodie est écrite */
   croisee?: true;
 }
@@ -65,6 +72,21 @@ export const SUITES_MELODIE = "-~_/\\";
 export const DIVISIONS = [8, 12];
 export const LIMITES = { titre: 40, bpm: [60, 180], sections: 16, mesuresParSection: 32, mesures: 64 } as const;
 
+/* ---------- Les accords écrits (version 2, ADR-0018) ---------- */
+const DEGRES: Record<string, number> = { I: 0, II: 2, III: 4, IV: 5, V: 7, VI: 9, VII: 11 };
+const ACCORD = /^([b#]?)(I|II|III|IV|V|VI|VII|i|ii|iii|iv|v|vi|vii)(7|M7)?$/;
+/** Un accord écrit (« V7 », « vi », « bVII », « IVM7 ») : son décalage depuis la tonique et sa qualité, comme dans
+ * `PROGS`, ou null s'il ne s'écrit pas. Un degré en minuscules est mineur ; M7 ne va qu'avec un accord majeur. */
+export function lireAccord(symbole: string): [number, string] | null {
+  const m = ACCORD.exec(symbole);
+  if (!m) return null;
+  const [, alteration, degre, septieme] = m,
+    mineur = degre === degre.toLowerCase();
+  if (mineur && septieme === "M7") return null;
+  const decalage = (DEGRES[degre.toUpperCase()] + (alteration === "b" ? 11 : alteration === "#" ? 1 : 0)) % 12;
+  return [decalage, mineur ? (septieme ? "m7" : "m") : (septieme ?? "M")];
+}
+
 /** Le solo libre : la mélodie y est à celui qui joue, une partition n'en écrit pas */
 export const estSoloLibre = (s: SectionDePartition) => s.genre === "pont" && !s.croisee;
 
@@ -88,6 +110,7 @@ export function normaliser(p: Partition): Partition {
       mesures: s.mesures,
       basse: [...s.basse],
       melodie: [...s.melodie],
+      ...(s.accords ? { accords: [...s.accords] } : {}),
       ...(s.croisee ? { croisee: true as const } : {}),
     })),
   };
@@ -113,6 +136,12 @@ export function lirePartition(brut: unknown): Partition | null {
     if (!s.basse.every((m) => motifValide(m, SIGNES_BASSE))) return null;
     if (!s.melodie.every((m) => motifValide(m, SIGNES_MELODIE))) return null;
     if (s.croisee !== undefined && (s.croisee !== true || s.genre !== "pont")) return null;
+    // Les accords écrits n'existent que depuis la version 2 (ADR-0018)
+    if (s.accords !== undefined) {
+      if ((brut.v as number) < 2 || !Array.isArray(s.accords)) return null;
+      if (s.accords.length < 1 || s.accords.length > LIMITES.mesuresParSection) return null;
+      if (!s.accords.every((a) => typeof a === "string" && lireAccord(a))) return null;
+    }
     // Le solo libre n'a pas de mélodie écrite : tout ce qu'on y joue sonne juste
     if (estSoloLibre(s as unknown as SectionDePartition) && s.melodie.some((m) => /[0-3abc]/.test(m))) return null;
     total += s.mesures as number;
@@ -161,9 +190,10 @@ export function nomDeSection(s: SectionDePartition) {
 /**
  * Les notes de mélodie d'une mesure, d'après un motif (voir la notation en tête du fichier), construites comme
  * celles du générateur (ADR-0003, ADR-0010). La longueur du motif donne sa division (ADR-0013) : chaque position
- * et chaque durée se calcule en pas de la grille de 12 par temps.
+ * et chaque durée se calcule en pas de la grille de 12 par temps. `gamme` : les notes que peuvent prendre les petites
+ * notes, la pentatonique (le générateur, les essais, les partitions v1) ou la gamme entière (partitions v2).
  */
-export function notesDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre, pentatonique: number[]): Note[] {
+export function notesDeMelodie(motif: string, bar: number, ch: Accord, kind: Genre, gamme: number[]): Note[] {
   const signe = PAS_PAR_MESURE / motif.length,
     temps = (k: number) => enTemps(bar * PAS_PAR_MESURE + k * signe),
     notes: Note[] = [];
@@ -173,7 +203,7 @@ export function notesDeMelodie(motif: string, bar: number, ch: Accord, kind: Gen
       // Elle mène à la note suivante de la mesure : vers le haut si celle-ci est au-dessus
       const lane = petite + 0.5,
         suivante = motif.slice(k + 1).match(/[0-3]/),
-        n = petiteNote(lane, !suivante || +suivante[0] > lane, temps(k), bar, ch, kind, pentatonique);
+        n = petiteNote(lane, !suivante || +suivante[0] > lane, temps(k), bar, ch, kind, gamme);
       if (n) notes.push(n);
       continue;
     }
@@ -211,9 +241,10 @@ export function finaliser(chanson: Chanson): Chanson {
 }
 
 /**
- * Compose la chanson d'une partition valide (voir `lirePartition`). Les accords suivent la progression, la basse
- * et la mélodie suivent les motifs ; aucune plaque n'est ajoutée d'office : une partition écrit la sienne (P). La
- * chanson porte sa source, l'empreinte de la partition, qui lui donne aussi sa graine.
+ * Compose la chanson d'une partition valide (voir `lirePartition`). Les accords suivent ceux que la section écrit,
+ * sinon la progression ; la basse et la mélodie suivent les motifs ; aucune plaque n'est ajoutée d'office : une
+ * partition écrit la sienne (P). Les petites notes prennent la pentatonique en version 1, la gamme entière depuis la
+ * version 2 (ADR-0018). La chanson porte sa source, l'empreinte de la partition, qui lui donne aussi sa graine.
  */
 export function composer(p: Partition): Chanson {
   const prog = PROGS.find((x) => x.name === p.prog),
@@ -230,12 +261,19 @@ export function composer(p: Partition): Chanson {
       ...(s.croisee ? { croisee: true as const } : {}),
     });
     for (let i = 0; i < s.mesures; i++) {
-      const ch = makeChord(p.ton, s.genre === "outro" ? prog.end : prog.chords[i % prog.chords.length]);
+      const ch = makeChord(
+        p.ton,
+        s.accords
+          ? lireAccord(s.accords[i % s.accords.length])
+          : s.genre === "outro"
+            ? prog.end
+            : prog.chords[i % prog.chords.length],
+      );
       chords.push(ch);
       if (s.basse.length) ev.push(...notesDeBasse(s.basse[i % s.basse.length], bar + i, ch, s.genre, false));
       if (s.melodie.length)
         ev.push(
-          ...notesDeMelodie(s.melodie[i % s.melodie.length], bar + i, ch, s.genre, gammeDe(p.ton, prog, ch, true)),
+          ...notesDeMelodie(s.melodie[i % s.melodie.length], bar + i, ch, s.genre, gammeDe(p.ton, prog, ch, p.v < 2)),
         );
     }
     bar += s.mesures;
@@ -253,7 +291,9 @@ export function composer(p: Partition): Chanson {
     chanteurs: [],
     endBeat: bar * 4,
     keyName: `${NOTE_FR[p.ton]} ${prog.mode}`,
-    progLabel: prog.chords.map((c) => makeChord(p.ton, c).name).join(" – "),
+    progLabel: p.sections.some((s) => s.accords)
+      ? [...new Set(chords.map((c) => c.name))].slice(0, 6).join(" – ")
+      : prog.chords.map((c) => makeChord(p.ton, c).name).join(" – "),
     source: { genre: "partition", empreinte, titre: p.titre },
   });
 }

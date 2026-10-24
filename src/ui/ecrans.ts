@@ -1,6 +1,7 @@
 /* ---------- Écrans ---------- */
 import { songNow } from "../audio/moteur";
 import { DIFFS } from "../chanson/difficultes";
+import { airDe } from "../chanson/repertoire";
 import { ESSAIS } from "../essais/registre";
 import { METRONOME } from "../jeu/calibrage";
 import { nomDeNote, touchesMidi } from "../jeu/midi";
@@ -13,6 +14,7 @@ import { LANE_HUE } from "../rendu/outils";
 import { TH, ennemiDuLieu, placeName } from "../univers/univers";
 import { carteDisponible, ecranCarte, ecranSauvegarde, prochainLieu, progresDeFin } from "./ecran-carte";
 import { boutonEditeur, ecranEditeur } from "./ecran-editeur";
+import { boutonRepertoire, ecranRepertoire } from "./ecran-repertoire";
 import { CLAVIER, COMMANDES, KEYLABEL, MIDI, etatMidiLong, etiquettes, modePianiste } from "./touches";
 
 export const overlay = document.querySelector<HTMLElement>("#overlay");
@@ -113,12 +115,16 @@ function ligneDepart() {
 }
 // Le retour à l'éditeur (#28) depuis une composition jouée, ou son ouverture dans l'essai de l'éditeur
 const retourEditeur = () => `Retour : ${TH().editeur.nom.toLowerCase()}`;
+// Le retour au répertoire (ADR-0018) depuis un air joué
+const retourRepertoire = () => `Retour : ${TH().repertoire.nom.toLowerCase()}`;
 export function show(kind) {
   const s = S.song,
     D = DIFFS[S.diff],
     essai = S.essai && S.essai.essai,
     // La composition installée (#28), qu'on joue depuis l'éditeur
-    compo = s.source?.genre === "partition" ? s.source : null;
+    compo = s.source?.genre === "partition" ? s.source : null,
+    // Un air du répertoire (ADR-0018) : une partition elle aussi, mais on revient au répertoire
+    air = compo?.repertoire ? airDe(compo.repertoire) : undefined;
   // La durée à la vitesse choisie, qui s'appliquera au départ (#4)
   const len = Math.round((s.totalBars * 4 * 60) / (s.bpm * S.vitesse)),
     boucle = s.sections[S.boucle],
@@ -152,6 +158,18 @@ export function show(kind) {
       ${essai.partition ? boutonEditeur(retourEditeur()) : ""}${boutonCarte()}${sortiesEssai()}</div>`;
   } else if (kind === "editeur") {
     h = ecranEditeur();
+  } else if (kind === "repertoire") {
+    h = ecranRepertoire();
+  } else if (kind === "title" && air) {
+    h = `<p class="eyebrow">${TH().label} · ${TH().repertoire.nom} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}</p>
+      <h2>${echapper(air.partition.titre)}</h2>
+      <p class="meta">${air.origine} · ${placeName()} · ${s.keyName} · ${s.bpm} BPM · ${len} s</p>
+      <p class="hint">Ennemis : ${ennemiDuLieu().nom} · Mélodie : ${ennemiDuLieu().instrument} · Accords : ${s.progLabel}</p>
+      <div class="actions"><button class="primary" type="button" data-act="start">Jouer <kbd>Espace</kbd></button>
+      <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
+      ${boutonRepertoire(retourRepertoire())}
+      <button type="button" data-act="editer-air">Ouvrir : ${TH().editeur.nom.toLowerCase()} <kbd>P</kbd></button>
+      <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   } else if (kind === "title" && compo) {
     // Une composition (#28) : son titre, et le retour à l'éditeur
     h = `<p class="eyebrow">${TH().label} · ${TH().editeur.nom} · ${D.label}${mains}${S.vitesse < 1 ? ` · vitesse ${Math.round(S.vitesse * 100)} %` : ""}</p>
@@ -194,6 +212,7 @@ export function show(kind) {
       ${boutonCarte()}
       ${boutonBoss()}
       ${boutonEditeur()}
+      ${boutonRepertoire()}
       <button type="button" data-act="essais">Essais <kbd>E</kbd></button>${
         COMMANDES.tactile
           ? `<button type="button" data-act="reglages">Réglages</button>${
@@ -269,7 +288,7 @@ export function show(kind) {
       <p class="meta">Mesure ${bar + 1} sur ${s.totalBars}, pendant : ${sec.name}.</p>
       <div class="actions"><button class="primary" type="button" data-act="resume">Reprendre ${where} <kbd>R</kbd></button>
       <button type="button" data-act="restart">Recommencer <kbd>Entrée</kbd></button>
-      ${compo ? boutonEditeur(retourEditeur()) : ""}${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
+      ${air ? boutonRepertoire(retourRepertoire()) : compo ? boutonEditeur(retourEditeur()) : ""}${essai ? sortiesEssai() : `${boutonCarte()}<button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button>`}</div>`;
   } else if (kind === "done" && essai) {
     h = `<p class="eyebrow">Essai · ${essai.titre} · ${S.pianiste ? "mode pianiste · " : ""}${S.auto ? "auto-play" : `précision ${Math.round(precision(S.perfect, S.good, S.miss) * 100)} %`}</p>
       <h2>Essai terminé</h2>
@@ -299,9 +318,11 @@ export function show(kind) {
       S.pianiste && !S.autoUsed
         ? `<p class="meta">Mode pianiste : ce score se lit à part, il ne compte pas pour le record de la chanson.</p>`
         : "";
-    const ou = compo
-      ? `${TH().editeur.nom} · ${echapper(compo.titre.trim() || TH().editeur.sansTitre)}`
-      : `${placeName()} · ${TH().unit} n° ${S.seed}`;
+    const ou = air
+      ? `${TH().repertoire.nom} · ${echapper(air.partition.titre)}`
+      : compo
+        ? `${TH().editeur.nom} · ${echapper(compo.titre.trim() || TH().editeur.sansTitre)}`
+        : `${placeName()} · ${TH().unit} n° ${S.seed}`;
     h = `<p class="eyebrow">${ou} · ${tag}</p><h2>${S.auto ? "Écoute terminée" : S.autoUsed ? "Entraînement terminé" : rank}</h2>
       ${
         duo
@@ -317,7 +338,7 @@ export function show(kind) {
       <div class="actions"><button class="primary" type="button" data-act="restart">Jouer <kbd>Entrée</kbd></button>
       ${boutonReecoute()}
       <button type="button" data-act="listen">Écouter en auto-play ${k("KeyA")}</button>
-      ${compo ? boutonEditeur(retourEditeur()) : `${boutonSuivant()}${boutonBoss()}`}${boutonCarte()}
+      ${air ? boutonRepertoire(retourRepertoire()) : compo ? boutonEditeur(retourEditeur()) : `${boutonSuivant()}${boutonBoss()}`}${boutonCarte()}
       <button type="button" data-act="new">Nouvelle chanson <kbd>N</kbd></button></div>`;
   }
   overlay.innerHTML = h;

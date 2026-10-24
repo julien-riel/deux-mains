@@ -65,6 +65,12 @@ export interface Univers {
     rangees: string;
     aide: string;
   };
+  /** Le répertoire des chansons connues (ADR-0018) : le nom du bouton, le titre de l'écran et ce qu'il dit */
+  repertoire: {
+    nom: string;
+    titre: string;
+    aide: string;
+  };
 }
 
 // Deux univers : mêmes mécaniques, habillage différent (décor, sons, textes)
@@ -137,6 +143,11 @@ export const THEMES: Record<string, Univers> = {
       sansTitre: "Émission sans titre",
       rangees: "Mes émissions",
       aide: "Allume une touche pour y mettre une note : en haut les quatre couloirs de la mélodie, en bas sauter et glisser. Les notes jouent les degrés de l'accord en cours.",
+    },
+    repertoire: {
+      nom: "Disques",
+      titre: "Les disques de la radio pirate",
+      aide: "Des airs que toute la ville fredonnait avant le silence, réarrangés pour la radio pirate. Chacun passe dans un quartier, avec ses ennemis, mais ne le rallume pas.",
     },
   },
   boite: {
@@ -217,6 +228,11 @@ export const THEMES: Record<string, Univers> = {
       sansTitre: "Cylindre sans titre",
       rangees: "Mes cylindres",
       aide: "Plante un picot pour y mettre une note : en haut les quatre lames de la mélodie, en bas sauter et glisser. Les lames jouent les degrés de l'accord en cours.",
+    },
+    repertoire: {
+      nom: "Airs",
+      titre: "Les airs de la boîte",
+      aide: "Des airs anciens que la boîte a toujours su jouer. Chacun se joue dans un souvenir, avec ses ennemis ; il ne compte pas pour l'album.",
     },
   },
 };

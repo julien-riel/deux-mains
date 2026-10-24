@@ -1,6 +1,6 @@
 # ADR-0016 : Écrire les chansons à la main en partitions de motifs par mesure, compilées en chanson
 
-- **Statut** : Acceptée
+- **Statut** : Acceptée (les accords imposés par la progression et les petites notes pentatoniques sont remplacés par [ADR-0018](0018-accords-ecrits-et-repertoire-de-chansons-connues.md))
 - **Date** : 2026-10-23
 - **Issues liées** : #28
 - **Artefact de décision** : https://claude.ai/artifact/DHPaMew5QGbfRt9tyNHYcB (question 4)

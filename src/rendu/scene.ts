@@ -392,10 +392,10 @@ export function render(nb, dt) {
   g.restore();
   croisement(vue.annonce, bp);
 
-  // HUD : une composition (#28) montre son titre à la place du lieu
+  // HUD : une composition (#28) ou un air du répertoire (ADR-0018) montre son titre à la place du lieu
   const compo = S.song.source?.genre === "partition" ? S.song.source : null;
   txt(
-    `${S.essai ? `ESSAI · ${S.essai.essai.titre.toUpperCase()}` : compo ? TH().editeur.nom.toUpperCase() : `${TH().unit.toUpperCase()} N° ${S.seed}`} · ${DIFFS[S.diff].label.toUpperCase()}`,
+    `${S.essai ? `ESSAI · ${S.essai.essai.titre.toUpperCase()}` : compo?.repertoire ? TH().repertoire.nom.toUpperCase() : compo ? TH().editeur.nom.toUpperCase() : `${TH().unit.toUpperCase()} N° ${S.seed}`} · ${DIFFS[S.diff].label.toUpperCase()}`,
     24,
     36,
     `600 11px ${FONT.mono}`,

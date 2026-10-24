@@ -139,7 +139,9 @@ export interface Progression {
 /** D'où vient une chanson (ADR-0016) : une graine et une difficulté (ADR-0005), ou une partition écrite à la main
  * (#28), désignée par son empreinte. Une chanson d'essai, réassemblée par la fabrique, n'en a pas. */
 export type SourceChanson =
-  { genre: "graine"; graine: number; diff: string } | { genre: "partition"; empreinte: string; titre: string };
+  | { genre: "graine"; graine: number; diff: string }
+  /** `repertoire` : l'identifiant de la chanson connue du répertoire (ADR-0018), quand elle en vient */
+  | { genre: "partition"; empreinte: string; titre: string; repertoire?: string };
 
 export interface Chanson {
   /** La graine du hasard de la chanson ; celle d'une partition est tirée de son empreinte */

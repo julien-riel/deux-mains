@@ -5,11 +5,12 @@ import { randomSeed } from "../chanson/aleatoire";
 import { buildBoss } from "../chanson/boss";
 import { buildSong } from "../chanson/generateur";
 import { composer, type Partition } from "../chanson/partition";
+import { airDe, composerAir, type Air } from "../chanson/repertoire";
 import type { Chanson } from "../chanson/types";
 import type { Essai } from "../essais/registre";
 import { resetRun } from "../jeu/deroulement";
 import { noter } from "../jeu/enregistrement";
-import { S, spb, type EssaiEnCours, type Mains } from "../jeu/etat";
+import { S, airEnCours, spb, type EssaiEnCours, type Mains } from "../jeu/etat";
 import { abandonnerReecoute, mainsDuJoueur } from "../jeu/reecoute";
 import { clamp } from "../outils";
 import { placeName } from "../univers/univers";
@@ -66,6 +67,23 @@ export function chargerComposition(p: Partition) {
   S.avantComposition ??= { diff: S.diff, boucle: S.boucle };
   S.boucle = -1;
   installer(composer(p), p.diff);
+}
+/**
+ * Une chanson du répertoire (ADR-0018) : elle s'installe comme une composition, sans la boucle du joueur, mais dans
+ * la difficulté qu'il a choisie, qu'on retient. Changer de difficulté la reprend dans la nouvelle.
+ */
+export function chargerAir(air: Air, diff: string) {
+  if (S.essai) return;
+  S.avantComposition ??= { diff: S.diff, boucle: S.boucle };
+  S.avantComposition.diff = diff;
+  S.boucle = -1;
+  installer(composerAir(air, diff), diff);
+  try {
+    localStorage.setItem("deux-mains-diff", diff);
+  } catch {
+    /* stockage indisponible */
+  }
+  show("title");
 }
 function rendreComposition() {
   const a = S.avantComposition;
@@ -131,7 +149,11 @@ function retenir<K extends keyof typeof CLES>(k: K, v: EssaiEnCours["avant"][K])
 
 document
   .querySelectorAll<HTMLInputElement>('input[name="diff"]')
-  .forEach((r) => r.addEventListener("change", () => load(S.seed, r.value, enBoss())));
+  .forEach((r) =>
+    r.addEventListener("change", () =>
+      airEnCours() ? chargerAir(airDe(airEnCours()), r.value) : load(S.seed, r.value, enBoss()),
+    ),
+  );
 document
   .querySelectorAll<HTMLInputElement>('input[name="hands"]')
   .forEach((r) => r.addEventListener("change", () => setPractice(r.value as Mains)));
