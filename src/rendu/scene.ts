@@ -34,6 +34,7 @@ import { TH, ennemiDuLieu, placeName } from "../univers/univers";
 import { ENNEMIS_BOITE } from "./ennemis-boite";
 import { ENNEMIS_VILLE } from "./ennemis-ville";
 import { dessinerZones } from "./commandes";
+import { cintrer, voieDroite } from "./cintrage";
 import { dessinerRemontage } from "./remontage";
 import {
   boiteBlock,
@@ -69,6 +70,7 @@ import {
   formeCouloir,
   g,
   hexA,
+  hh,
   reduced,
   rr,
   teinteDeCouloir,
@@ -220,6 +222,10 @@ export function render(nb, dt) {
     fin,
     solo: playing && estSolo(curSec),
     melodie: melodieDeLaScene,
+    // Les ratés des derniers temps, que le disque raye sur ses anneaux (#80)
+    rates: S.ev
+      .filter((ev) => ev.state === "miss" && ev.missAt !== undefined && ev.beat > nb - 20 && ev.beat <= nb)
+      .map((ev) => ({ beat: ev.beat, voie: ev.hand === "L" ? "basse" : ev.lane, at: ev.missAt })),
   };
   sc.fond(vue);
   // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt
@@ -576,11 +582,23 @@ export function drawChordLinks(sc: Scene, grp, nb) {
   g.save();
   g.lineCap = "round";
   if (rs.length > 1) {
-    g.strokeStyle = hexA(COL.fg, 0.6);
-    g.lineWidth = 4;
+    // Un éclair relie les ennemis à tirer ensemble (#80) ; il crépite, sauf avec « Mouvement réduit »
+    const a = poses[0],
+      b = poses[poses.length - 1],
+      long = Math.hypot(b.x - a.x, b.y - a.y) || 1,
+      [nx, ny] = [(a.y - b.y) / long, (b.x - a.x) / long],
+      n = Math.max(2, Math.round(long / 14)),
+      crepite = Math.floor(nb * 6);
     g.beginPath();
-    g.moveTo(poses[0].x, poses[0].y);
-    g.lineTo(poses[poses.length - 1].x, poses[poses.length - 1].y);
+    for (let k = 0; k <= n; k++) {
+      const j = k === 0 || k === n || reduced ? 0 : (hh(grp[0].beat * 12 + k, crepite) - 0.5) * 10;
+      g.lineTo(a.x + ((b.x - a.x) * k) / n + nx * j, a.y + ((b.y - a.y) * k) / n + ny * j);
+    }
+    g.strokeStyle = hexA(COL.fg, 0.35);
+    g.lineWidth = 5;
+    g.stroke();
+    g.strokeStyle = hexA(COL.fg, 0.85);
+    g.lineWidth = 1.6;
     g.stroke();
   }
   if (l && rs.length) {
@@ -748,45 +766,61 @@ export function drawObstacle(sc: Scene, ev, nb, hsl) {
       txt(note ?? KEYLABEL.KeyW, x, sol - 58 - haut, `600 13px ${FONT.mono}`, fill, "center");
     });
   else if (ev.fin !== undefined) {
-    // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps
-    const a = p0.x,
-      b = sc.poser(ev.beat + ev.dur, "basse", nb).x,
-      sol = p0.y,
-      monte = ev.fin > ev.midi;
-    (boite ? boitePente : villePente)(a, b, sol, sol - hauteurPente(ev, 0), sol - hauteurPente(ev, 1), fill);
-    if (ev.state === "holding") {
-      const px = clamp(sc.impact("basse").x, a, b);
-      g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
-      g.lineWidth = 3;
-      g.beginPath();
-      g.moveTo(a, sol - hauteurPente(ev, 0) - 6);
-      g.lineTo(px, sol - hauteurPente(ev, (px - a) / (b - a)) - 6);
-      g.stroke();
-    }
-    const ly = sol - RAMPE - 46;
-    rr(a + 4, ly - 14, note ? 102 : 84, 18, 4);
-    g.fillStyle = hexA(COL.ink, 0.7);
-    g.fill();
-    txt(`${note ?? KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
-  } else if (ev.dur > 0) {
-    // Le tunnel finit avant la fin de la note : on se relève une fois sorti
-    const a = p.x - 16,
-      b = sc.poser(ev.beat + ev.dur, "basse", nb).x - 20,
-      sol = p.y;
-    g.fillStyle = hsl(HUE_BASS, 40, 60, 0.1);
-    g.fillRect(a, sol - 409, b - a, 324);
-    if (boite) boiteTunnel(a, b, sol, fill);
-    else villeTunnel(a, b, sol, fill);
-    if (ev.state === "holding") {
-      const px = clamp(sc.impact("basse").x, a, b);
-      rr(a, sol - 85, px - a, 42, 6);
-      g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
+    // La pente (#12) commence et finit avec la note : le personnage la parcourt en glissade, pile sur le temps. Elle
+    // se tend le long du sol, et se courbe avec lui
+    const monte = ev.fin > ev.midi;
+    cintrer(sc, "basse", ev.beat, ev.beat + ev.dur, nb, (x, sol) => {
+      const a = x(ev.beat),
+        b = x(ev.beat + ev.dur);
+      (boite ? boitePente : villePente)(a, b, sol, sol - hauteurPente(ev, 0), sol - hauteurPente(ev, 1), fill);
+      if (ev.state === "holding") {
+        const px = clamp(x(nb), a, b);
+        g.strokeStyle = hsl(HUE_BASS, 95, 80, 0.8);
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(a, sol - hauteurPente(ev, 0) - 6);
+        g.lineTo(px, sol - hauteurPente(ev, (px - a) / (b - a)) - 6);
+        g.stroke();
+      }
+    });
+    aLaPose(p0, (a, sol) => {
+      const ly = sol - RAMPE - 46;
+      rr(a + 4, ly - 14, note ? 102 : 84, 18, 4);
+      g.fillStyle = hexA(COL.ink, 0.7);
       g.fill();
-    }
-    rr(a + 4, sol - 73, note ? 84 : 66, 18, 4);
-    g.fillStyle = hexA(COL.ink, 0.7);
-    g.fill();
-    txt(`${note ?? KEYLABEL.KeyS} tenu`, a + 10, sol - 59, `600 13px ${FONT.mono}`, fill);
+      txt(`${note ?? KEYLABEL.KeyS} tenu ${monte ? "↗" : "↘"}`, a + 10, ly, `600 13px ${FONT.mono}`, fill);
+    });
+  } else if (ev.dur > 0) {
+    // Le tunnel finit avant la fin de la note : on se relève une fois sorti. Il se courbe avec le sol
+    cintrer(
+      sc,
+      "basse",
+      ev.beat,
+      ev.beat + ev.dur,
+      nb,
+      (x, sol) => {
+        const a = x(ev.beat + devance) - 16,
+          b = x(ev.beat + ev.dur) - 20;
+        g.fillStyle = hsl(HUE_BASS, 40, 60, 0.1);
+        g.fillRect(a, sol - 409, b - a, 324);
+        if (boite) boiteTunnel(a, b, sol, fill);
+        else villeTunnel(a, b, sol, fill);
+        if (ev.state === "holding") {
+          const px = clamp(x(nb), a, b);
+          rr(a, sol - 85, px - a, 42, 6);
+          g.fillStyle = hsl(HUE_BASS, 95, 80, 0.45);
+          g.fill();
+        }
+        // Sur une voie courbe, l'ombre du tunnel ne monte pas plus haut que lui
+      },
+      { haut: 110 },
+    );
+    aLaPose(p, (x, sol) => {
+      rr(x - 12, sol - 73, note ? 84 : 66, 18, 4);
+      g.fillStyle = hexA(COL.ink, 0.7);
+      g.fill();
+      txt(`${note ?? KEYLABEL.KeyS} tenu`, x - 6, sol - 59, `600 13px ${FONT.mono}`, fill);
+    });
   } else
     aLaPose(p, (x, sol) => {
       if (boite) boiteBeam(x, sol, fill);
@@ -822,7 +856,6 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
     tir = sc.impact(ev.lane),
     e = p.echelle;
   let x = p.x;
-  const x2 = pFin.x;
   // Un ennemi raté plonge sur le joueur, même quand son couloir est déjà sorti de l'écran
   if ((sc.horsChamp(pFin, "derriere", 0) && ev.state !== "miss") || sc.horsChamp(p, "devant", 40)) return;
   if (ev.reponse && ev.state === "pending") return dessinerSilhouette(sc, ev, nb, hsl);
@@ -841,27 +874,31 @@ export function drawEnemy(sc: Scene, ev, nb, pnow, hsl) {
   // Le couloir de l'ennemi : celui où en est le serpent (#16), qui change en chemin
   let yh = y,
     lane = ev.lane;
-  if (ev.trille !== undefined) [x, yh] = dessinerTrille(sc, ev, x, x2, y, nb, pnow, hsl, a);
+  if (ev.trille !== undefined) [x, yh] = dessinerTrille(sc, ev, x, y, nb, pnow, hsl, a);
   else if (ev.serpent) [x, yh, lane] = dessinerSerpent(sc, ev, x, nb, pnow, hsl, a);
   const hue = LANE_HUE[lane],
     col = ev.state === "miss" ? hexA(COL.bad, a) : hsl(hue, 80, 68, a);
   if (ev.dur > 0 && ev.trille === undefined && !ev.serpent) {
-    // La note tenue se tend de l'ennemi (ou de la ligne de tir, tenue) à la fin de sa note
-    const sx = ev.state === "holding" ? tir.x : x,
+    // La note tenue se tend de l'ennemi (ou de la ligne de tir, tenue) à la fin de sa note, le long de son couloir
+    const debut = ev.state === "holding" ? nb : ev.beat,
       v = ondulation(ev, pnow);
-    // Une note qui ne se tend pas à l'horizontale (une colonne) suit les poses de sa note, en ruban
-    if (pFin.y !== p.y) rubanTenu(sc, ev, nb, e, hsl(hue, 80, 68, (0.3 + 0.35 * v) * a), col);
-    else if (x2 > sx) {
+    // Une note qui ne se tend pas à l'horizontale (une colonne, un anneau du disque) suit les poses de sa note, en
+    // ruban
+    if (!voieDroite(sc, ev.lane, ev.beat, ev.beat + ev.dur, nb))
+      rubanTenu(sc, ev, nb, e, hsl(hue, 80, 68, (0.3 + 0.35 * v) * a), col);
+    else if (ev.beat + ev.dur > debut) {
+      const sx = ev.state === "holding" ? tir.x : x;
       // Pendant le vibrato (#17), l'ennemi allongé ondule et s'éclaire
-      if (v > 0 && !reduced) bandeOndulee(sx, x2, y, 6 * v, pnow, tir.x);
-      else rr(sx, y - 8 * e, x2 - sx, 16 * e, 8 * e);
+      if (v > 0 && !reduced) bandeOndulee(sx, pFin.x, y, 6 * v, pnow, tir.x);
+      else rr(sx, y - 8 * e, pFin.x - sx, 16 * e, 8 * e);
       g.fillStyle = hsl(hue, 80, 68, (0.3 + 0.35 * v) * a);
       g.fill();
       g.strokeStyle = col;
       g.lineWidth = 1.5;
       g.stroke();
     }
-    if (ev.state === "holding") x = tir.x;
+    // Tenue, elle se joue à la ligne de tir
+    if (ev.state === "holding") [x, yh] = [tir.x, tir.y + y - p.y];
   }
   // Halo à la forme du couloir : il reste sur le couloir, qu'il marque, même quand l'ennemi s'en écarte
   formeCouloir(lane, x, yh, 24 * e);
@@ -1274,7 +1311,7 @@ function dessinerSerpent(sc: Scene, ev, x, nb, pnow, hsl, a): [number, number, n
  * l'autre. L'ennemi vibre entre les deux couloirs ; pendant la trille, il suit le dernier couloir appuyé et le
  * compte des alternances s'affiche. Renvoie la place de l'ennemi.
  */
-function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, number] {
+function dessinerTrille(sc: Scene, ev, x, y, nb, pnow, hsl, a): [number, number] {
   // Les deux couloirs de la trille au temps de la note, et le balancement de l'ennemi
   const de = sc.poser(ev.beat, ev.lane, nb),
     vers = sc.poser(ev.beat, ev.trille, nb),
@@ -1286,16 +1323,15 @@ function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, num
     tenue = ev.state === "holding",
     tir = sc.impact(ev.lane),
     sx = tenue ? tir.x : x,
+    x2 = sc.poser(ev.beat + ev.dur, ev.lane, nb).x,
     v = tenue && ev.trilleAt !== undefined ? clamp(1 - (pnow - ev.trilleAt) / 250, 0, 1) : 0,
     hue = LANE_HUE[ev.lane];
-  if (sc.poser(ev.beat + ev.dur, ev.lane, nb).y !== de.y) bandeDeTrille(sc, ev, nb, hsl, a, v);
+  if (!voieDroite(sc, ev.lane, ev.beat, ev.beat + ev.dur, nb)) bandeDeTrille(sc, ev, nb, hsl, a, v);
   else if (x2 > sx) {
     rr(sx, haut - 8, x2 - sx, Math.abs(y2 - y) + 16, 8);
     g.fillStyle = hsl(hue, 80, 68, (0.12 + 0.2 * v) * a);
     g.fill();
     g.save();
-    g.beginPath();
-    g.rect(sx, 0, x2 - sx, H);
     g.clip();
     g.beginPath();
     // Le zigzag passe d'un couloir à l'autre à chaque double-croche
@@ -1312,11 +1348,20 @@ function dessinerTrille(sc: Scene, ev, x, x2, y, nb, pnow, hsl, a): [number, num
   if (!tenue) return reduced ? [x, y] : [(x + xT) / 2 + ((x - xT) / 2) * va, (y + y2) / 2 + ((y - y2) / 2) * va];
   const n = ev.alternances ?? 0,
     seuil = seuilTrille(ev);
-  txt(`${n}/${seuil}`, tir.x + 26, haut - 14, `600 12px ${FONT.mono}`, n >= seuil ? COL.good : COL.fg);
-  return ev.dernier === ev.trille ? [sc.impact(ev.trille).x, y2] : [tir.x, y];
+  // Pendant la trille, l'ennemi se tient au point d'impact de son dernier couloir, même quand la note passée
+  // s'éloigne de la ligne (une colonne, un anneau)
+  const autre = sc.impact(ev.trille);
+  txt(
+    `${n}/${seuil}`,
+    tir.x + 26,
+    Math.min(tir.y, autre.y) + balance - 14,
+    `600 12px ${FONT.mono}`,
+    n >= seuil ? COL.good : COL.fg,
+  );
+  return ev.dernier === ev.trille ? [autre.x, autre.y + balance] : [tir.x, tir.y + balance];
 }
 /**
- * La trille (#15) quand ses couloirs ne se tendent pas à l'horizontale (des colonnes) : la bande suit les poses de
+ * La trille (#15) quand ses couloirs ne se tendent pas à l'horizontale (des colonnes, les anneaux du disque) : la bande suit les poses de
  * ses deux couloirs, du temps de la note (ou de maintenant, tenue) à sa fin, et le zigzag passe de l'un à l'autre
  */
 function bandeDeTrille(sc: Scene, ev, nb, hsl, a, v) {

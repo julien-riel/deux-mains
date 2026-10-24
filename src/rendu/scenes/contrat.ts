@@ -78,6 +78,9 @@ export interface VueDeScene {
   fin: number;
   /** Le solo libre est en cours (#9) : les couloirs battent au temps */
   solo: boolean;
+  /** Les notes ratées des derniers temps, pour qu'une scène les marque dans son décor : leur temps, leur voie et
+   * l'heure du raté (performance.now) */
+  rates: { beat: number; voie: Voie; at: number }[];
   /** Les notes de la mélodie qui passent entre les temps `de` et `a`, dans l'ordre du temps */
   melodie(de: number, a: number): NoteDeScene[];
 }
