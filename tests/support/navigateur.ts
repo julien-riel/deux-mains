@@ -168,6 +168,7 @@ function contexte2d(textes: string[], remplissages: string[]) {
     // La couleur de chaque rectangle plein : les fenêtres allumées de la Ville, les photographies de la Boîte (#25)
     fillRect: () => void remplissages.push(String(cible.fillStyle)),
     measureText: () => ({ width: 0 }),
+    createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }),
     createLinearGradient: () => degrade,
     createRadialGradient: () => degrade,
   };
@@ -351,6 +352,8 @@ export class Navigateur {
         // Le même élément à chaque recherche, pour garder ses écouteurs
         querySelector: (s: string) => (elements[s] ??= element()),
         querySelectorAll: () => [],
+        // Les toiles hors de l'écran du papier découpé (#78) : on n'y garde ni textes ni couleurs
+        createElement: () => element({ getContext: () => contexte2d([], []) }),
         getElementById: (id: string) => parId.get(id) ?? parId.set(id, element()).get(id),
         addEventListener: page.addEventListener,
       },

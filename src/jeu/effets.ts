@@ -1,7 +1,8 @@
 // Les effets du jugement : ce que le son et l'image font quand un coup est jugé
 import { glisserVoix, harmV, leadTimbre, leadV, playHit, thud, tick } from "../audio/instruments";
-import { AC, timeOfBeat } from "../audio/moteur";
+import { AC, songNow, timeOfBeat } from "../audio/moteur";
 import { TH } from "../univers/univers";
+import { casser, pincer } from "../rendu/cordes";
 import { scene } from "../rendu/geometrie";
 import {
   COL,
@@ -15,8 +16,9 @@ import {
   reduced,
   teinteDeCouloir,
 } from "../rendu/outils";
+import { froisser } from "../rendu/papier";
 import { die } from "./deroulement";
-import { S, chordAtBeat, layers } from "./etat";
+import { S, chordAtBeat, layers, spb } from "./etat";
 import { couloirDe, type Effets } from "./jugement";
 
 // L'heure où sonne un coup « tout de suite » : maintenant, ou l'heure où le joueur l'avait joué quand la réécoute
@@ -68,6 +70,8 @@ export const effets: Effets = {
       const a = couloir(ev.lane),
         y = (a.y + couloir(ev.trille).y) / 2;
       popup(bonus ? `Trille +${bonus}` : "Trille", a.x + 30, y - 26, COL.good);
+      pincer(ev.lane, ev.beat, true);
+      pincer(ev.trille, ev.beat, true);
       burst(a.x, y, LANE_HUE[ev.lane], 22);
       return;
     }
@@ -87,6 +91,8 @@ export const effets: Effets = {
         c = couloir(ev.lane);
       popupCouloir(label, ev.lane, color);
       burst(c.x, c.y, teinteDeCouloir(ev.lane), petite ? 8 : 16);
+      // Le tir réussi pince la corde de son couloir (#78)
+      pincer(ev.lane, ev.beat, perfect);
     }
   },
   accord(grp) {
@@ -100,8 +106,14 @@ export const effets: Effets = {
       S.shake = reduced ? 0 : 9;
       thud();
       popupJoueur("Aïe", COL.bad);
+      const j = joueur();
+      froisser(j.x, j.y - 60, performance.now());
     } else {
       popupCouloir("Raté", ev.lane, COL.bad);
+      // Le raté froisse le papier et casse la corde de son couloir, qui se renoue (#78)
+      const c = couloir(ev.lane);
+      froisser(c.x, c.y, performance.now());
+      casser(ev.lane, ev.beat);
       // L'ennemi raté plonge sur le joueur : il le frappe à la fin de sa plongée. Ce n'est qu'une image, les
       // dégâts tombent au raté ; une petite note (#14) ne plonge pas. Le choc sonne à l'heure de l'horloge audio
       // (ADR-0004), l'image le suit
@@ -149,11 +161,13 @@ export const effets: Effets = {
     if (parfait === null) {
       tick();
       popupCouloir("Raté", lane, COL.bad);
+      casser(lane, songNow() / spb());
       return;
     }
     ev.passeAt = performance.now();
     popupCouloir(parfait ? "Parfait" : "Bien", lane, parfait ? COL.good : COL.fg);
     gerbe(lane, 10);
+    pincer(lane, songNow() / spb(), parfait);
   },
   phrase(notes, points) {
     // La réponse au chanteur (#18) entièrement juste : une gerbe dans chaque couloir de la phrase

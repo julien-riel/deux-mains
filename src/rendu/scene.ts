@@ -226,6 +226,7 @@ export function render(nb, dt) {
     rates: S.ev
       .filter((ev) => ev.state === "miss" && ev.missAt !== undefined && ev.beat > nb - 20 && ev.beat <= nb)
       .map((ev) => ({ beat: ev.beat, voie: ev.hand === "L" ? "basse" : ev.lane, at: ev.missAt })),
+    refrain: playing && curSec.kind === "refrain" ? refrainEnCours(nb, curSec) : null,
   };
   sc.fond(vue);
   // Les cibles des couloirs, à leur point d'impact : elles s'allument sous le doigt
@@ -522,6 +523,13 @@ export function render(nb, dt) {
   if (S.mode === "remontage") dessinerRemontage(pnow);
   // En mode tactile, les zones fixes autour de la scène (#79, ADR-0019)
   if (COMMANDES.tactile) dessinerZones(nb, pnow);
+}
+
+/** Le refrain en cours, en temps de la partie : en boucle, ses mesures reviennent (ADR-0009) */
+function refrainEnCours(nb: number, sec: { start: number; bars: number }) {
+  const ici = Math.floor(nb / 4),
+    debut = (ici - (mesureDeLaChanson(ici) - sec.start)) * 4;
+  return { debut, fin: debut + sec.bars * 4 };
 }
 
 export function keycap(x, y, label, color, down) {

@@ -1,29 +1,20 @@
 /* ---------- La scène de côté (ADR-0019) ---------- */
 // Le temps défile de droite à gauche, `PPB` pixels par temps. La mélodie arrive sur quatre couloirs horizontaux,
 // étagés de la fondamentale (en bas) à l'octave (en haut), jusqu'à la ligne de tir ; la basse arrive sur le sol,
-// jusqu'au personnage, à gauche de la ligne de tir. Les accords s'affichent en bandes dans le ciel et sur le sol.
-// Son décor dans chaque univers est dans `ville.ts` et `boite.ts` (`villeBack`, `boiteBack`…), qui reçoivent la
-// scène pour suivre son défilement.
+// jusqu'au personnage, à gauche de la ligne de tir. Elle est habillée en papier découpé (#78) : son décor, un
+// diorama dans chaque univers, ses couloirs en cordes et sa route sont dans `cote-papier.ts`, `cote-ville.ts` et
+// `cote-boite.ts`, qui reçoivent la scène pour suivre son défilement ; ses mesures dans `cote-mesures.ts`.
 import { PAS_PAR_TEMPS } from "../../chanson/temps";
 import { S, tracesAffichees } from "../../jeu/etat";
 import { COULEUR_BASSE, couleurDeLaTrace, pasDeLaTrace } from "../../jeu/traces";
-import { TH } from "../../univers/univers";
-import { boiteBack, boiteGround, drawComb } from "../boite";
-import { COL, FONT, H, LANE_HUE, PW, W, g, hexA, txt } from "../outils";
-import { villeBack, villeGround } from "../ville";
-import type { Bord, Pose, Scene, VueDeScene, Voie } from "./contrat";
+import { W } from "../outils";
+import type { Bord, Pose, Scene, Voie } from "./contrat";
+import { GY, HITX, LANE_Y, PPB, X_BASSE } from "./cote-mesures";
+import { fondPapier, solPapier } from "./cote-papier";
 
-// Le sol, la place du personnage, la ligne de tir et la vitesse de défilement
-const GY = 505,
-  PX = 210,
-  HITX = 300,
-  PPB = 150;
-/** La hauteur de chaque couloir, de la fondamentale à l'octave. Le tactile (ADR-0008) s'y aligne encore (#79). */
-export const LANE_Y = [395, 315, 235, 155];
-// Le personnage se tient au milieu de sa largeur ; le chanteur et ses notes passent au-dessus des couloirs ; le boss
-// plane à droite, à mi-hauteur des couloirs
-const X_BASSE = PX + PW / 2,
-  Y_CHANTEUR = LANE_Y[3] - 50,
+export { LANE_Y };
+// Le chanteur et ses notes passent au-dessus des couloirs ; le boss plane à droite, à mi-hauteur des couloirs
+const Y_CHANTEUR = LANE_Y[3] - 50,
   BOSS_X = W - 130,
   BOSS_Y = 275;
 
@@ -62,81 +53,9 @@ export const COTE: SceneDeCote = {
   boss: debout(BOSS_X, BOSS_Y),
   defile: (nb) => nb * PPB,
   traces: tracesVisibles,
-  fond,
-  sol,
+  fond: (vue) => fondPapier(vue, COTE),
+  sol: solPapier,
 };
-
-// Les mesures dont on voit l'accord : de celle qui vient de passer à celle qui entre par la droite
-const premiereMesure = (nb: number) => Math.max(0, Math.floor(nb / 4) - 1);
-const derniereMesure = (vue: VueDeScene) => Math.min(vue.fin - 1, Math.floor((vue.nb + COTE.avance) / 4) + 1);
-
-function fond(vue: VueDeScene) {
-  const { nb, hsl, pulsation: bp } = vue;
-  // Décor de l'univers choisi
-  if (vue.univers === "boite") boiteBack(nb, hsl, bp, COTE);
-  else villeBack(nb, hsl, bp, COTE);
-
-  // Zones d'accord (ciel, alignées sur la ligne de tir)
-  const bFirst = premiereMesure(nb),
-    bLast = derniereMesure(vue);
-  for (let bar = bFirst; bar <= bLast; bar++) {
-    const c = vue.accord(bar),
-      x0 = HITX + (bar * 4 - nb) * PPB;
-    g.fillStyle = hsl(c.hue, 70, 60, 0.07);
-    g.fillRect(x0, 96, 4 * PPB, GY - 136);
-    g.fillStyle = hsl(c.hue, 70, 65, 0.45);
-    g.fillRect(x0, 96, 2, GY - 136);
-    txt(c.name, x0 + 10, 122, `700 20px ${FONT.display}`, hsl(c.hue, 75, 72, 0.95));
-  }
-  // Les repères rythmiques propres à chaque main (#19) : en 3 contre 2, la mélodie a une ligne par croche ici, et
-  // la basse un repère par triolet sur le sol, plus bas
-  for (let b = Math.ceil(nb - 2); b < nb + 7; b++) {
-    if (vue.polyrythmie(b)) {
-      g.fillStyle = hexA(COL.mel, 0.16);
-      g.fillRect(HITX + (b + 0.5 - nb) * PPB, 134, 1, 286);
-    }
-    if (b % 4 === 0) continue;
-    g.fillStyle = vue.polyrythmie(b) ? hexA(COL.mel, 0.22) : "rgba(239,234,248,.05)";
-    g.fillRect(HITX + (b - nb) * PPB, 134, 1, 286);
-  }
-  // Couloirs et ligne de tir
-  for (let i = 0; i < 4; i++) {
-    g.fillStyle = hsl(LANE_HUE[i], 60, 70, vue.solo ? 0.14 + 0.1 * bp : 0.08);
-    g.fillRect(HITX, LANE_Y[i] - 1, W - HITX, 2);
-  }
-  g.fillStyle = hexA(COL.mel, 0.3);
-  g.fillRect(HITX - 1, 135, 2, 280);
-}
-
-function sol(vue: VueDeScene) {
-  const { nb, hsl } = vue;
-  // Le peigne de la Boîte, devant les cibles
-  if (vue.univers === "boite") drawComb(vue.pnow, hsl, COTE);
-
-  // Sol, teinté par l'accord (aligné sur le personnage)
-  if (vue.univers === "boite") boiteGround(nb, hsl, COTE);
-  else villeGround(nb, hsl, COTE);
-  const bLast = derniereMesure(vue);
-  for (let bar = premiereMesure(nb); bar <= bLast + 1 && bar < vue.fin; bar++) {
-    const c = vue.accord(bar),
-      x0 = X_BASSE + (bar * 4 - nb) * PPB;
-    g.fillStyle = hsl(c.hue, 60, 55, 0.14);
-    g.fillRect(x0, GY, 4 * PPB, 40);
-  }
-  for (let b = Math.ceil(nb - 2); b < nb + 8; b++) {
-    g.fillStyle = b % 4 === 0 ? hexA(COL.bass, 0.5) : "rgba(239,234,248,.12)";
-    g.fillRect(X_BASSE + (b - nb) * PPB, GY + 4, 2, b % 4 === 0 ? 14 : 7);
-    if (!vue.polyrythmie(b)) continue;
-    // Les triolets de la basse (#19) : deux repères de plus dans le temps, et un « 3 » au-dessus du groupe
-    g.fillStyle = hexA(COL.bass, 0.45);
-    for (const k of [1, 2]) g.fillRect(X_BASSE + (b + k / 3 - nb) * PPB, GY + 4, 2, 10);
-    txt("3", X_BASSE + (b + 1 / 3 - nb) * PPB, GY + 30, `700 11px ${FONT.mono}`, hexA(COL.bass, 0.7), "center");
-  }
-  g.fillStyle = hexA(COL.bass, 0.65);
-  g.fillRect(-12, GY, W + 24, 2);
-  g.fillStyle = TH().under;
-  g.fillRect(-12, GY + 40, W + 24, H - GY - 28);
-}
 
 /**
  * Les traces que le décor montre (#29), sur un plan qui défile à `vitesse` fois celle des notes : chacune là où
