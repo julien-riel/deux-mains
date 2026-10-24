@@ -122,7 +122,7 @@ describe("essai remontage-boite", () => {
     expect([S.mode, S.miss, S.health]).toEqual(["done", 0, 100]);
   });
 
-  it("au toucher et au clavier MIDI : la moitié gauche de l'écran fait les tours de la gauche, la table MIDI ceux de la droite", async () => {
+  it("au toucher et au clavier MIDI : la colonne gauche fait les tours de la gauche, la table MIDI ceux de la droite", async () => {
     nav = await Navigateur.ouvrir({
       tactile: true,
       midi: { permission: "granted", claviers: ["Clavier test"] },

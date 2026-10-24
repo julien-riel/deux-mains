@@ -3,6 +3,8 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { Note } from "../src/chanson/types";
+import { COULOIRS } from "../src/jeu/etat";
+import { actionAuPoint, zonesDansLaScene, zonesTactiles } from "../src/rendu/zones";
 import { appuis, coupsAttendus } from "./support/appuis";
 import { Navigateur, type Difficulte, type Univers } from "./support/navigateur";
 
@@ -14,8 +16,10 @@ const GRAINE = 4;
 const GRAINE_ACCORDS = 3;
 const UNIVERS: Univers[] = ["ville", "boite"];
 const DIFFICULTES: Difficulte[] = ["debutant", "facile", "normal", "difficile"];
-// Hauteur des couloirs sur la scène (1200 × 620), du plus grave au plus aigu
-const LANE_Y = [395, 315, 235, 155];
+// Le canvas fait 1200 × 620 : la colonne gauche prend un cinquième de la largeur (240), la rangée du bas un cinquième
+// de la hauteur (de 496 à 620), coupée en quatre zones de 240 de large, de l'index à l'auriculaire
+const ZONE_X = [360, 600, 840, 1080],
+  RANGEE_Y = 560;
 
 let nav: Navigateur;
 afterEach(() => nav?.fermer());
@@ -32,11 +36,11 @@ async function partieTactile(univers: Univers = "ville", difficulte: Difficulte 
 const spb = () => 60 / nav.jeu.state.song.bpm;
 const temps = (ev: Note) => ev.beat * spb();
 
-// Où poser le doigt : à gauche en haut pour sauter, à gauche en bas pour glisser ou écraser une plaque (#8),
-// à droite dans la bande du couloir
+// Où poser le doigt : sur la colonne gauche, en haut pour sauter, en bas pour glisser ou écraser une plaque (#8) ;
+// sur la zone du couloir, dans la rangée du bas
 function position(ev: Note): [number, number] {
   if (ev.hand === "L") return [100, ev.lane === 1 || ev.lane === 2 ? 100 : 500];
-  return [1000, LANE_Y[ev.lane]];
+  return [ZONE_X[ev.lane], RANGEE_Y];
 }
 
 /** Avance jusqu'au moment de la note, et renvoie le retard de l'image sur la note. */
@@ -107,6 +111,108 @@ describe("mode tactile", () => {
   });
 });
 
+describe("zones fixes (ADR-0019, #79)", () => {
+  it("la colonne gauche prend un cinquième de la largeur, la rangée un cinquième de la hauteur, la scène le reste", () => {
+    const z = zonesTactiles(1200, 620);
+    expect(z.scene).toEqual({ x: 240, y: 0, largeur: 960, hauteur: 496 });
+    // La scène garde les proportions de l'écran : son image n'est pas déformée
+    expect(z.scene.largeur / z.scene.hauteur).toBeCloseTo(1200 / 620, 9);
+    expect(z.sauter.y + z.sauter.hauteur).toBeLessThan(310);
+    expect(z.glisser.y).toBeGreaterThan(310);
+    // Quatre zones égales, de gauche à droite, sous la scène
+    expect(new Set(z.couloirs.map((c) => c.largeur)).size).toBe(1);
+    z.couloirs.forEach((c, i) => {
+      expect(c.y).toBeGreaterThanOrEqual(496);
+      expect(c.x + c.largeur / 2).toBeCloseTo(ZONE_X[i], 9);
+    });
+  });
+
+  it("donne l'action de chaque zone, et rien sur la scène", () => {
+    expect(actionAuPoint(100, 100, 1200, 620)).toBe("sauter");
+    expect(actionAuPoint(100, 500, 1200, 620)).toBe("glisser");
+    expect(ZONE_X.map((x) => actionAuPoint(x, RANGEE_Y, 1200, 620))).toEqual(COULOIRS);
+    expect(actionAuPoint(1200, 620, 1200, 620)).toBe("couloir3");
+    expect(actionAuPoint(600, 300, 1200, 620)).toBeNull();
+    // La même géométrie à n'importe quelle taille d'écran
+    expect(actionAuPoint(50, 90, 210, 100)).toBe("couloir0");
+    expect(actionAuPoint(40, 90, 210, 100)).toBe("glisser");
+  });
+
+  it("place les zones sous les quarts de la scène, dans son espace, pour les scènes qui veulent s'y aligner", () => {
+    const zones = zonesDansLaScene(1200, 620);
+    zones.forEach((c, i) => {
+      expect(c.x + c.largeur / 2).toBeCloseTo(((i + 0.5) * 1200) / 4, 9);
+      expect(c.y).toBeGreaterThanOrEqual(620);
+    });
+  });
+
+  it("toucher la zone du majeur presse couloir1, quelle que soit la scène", async () => {
+    const S = await partieTactile();
+    const { COTE } = await import("../src/rendu/scenes/cote");
+    const { SCENES_DESSINEES } = await import("../src/rendu/geometrie");
+    // Une scène dont les couloirs ne sont plus à leur hauteur de côté : la zone ne la suit pas
+    SCENES_DESSINEES.disque = { ...COTE, id: "disque", impact: () => ({ ...COTE.impact(0), y: 50 }) };
+    for (const scene of ["cote", "disque"] as const) {
+      S.scene = scene;
+      nav.image();
+      nav.toucher(1, ZONE_X[1], RANGEE_Y);
+      expect(S.keys).toEqual({ couloir1: true });
+      nav.lever(1);
+    }
+    delete SCENES_DESSINEES.disque;
+  });
+
+  it("un doigt posé sur la scène ne joue rien", async () => {
+    const S = await partieTactile();
+    const ev = S.song.ev.find((e) => e.hand === "R");
+    nav.toucher(1, 700, 250, attendre(temps(ev)));
+    expect(Object.values(S.keys).some(Boolean)).toBe(false);
+    expect(ev.state).toBe("pending");
+  });
+
+  it("la zone d'un couloir s'allume pendant le temps qui précède sa note, et seulement elle", async () => {
+    const S = await partieTactile();
+    const { annonces, ANNONCE } = await import("../src/rendu/commandes");
+    // Une note seule, sans autre note de son couloir dans les deux temps qui la précèdent
+    const ev = S.song.ev.find(
+      (e) =>
+        e.hand === "R" &&
+        Number.isInteger(e.lane) &&
+        !e.grp &&
+        !S.song.ev.some(
+          (o) => o !== e && o.hand === "R" && o.lane === e.lane && o.beat < e.beat && o.beat >= e.beat - 2,
+        ),
+    );
+    expect(annonces(ev.beat - ANNONCE - 0.5)[COULOIRS[ev.lane]] ?? 0).toBe(0);
+    expect(annonces(ev.beat - ANNONCE / 2)[COULOIRS[ev.lane]]).toBeCloseTo(0.5, 9);
+    expect(annonces(ev.beat)[COULOIRS[ev.lane]]).toBe(1);
+    const autres = S.song.ev.filter((e) => e.hand === "R" && Math.abs(e.beat - ev.beat) <= ANNONCE);
+    for (const l of [0, 1, 2, 3].filter((l) => !autres.some((e) => Math.floor(e.lane) === l)))
+      expect(annonces(ev.beat)[COULOIRS[l]]).toBeUndefined();
+    // Un obstacle allume la moitié de la colonne qui le joue
+    const saut = S.song.ev.find((e) => e.hand === "L" && e.lane === 1);
+    expect(annonces(saut.beat - 0.25).sauter).toBeCloseTo(0.75, 9);
+  });
+
+  it("en mode tactile, la scène se dessine dans le rectangle qui reste, et les six zones autour", async () => {
+    await partieTactile();
+    const { cadreDeLaScene } = await import("../src/rendu/geometrie");
+    expect(cadreDeLaScene()).toEqual({ x: 240, y: 0, largeur: 960, hauteur: 496 });
+    nav.image();
+    for (const t of ["SAUTE", "GLISSE", "index", "majeur", "annulaire", "auriculaire"]) expect(nav.textes).toContain(t);
+  });
+
+  it("au clavier, aucune zone n'est dessinée et la scène occupe tout le canvas", async () => {
+    nav = await Navigateur.ouvrir();
+    nav.jeu.load(GRAINE, "normal");
+    nav.presser("Space");
+    nav.image();
+    const { cadreDeLaScene } = await import("../src/rendu/geometrie");
+    expect(cadreDeLaScene()).toEqual({ x: 0, y: 0, largeur: 1200, hauteur: 620 });
+    for (const t of ["SAUTE", "GLISSE", "index", "majeur"]) expect(nav.textes).not.toContain(t);
+  });
+});
+
 describe.each(UNIVERS)("au doigt, univers %s", (univers) => {
   it.each(DIFFICULTES)("une chanson entière en %s, sans aucune note ratée", async (difficulte) => {
     await partieTactile(univers, difficulte);
@@ -168,7 +274,7 @@ describe("jugement au doigt", () => {
     avancerEnAuto(temps(accord));
     const couloirs = accord.grp.filter((e) => e.hand === "R").map((e) => e.lane);
     const ailleurs = [0, 1, 2, 3].find((l) => !couloirs.includes(l));
-    nav.toucher(1, 1000, LANE_Y[ailleurs], attendre(temps(accord)));
+    nav.toucher(1, ZONE_X[ailleurs], RANGEE_Y, attendre(temps(accord)));
     expect(accord.grp.filter((e) => e.hand === "R").every((e) => e.state === "pending")).toBe(true);
     expect(S.combo).toBe(0);
   });

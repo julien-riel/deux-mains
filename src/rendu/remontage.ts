@@ -97,7 +97,7 @@ export function dessinerRemontage(pnow: number) {
 
   // Les commandes : n'importe quelle touche de sa main fait son tour
   const aide = COMMANDES.tactile
-    ? "POUCE GAUCHE ET POUCE DROIT, CHACUN SUR SA MOITIÉ DE L'ÉCRAN"
+    ? "POUCE GAUCHE SUR LA COLONNE DE GAUCHE, POUCE DROIT SUR LES ZONES DU BAS"
     : `GAUCHE : ${KEYLABEL.KeyW} ${KEYLABEL.KeyS} ${KEYLABEL.Space} · DROITE : ${KEYLABEL.KeyJ} ${KEYLABEL.KeyK} ${KEYLABEL.KeyL} ${KEYLABEL.Semicolon} · ÉCHAP : PASSER`;
   txt(aide, W / 2, 596, `600 11px ${FONT.mono}`, COL.muted, "center");
 }
