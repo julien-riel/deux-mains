@@ -11,7 +11,7 @@ import { Navigateur, type Difficulte, type Univers } from "./support/navigateur"
 // Graine fixe (ADR-0005) : la même chanson à chaque passage
 const GRAINE = 4242;
 // Les scènes dessinées (`SCENES_DESSINEES`, src/rendu/geometrie.ts) : une scène nouvelle s'ajoute ici
-const SCENES: IdScene[] = ["cote"];
+const SCENES: IdScene[] = ["cote", "colonnes"];
 const UNIVERS: Univers[] = ["ville", "boite"];
 const DIFFICULTES: Difficulte[] = ["debutant", "facile", "normal", "difficile"];
 

@@ -43,7 +43,7 @@ describe("choix de la scène", () => {
   it("dessine la scène de côté à la place d'une scène qui n'est pas encore dessinée", async () => {
     nav = await Navigateur.ouvrir();
     const { scene, SCENES_DESSINEES } = await import("../src/rendu/geometrie");
-    expect(Object.keys(SCENES_DESSINEES)).toEqual(["cote"]);
+    expect(Object.keys(SCENES_DESSINEES)).toEqual(["cote", "colonnes"]);
     expect(scene().id).toBe("cote");
     nav.jeu.state.scene = "disque";
     expect(scene().id).toBe("cote");
@@ -101,6 +101,129 @@ describe("scène de côté", () => {
     expect(COTE.horsChamp(COTE.poser(-3, 2, 0), "devant", 40)).toBe(false);
     // Un serpent se trace d'un point tous les quatre pixels
     expect(COTE.poser(COTE.echantillon, 0, 0).x - COTE.impact(0).x).toBeCloseTo(4, 9);
+  });
+});
+
+describe("scène en colonnes", () => {
+  async function colonnes(tactile = false) {
+    nav = await Navigateur.ouvrir({ tactile });
+    const { COLONNES, CHUTE, xDeColonne } = await import("../src/rendu/scenes/colonnes");
+    const { COTE } = await import("../src/rendu/scenes/cote");
+    const outils = await import("../src/rendu/outils");
+    const zones = await import("../src/rendu/zones");
+    return { COLONNES, CHUTE, xDeColonne, COTE, W: outils.W, H: outils.H, ...zones };
+  }
+  const COULOIRS = [0, 1, 2, 3, 0.5, 1.5, 2.5];
+
+  it("pose une note au sol de sa colonne au moment de son temps, à sa taille, bien droite", async () => {
+    const { COLONNES } = await colonnes();
+    for (const nb of [0, 13.37, 250])
+      for (const voie of VOIES) {
+        const p = COLONNES.poser(nb, voie, nb);
+        expect(p).toEqual(COLONNES.impact(voie));
+        expect([p.echelle, p.angle, p.visible]).toEqual([1, 0, true]);
+      }
+  });
+
+  it("aligne les points d'impact des couloirs juste au-dessus du sol, de gauche à droite", async () => {
+    const { COLONNES, COTE } = await colonnes();
+    const sol = COLONNES.impact("basse");
+    // La basse reste de côté : le personnage, le sol et les obstacles de la scène de côté
+    expect(sol).toEqual(COTE.impact("basse"));
+    expect(COLONNES.poser(12, "basse", 10)).toEqual(COTE.poser(12, "basse", 10));
+    const impacts = COULOIRS.map((v) => COLONNES.impact(v));
+    expect(new Set(impacts.map((p) => p.y)).size).toBe(1);
+    expect(impacts[0].y).toBeLessThan(sol.y);
+    expect(sol.y - impacts[0].y).toBeLessThanOrEqual(40);
+    const xs = [0, 0.5, 1, 1.5, 2, 2.5, 3].map((v) => COLONNES.impact(v).x);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    expect(COLONNES.impact(1.5).x).toBe((COLONNES.impact(1).x + COLONNES.impact(2).x) / 2);
+    // Le personnage court à gauche de la première colonne
+    expect(sol.x).toBeLessThan(COLONNES.impact(0).x);
+  });
+
+  it("garde la note dans l'avion jusqu'au largage, puis la fait tomber droit dans sa colonne", async () => {
+    const { COLONNES, CHUTE } = await colonnes();
+    for (const voie of COULOIRS) {
+      const temps = 40,
+        impact = COLONNES.impact(voie);
+      // Dans la soute : cachée, pas encore entrée dans le champ, à droite et plus haut que sa colonne
+      const soute = COLONNES.poser(temps, voie, temps - CHUTE - 0.5);
+      expect(soute.visible).toBe(false);
+      expect(COLONNES.horsChamp(soute, "devant", 40)).toBe(true);
+      expect(soute.x).toBeGreaterThan(impact.x);
+      expect(soute.y).toBeLessThan(impact.y);
+      // Larguée : elle descend à chaque instant, sans quitter sa colonne
+      let avant = -Infinity;
+      for (let nb = temps - CHUTE; nb <= temps; nb += 0.125) {
+        const p = COLONNES.poser(temps, voie, nb);
+        expect(p.visible).toBe(true);
+        expect(COLONNES.horsChamp(p, "devant", 0)).toBe(false);
+        expect(Math.abs(p.x - impact.x)).toBeLessThanOrEqual(6);
+        expect(p.y).toBeGreaterThan(avant);
+        avant = p.y;
+      }
+      // Passé son temps, elle s'enfonce sous le sol et sort du champ
+      expect(COLONNES.horsChamp(COLONNES.poser(temps, voie, temps + 0.1), "derriere", 0)).toBe(false);
+      expect(COLONNES.horsChamp(COLONNES.poser(temps, voie, temps + 2), "derriere", 0)).toBe(true);
+    }
+  });
+
+  it("largue d'un même avion les notes d'une colonne plus à gauche une croche plus tard", async () => {
+    const { COLONNES, CHUTE } = await colonnes();
+    const nb = 10,
+      a = COLONNES.poser(nb + CHUTE + 1, 3, nb),
+      b = COLONNES.poser(nb + CHUTE + 1.5, 2, nb);
+    expect(b.x).toBeCloseTo(a.x, 9);
+    expect(b.y).toBeCloseTo(a.y, 9);
+  });
+
+  it("au clavier, place chaque colonne là où sera sa zone de doigt, à droite d'une bande d'un cinquième", async () => {
+    const { xDeColonne, zonesTactiles, W, H } = await colonnes();
+    const zones = zonesTactiles(W, H);
+    for (let i = 0; i < 4; i++) {
+      const z = zones.couloirs[i];
+      expect(xDeColonne(i)).toBeCloseTo(z.x + z.largeur / 2, 9);
+    }
+    expect(xDeColonne(0) - (xDeColonne(1) - xDeColonne(0)) / 2).toBeCloseTo(W / 5, 9);
+  });
+
+  it("en mode tactile, met chaque colonne exactement au-dessus de sa zone", async () => {
+    const { COLONNES, xDeColonne, zonesDansLaScene, W, H } = await colonnes(true);
+    const { cadreDeLaScene } = await import("../src/rendu/geometrie");
+    const { zonesTactiles } = await import("../src/rendu/zones");
+    expect(cadreDeLaScene()).toEqual(zonesTactiles(W, H).scene);
+    zonesDansLaScene(W, H).forEach((z, i) => {
+      expect(xDeColonne(i)).toBeCloseTo(z.x + z.largeur / 2, 9);
+      expect(COLONNES.impact(i).x).toBeCloseTo(z.x + z.largeur / 2, 9);
+      // Ramenée à l'écran par le cadre de la scène, la colonne tombe au milieu de sa zone
+      const c = cadreDeLaScene(),
+        zone = zonesTactiles(W, H).couloirs[i];
+      expect(c.x + (xDeColonne(i) * c.largeur) / W).toBeCloseTo(zone.x + zone.largeur / 2, 9);
+    });
+  });
+
+  it("montre la légende des couloirs au pied de leur colonne, et ses essais la dessinent dès la première mesure", async () => {
+    for (const id of ["colonnes-ville", "colonnes-boite"]) {
+      nav = await Navigateur.ouvrir({ adresse: { search: `?essai=${id}` } });
+      const { scene } = await import("../src/rendu/geometrie");
+      const outils = await import("../src/rendu/outils");
+      expect(nav.jeu.state.scene).toBe("colonnes");
+      expect(scene().id).toBe("colonnes");
+      const sc = scene();
+      for (let i = 0; i < 4; i++) {
+        const e = sc.etiquette(i);
+        expect(Math.abs(e.x + 70 - sc.impact(i).x)).toBeLessThan(1e-9);
+        expect(e.y).toBeGreaterThan(sc.impact("basse").y);
+      }
+      // L'auto-play la joue dès la première mesure : les ennemis tombent en parachute, les avions passent
+      const fillText = vi.spyOn(outils.g, "fillText");
+      nav.presser("KeyA");
+      nav.avancerJusqua(() => nav.horloge.secondes > 4, 10);
+      nav.image();
+      expect(fillText).toHaveBeenCalledWith("FONDAMENTALE", sc.etiquette(0).x + 40, expect.any(Number));
+      nav.fermer();
+    }
   });
 });
 
