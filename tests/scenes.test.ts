@@ -236,6 +236,107 @@ describe("scène en colonnes", () => {
   });
 });
 
+describe("scène vers l'horizon", () => {
+  async function horizon() {
+    nav = await Navigateur.ouvrir();
+    const { HORIZON } = await import("../src/rendu/scenes/horizon");
+    const perspective = await import("../src/rendu/scenes/perspective");
+    return { HORIZON, ...perspective };
+  }
+  const RAILS: Voie[] = [0, 1, 2, 3];
+
+  it("pose une note au temps nb à son point d'impact, debout, un peu plus grande que de côté", async () => {
+    const { HORIZON, ECHELLE } = await horizon();
+    for (const nb of [0, 13.37, 250])
+      for (const voie of VOIES) {
+        const p = HORIZON.poser(nb, voie, nb);
+        expect(p).toEqual(HORIZON.impact(voie));
+        expect([p.echelle, p.angle, p.visible]).toEqual([ECHELLE, 0, true]);
+      }
+  });
+
+  it("range les rails de gauche à droite comme J K L ;, au-dessus du personnage, qui est au bas de la route", async () => {
+    const { HORIZON, VPX, VPY } = await horizon();
+    const x = RAILS.map((v) => HORIZON.impact(v).x),
+      basse = HORIZON.impact("basse");
+    expect(x).toEqual([...x].sort((a, b) => a - b));
+    for (const v of RAILS) expect(HORIZON.impact(v).y).toBeLessThan(basse.y - 100);
+    expect([basse.x, basse.y > VPY]).toEqual([VPX, true]);
+    // Une petite note se tient entre ses deux rails, le chanteur au-dessus des rails du milieu
+    const milieu = HORIZON.impact(1.5);
+    expect(milieu.x).toBeCloseTo((HORIZON.impact(1).x + HORIZON.impact(2).x) / 2, 9);
+    expect(HORIZON.impact("chanteur").y).toBeLessThan(milieu.y);
+  });
+
+  it("fait venir chaque note du point de fuite, de plus en plus petite au loin", async () => {
+    const { HORIZON, VPX, VPY } = await horizon();
+    for (const voie of VOIES) {
+      const d = (p: Pose) => Math.hypot(p.x - VPX, p.y - VPY);
+      const poses = [0, 0.5, 1, 2, 4].map((dz) => HORIZON.poser(10 + dz, voie, 10));
+      for (let i = 1; i < poses.length; i++) {
+        expect(d(poses[i])).toBeLessThan(d(poses[i - 1]));
+        expect(poses[i].echelle).toBeLessThan(poses[i - 1].echelle);
+      }
+    }
+  });
+
+  it("sépare deux notes à un tiers de temps l'une de l'autre, à un temps du point d'impact (triolets de Difficile)", async () => {
+    const { HORIZON } = await horizon();
+    // Le corps d'un ennemi fait 20 pixels à l'échelle 1 (le drone du refrain) : on veut une fois et demie sa taille
+    const ecart = (a: Pose, b: Pose) => Math.hypot(a.x - b.x, a.y - b.y) / (20 * a.echelle);
+    for (const voie of RAILS)
+      expect(ecart(HORIZON.poser(11, voie, 10), HORIZON.poser(11 + 1 / 3, voie, 10))).toBeGreaterThan(1.5);
+    // Une petite note, sur une croche faible entre deux rails, et les notes des deux rails une croche avant et après
+    for (const petite of [0.5, 1.5, 2.5])
+      for (const voisin of [petite - 0.5, petite + 0.5])
+        for (const dz of [-0.5, 0.5])
+          expect(ecart(HORIZON.poser(11, petite, 10), HORIZON.poser(11 + dz, voisin, 10))).toBeGreaterThan(1.5);
+  });
+
+  it("montre quatre temps à l'avance, et oublie ce qui est passé derrière la caméra", async () => {
+    const { HORIZON, AVANCE } = await horizon();
+    expect(HORIZON.avance).toBe(AVANCE);
+    for (const voie of VOIES) {
+      expect(HORIZON.horsChamp(HORIZON.poser(AVANCE, voie, 0), "devant", 0)).toBe(false);
+      expect(HORIZON.horsChamp(HORIZON.poser(AVANCE + 1, voie, 0), "devant", 40)).toBe(true);
+      expect(HORIZON.horsChamp(HORIZON.poser(AVANCE + 1, voie, 0), "derriere", 40)).toBe(false);
+      expect(HORIZON.horsChamp(HORIZON.poser(0, voie, 0), "derriere", 0)).toBe(false);
+      expect(HORIZON.horsChamp(HORIZON.poser(-1.5, voie, 0), "derriere", 40)).toBe(true);
+      expect(HORIZON.horsChamp(HORIZON.poser(-1.5, voie, 0), "devant", 40)).toBe(false);
+    }
+  });
+
+  it("dessine le personnage vu de dos, la main levée vers les rails", async () => {
+    nav = await Navigateur.ouvrir({ adresse: { search: "?essai=horizon-ville" } });
+    nav.presser("KeyA");
+    nav.avancerJusqua(() => nav.horloge.secondes > 4, 6);
+    const { scene } = await import("../src/rendu/geometrie");
+    expect(scene().id).toBe("horizon");
+    const basse = scene().impact("basse"),
+      [gx, gy] = nav.jeu.state.gun;
+    expect(Math.abs(gx - basse.x)).toBeLessThan(60);
+    expect(gy).toBeLessThan(basse.y - 80);
+  });
+
+  it("n'a ni tremblement ni lignes de vitesse en « Mouvement réduit »", async () => {
+    nav = await Navigateur.ouvrir();
+    let { lignesDeVitesse } = await import("../src/rendu/scenes/horizon");
+    expect(lignesDeVitesse(12, 1).length).toBeGreaterThan(0);
+    expect(lignesDeVitesse(12, 0.3)).toEqual([]);
+    nav.fermer();
+    nav = await Navigateur.ouvrir({ mouvementReduit: true, adresse: { search: "?essai=horizon-ville" } });
+    ({ lignesDeVitesse } = await import("../src/rendu/scenes/horizon"));
+    expect(lignesDeVitesse(12, 1)).toEqual([]);
+    // Le personnage écrase la plaque sans secouer la scène
+    nav.presser("KeyA");
+    nav.avancerJusqua(() => nav.horloge.secondes > 3, 4);
+    const { effets } = await import("../src/jeu/effets");
+    const plaque = { ...nav.jeu.state.ev.find((e) => e.hand === "L"), lane: 3 };
+    effets.reussite(plaque, true, 0);
+    expect(nav.jeu.state.shake).toBe(0);
+  });
+});
+
 describe("rendu commun", () => {
   // Une scène de côté penchée et agrandie, dont le personnage est déplacé : de quoi voir que le rendu commun suit
   // les poses qu'on lui donne
